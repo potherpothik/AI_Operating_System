@@ -1,0 +1,5 @@
+# Path pattern -> owner routing for agent-originated change proposals.
+# Standard CODEOWNERS convention: last matching pattern wins, so put more
+# specific patterns after general ones.
+*                 @human_admin
+addons/odoo/**    @odoo-team
