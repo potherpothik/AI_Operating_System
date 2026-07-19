@@ -1,0 +1,28 @@
+agent_capability: devops_agent
+commands:
+  # devops.propose_pipeline_change / devops.propose_infra_change both land
+  # as a Git Manager MR (CI config / infra-as-code files) — same
+  # read-only inspection + scoped mutating branch pattern as odoo_agent.
+  # No direct docker/deploy commands here at all: execution.execute_deploy
+  # and direct_infra_change are structurally out of reach, not just
+  # policy-denied one layer up (Phase 10 doc, Section 3).
+  - pattern: "git status*"
+    mode: read_only
+  - pattern: "git diff*"
+    mode: read_only
+  - pattern: "git log*"
+    mode: read_only
+  - pattern: "git show*"
+    mode: read_only
+  - pattern: "git rev-parse*"
+    mode: read_only
+  - pattern: "git branch*"
+    mode: read_only
+  - pattern: "git checkout -b devops-agent/*"
+    mode: mutating
+  - pattern: "git add *"
+    mode: mutating
+  - pattern: "git commit *"
+    mode: mutating
+  - pattern: "git push origin devops-agent/*"
+    mode: mutating

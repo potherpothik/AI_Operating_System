@@ -96,7 +96,31 @@ the tested deployment path.
 Add a block to `governance/security/policies/default.yaml` (or a new `.yaml`
 file in the same directory — all of them load) following the existing
 `odoo_agent` example, then `POST /security/reload` to pick it up without a
-restart.
+restart. If the agent's mutating actions route through Git Manager (Phase
+6), its role block also needs `shell.execute: allow` alongside the `git.*`
+actions — Git Manager's own branch/commit/push calls re-check
+`shell.execute` for the same capability at the Shell Executor layer, so
+omitting it silently denies every git action even though `git.*` itself
+is allowed (a real bug caught by Phase 10's live testing, documented in
+`services/agents/README.md`). **`/security/reload` only re-parses policy
+YAML — it does not pick up new API routes.** Adding a genuinely new
+endpoint (like Phase 10's `POST /security/verify_environment`) needs a
+process restart, not just a reload; a call to a not-yet-restarted
+process returns a generic `404`, easy to misread as a policy denial.
+
+## Phase 7 / Phase 10 additions
+
+- `POST /security/secrets/resolve` (Phase 7): fail-closed credential
+  resolution for Database Connector, backed by `secrets_registry.yaml`
+  (an env-var-indirection registry, never real credentials committed).
+- `POST /security/verify_environment` (Phase 10): Testing Agent's
+  structural gate — verifies a resolved execution target is a
+  designated sandbox before every `testing.run_suite`, backed by the
+  same indirection-registry pattern (`environment_registry.yaml`).
+  Every decision is both audit-logged (same as everything else) and
+  persisted to its own `test_execution_target` table, so "did we
+  actually check before this run" is answerable without cross-
+  referencing the general audit log.
 
 ## Next
 

@@ -297,3 +297,50 @@ def db_migrate(target_platform: str, description: str, capability: str, requesti
         return {"ok": False, "error": e.response.json().get("detail", str(e))}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": str(e)}
+
+
+def shell_execute(command: str, args: list, working_dir: str, capability: str, requesting_agent: str,
+                  mode: str, task_id: str = None, correlation_id: str = "") -> dict:
+    """
+    First caller of Phase 6's POST /shell/execute directly from Reasoning
+    Engine — docker.inspect (read-only) and testing.run_suite both need
+    the sandboxed command's REAL output fed back into reasoning, the same
+    tool-call shape database_bridge.py already established for db.read.
+    """
+    try:
+        resp = httpx.post(
+            f"{EXECUTION_URL}/shell/execute",
+            json={
+                "command": command, "args": args, "working_dir": working_dir, "capability": capability,
+                "requesting_agent": requesting_agent, "task_id": task_id, "mode": mode, "correlation_id": correlation_id,
+            },
+            timeout=60.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, "result": resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
+def verify_environment(resolved_environment: str, capability: str, correlation_id: str = "") -> dict:
+    """
+    Testing Agent's structural gate (Phase 10 doc, Section 5): fails
+    closed exactly like clients.authorize does — an unreachable Security
+    Layer must never be read as "this is a safe sandbox."
+    """
+    try:
+        resp = httpx.post(
+            f"{SECURITY_LAYER_URL}/security/verify_environment",
+            json={"resolved_environment": resolved_environment, "capability": capability, "correlation_id": correlation_id},
+            timeout=10.0,
+        )
+        if resp.status_code == 403:
+            return {"ok": False, "error": resp.json().get("detail", "environment verification denied")}
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"security layer unreachable, failing closed: {e}"}

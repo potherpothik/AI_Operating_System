@@ -104,6 +104,14 @@ that, not a bare rlimit. Locked in as a permanent regression test
   disposable repo, verified independently by reading the remote's log
   and file contents directly, not just trusting the returned status. See
   `services/agents/agents/reasoning_engine/execution_bridge.py`.
+- **Phase 10's `devops_agent`, `docker_agent`, and `testing_agent`
+  allowlists reuse this exact mechanism with zero code changes** — new
+  YAML files under `allowlists/`, nothing else. `docker_agent.yaml` has
+  no mutating command at all (only read-only `docker ps`/`logs`/
+  `inspect`/`compose` patterns plus its own scoped git branch for
+  `docker.propose_compose_change`) — `docker exec`/`stop`/`rm` are
+  structurally absent, not merely policy-denied one layer up, confirmed
+  by `test_docker_agent_has_no_mutating_commands_at_all`.
 
 ## What's a stub or simplified
 

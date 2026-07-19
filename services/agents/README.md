@@ -1,10 +1,11 @@
-# Phase 5 — Reasoning Engine, Odoo Agent, Database Agent & Planner (working implementation)
+# Phase 5/7/8/10 — Reasoning Engine + six agents (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
-Odoo Agent (Phase 5), Database Agent (Phase 7), and Planner (Phase 8) all
-run on it — each a thin capability declaration (`capability.yaml`) plus a
-prompt template (`template.md`), not a bespoke service of its own.
+Odoo Agent (Phase 5), Database Agent (Phase 7), Planner (Phase 8), and
+now Django Agent, DevOps Agent, Docker Agent, and Testing Agent (Phase
+10) all run on it — each a thin capability declaration (`capability.yaml`)
+plus a prompt template (`template.md`), not a bespoke service of its own.
 Database Agent also needed Reasoning Engine to gain a small,
 explicitly-scoped tool-call mechanism (`database_bridge.py`) for its
 mandatory dry-run-before-write pattern — the first time this loop calls
@@ -13,7 +14,13 @@ routing. Planner needed a fail-closed precondition (no model call at all
 if Capability Registry is unreachable) and a code-level override on two
 of the shared schema's fields (`delegate_to`, `risk_classification`)
 whose generic meaning turned out not to apply to a capability whose job
-is deciding how work is routed, not doing the work itself.
+is deciding how work is routed, not doing the work itself. Phase 10's
+four agents needed no new infrastructure at all — `execution_bridge.py`
+and `database_bridge.py` were already generic enough to reuse unchanged
+for their `propose_*` actions, and the only genuinely new mechanism
+(`shell_bridge.py`) is a small tool-call extension of the same pattern
+`database_bridge.py` established, for Docker Agent's read-only
+`docker.inspect` and Testing Agent's `testing.run_suite`.
 
 ## Run it
 
@@ -44,7 +51,8 @@ uvicorn main:app --port 8005
 ```
 
 On startup this service auto-loads every `agents/<name>/capability.yaml`
-it finds (currently `odoo_agent`, `database_agent`, and `planner`) into
+it finds (currently `odoo_agent`, `database_agent`, `planner`,
+`django_agent`, `devops_agent`, `docker_agent`, and `testing_agent`) into
 its own DB, and best-effort attempts to register each agent's prompt
 template with Prompt Builder. Template registration is approval-gated
 through governance (same as every other template) — a human still has
@@ -55,6 +63,10 @@ them can actually run:
 curl -X POST localhost:8005/odoo_agent/register       # check/retry registration
 curl -X POST localhost:8005/database_agent/register
 curl -X POST localhost:8005/planner/register
+curl -X POST localhost:8005/django_agent/register
+curl -X POST localhost:8005/devops_agent/register
+curl -X POST localhost:8005/docker_agent/register
+curl -X POST localhost:8005/testing_agent/register
 # find the approval_id from the response or GET /approval/pending on governance, then:
 curl -X POST localhost:8000/approval/<approval_id>/decide \
   -d '{"decided_by":"human_admin","approve":true}'
@@ -95,12 +107,18 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live 6-service stack + live Ollama
 ```
 
-27 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+38 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a deliberately
 non-UTC session) and a real live Ollama model — not mocked, except for
 deliberately-stubbed tests (see below) used specifically where live-model
 phrasing would make a test non-deterministic without changing what's
-actually being verified.
+actually being verified. `tests/test_phase10_agents.py` (Phase 10)
+covers all four new agents: capability-registry boundaries, both
+propose-action bridges against a real disposable Git repo, the
+`shell_bridge.py` tool-call round trip against a real command, Testing
+Agent's environment verification (both allow and deny paths, plus
+fail-closed on an unregistered name), and one live-model smoke test each
+for Django Agent and DevOps Agent.
 
 ## Real bugs found by live testing, not the test suite
 
@@ -128,6 +146,27 @@ actually being verified.
   schema-retry path and the tool-call-result-injection path now build
   from `current_task_description`, never the original parameter), locked
   in as `test_schema_invalid_retry_does_not_discard_earlier_tool_call_context`.
+- **DevOps Agent's policy role was missing `shell.execute: allow`**
+  (Phase 10). `git.branch`/`git.commit`/`git.push` were correctly allowed
+  for `devops_agent`, but Git Manager internally routes every one of
+  those through Shell Executor, which re-checks `shell.execute` for the
+  *same* capability — omitting it silently denied every git action even
+  though `git.*` itself was allowed. Invisible from reading
+  `default.yaml` alone (every rule present looked correct); only surfaced
+  by actually running `devops.propose_pipeline_change` through
+  `resume()` against a live Git Manager and getting `stage: "branch"`
+  back instead of `stage: "open_mr"`. Fixed by adding the same
+  `shell.execute: allow` line `odoo_agent`'s role already carried for
+  exactly this reason.
+- **Governance's policy hot-reload (`POST /security/reload`) does not
+  pick up new *routes*, only new *rules*.** Adding
+  `/security/verify_environment` to `api.py` required restarting the
+  governance process — reload only re-parses `default.yaml` into the
+  already-running `PolicyEngine`, it doesn't re-import FastAPI's route
+  table. Cost real debugging time mid-session (a live call to the new
+  endpoint returned a generic `404 Not Found` indistinguishable at first
+  glance from a policy denial) before the actual cause — stale process,
+  not stale policy — was confirmed.
 
 ## What's real
 
@@ -191,6 +230,40 @@ actually being verified.
   fixed with a structural override in `_decide_routing`, not just a
   prompt instruction, since a live model reasonably applied the generic
   guidance to Planner too.
+- **Phase 10's four new agents needed zero Reasoning Engine dispatch
+  logic beyond a set membership check.** `django.propose_migration`,
+  `devops.propose_pipeline_change`, `devops.propose_infra_change`,
+  `docker.propose_compose_change`, and `testing.propose_new_test` all
+  reuse `execution_bridge.materialize_propose_change()` and
+  `database_bridge.materialize_propose_migration()` completely unchanged —
+  confirmed live, not just by inspection: `test_django_propose_migration_reaches_the_real_migration_adapter`
+  and `test_devops_propose_pipeline_change_materializes_as_real_branch_commit_push`
+  drive an approved execution through `resume()` and land a real
+  migration-adapter call / real branch+commit+push respectively, with no
+  agent-specific code in either bridge.
+- **Planner requires zero code changes to route to any of the four new
+  agents**, confirmed live rather than just by architecture: after
+  `POST /capabilities/sync` on Phase 8's Capability Registry, a live
+  Planner call asking to "explain the CI/CD pipeline" produced a
+  `task_graph` routing to `devops_agent`, and a "report test coverage"
+  question routed to `testing_agent` — the exact claim the Phase 10 doc
+  makes in Section 1.
+- **Testing Agent's environment verification is a real, structural gate,
+  not policy convention** (Phase 10, Section 5): `shell_bridge.py` calls
+  Security Layer's `POST /security/verify_environment` *before* every
+  `testing.run_suite` tool call, and a denial there means the shell
+  command is never even attempted — confirmed live for three cases: a
+  registered sandbox (`test_sandbox_1`, runs for real), a registered
+  non-sandbox (`production_erp`, denied, audited, never executes), and an
+  unregistered name (denied identically — fail-closed, not "assumed
+  safe because it isn't explicitly marked unsafe").
+- **`docker.inspect` and `testing.run_suite` are genuine tool calls, not
+  agent self-reports** (`shell_bridge.py`, mirroring `database_bridge.py`'s
+  `db.read` pattern): the model's declared command actually runs via
+  Shell Executor, and the real stdout is fed back into the *next* turn's
+  prompt — confirmed live by asserting the exact real output (a real git
+  commit message) is absent from the first turn's prompt and present on
+  the second.
 
 ## What's a stub or simplified
 
@@ -225,9 +298,28 @@ actually being verified.
   Planner happened to omit optional fields rather than send `null`
   explicitly, so this was live and unnoticed since Phase 5. Fixed with
   `Optional[str] = None`.
+- **Django Agent's `django.explain_structure` and DevOps Agent's
+  `devops.explain_topology` still only see whatever Documentation
+  Engine (Phase 9) has ingested**, per the Phase 10 doc's explicit
+  `known_limitation` — no live source-code analysis until Code Analysis
+  Engine (Phase 11) exists.
+- **`docker.inspect` and `testing.run_suite` were verified against `git`
+  and `echo`, not real `docker`/`pytest` binaries** — this environment
+  has neither installed nor on Shell Executor's minimal safe-env `PATH`
+  (same class of constraint already documented in
+  `services/execution/README.md` for `DockerSandbox`). The tool-call
+  wiring itself — real command out, real result back into the next
+  turn's prompt — is genuinely verified; a real `docker`/`pytest`
+  installation would need no code change here, only allowlist entries
+  that already exist in `docker_agent.yaml`/`testing_agent.yaml`.
+- **Deployment execution for DevOps Agent is out of scope by design**,
+  not a placeholder for something half-built — the Phase 10 doc defers
+  it to its own future phase, the same way real database writes got
+  Phase 7 rather than riding along with Phase 6.
 
 ## Next
 
-Phase 9: Documentation Engine + ERP Knowledge Engine — every agent built
-so far, and Planner itself, has been reasoning over placeholder cached
-schema and business memory rather than real ingested documentation.
+Phase 11: Code Analysis Engine — closes the gap Phase 10 explicitly
+surfaced (Django Agent's dependence on documentation-level understanding
+alone) before the next agent batch (business agents: Costing, Inventory,
+Accounting, Manufacturing, Sales, Project Management).

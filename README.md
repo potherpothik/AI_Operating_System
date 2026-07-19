@@ -23,12 +23,13 @@ considered, trade-offs, security implications) before diving into code.
 | 7 | Database Connector, Database Agent | [`docs/phase-7-database-connector-agent.md`](docs/phase-7-database-connector-agent.md) | [`services/database/`](services/database/) — 40 tests (Database Agent itself lives in `services/agents/agents/database_agent/`) |
 | 8 | Planner, Capability Registry | [`docs/phase-8-planner-capability-registry.md`](docs/phase-8-planner-capability-registry.md) | [`services/planning/`](services/planning/) — 27 tests (Planner itself lives in `services/agents/agents/planner/`) |
 | 9 | Documentation Engine, ERP Knowledge Engine | [`docs/phase-9-documentation-erp-knowledge-engine.md`](docs/phase-9-documentation-erp-knowledge-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 27 tests |
-| 10 | Django, DevOps, Docker, Testing Agents | [`docs/phase-10-django-devops-docker-testing-agents.md`](docs/phase-10-django-devops-docker-testing-agents.md) | not yet built |
+| 10 | Django, DevOps, Docker, Testing Agents | [`docs/phase-10-django-devops-docker-testing-agents.md`](docs/phase-10-django-devops-docker-testing-agents.md) | [`services/agents/`](services/agents/) — 38 tests (all four agents live in `services/agents/agents/{django_agent,devops_agent,docker_agent,testing_agent}/`) |
 | 11 | Code Analysis Engine | [`docs/phase-11-code-analysis-engine.md`](docs/phase-11-code-analysis-engine.md) | not yet built |
 | 12–21 | Extensibility, observability, remaining agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 
-Nine services are real, tested code today; everything past Phase 9 is
-fully designed but not yet implemented.
+Nine services are real, tested code today, now hosting ten phases' worth
+of agents and subsystems; everything past Phase 10 is fully designed but
+not yet implemented.
 
 ## Running what exists
 
@@ -167,6 +168,20 @@ connection string format and what's been verified against it (including
   real relational data with a real foreign key, but not an actual Odoo
   instance, so there's no real module-manifest concept to introspect.
   Full detail in `services/knowledge_pipelines/README.md`.
+- **Phase 10's four new agents** (Django, DevOps, Docker, Testing) needed
+  no new services and almost no new Reasoning Engine code — `propose_*`
+  actions reuse Phase 6's and Phase 7's existing bridges unchanged, and
+  Planner routes to all four with zero Planner code changes (confirmed
+  live: a "explain the CI/CD pipeline" question routed to `devops_agent`,
+  a "report test coverage" question routed to `testing_agent`, after a
+  plain `POST /capabilities/sync`). The one genuinely new mechanism —
+  Testing Agent's `testing.run_suite` — can only run against an
+  execution target Security Layer has structurally verified as a
+  sandbox, checked fresh before every single run; `docker.inspect` and
+  `testing.run_suite` were verified against `git`/real disposable repos
+  rather than actual `docker`/`pytest` binaries, since neither is
+  installed or on Shell Executor's minimal safe-env `PATH` in this
+  environment. Full detail in `services/agents/README.md`.
 - Every "what's a stub" note in each service's own README is there because
   it materially affects what you should and shouldn't trust yet — read
   those before deploying anything here for real.
@@ -190,6 +205,14 @@ self-assessed `risk_classification`) to a routing-only capability they
 were never meant for; Phase 9 extended Phase 7's `GET /db/schema/{target}`
 to return foreign keys, not just column names, since ERP Knowledge
 Engine's structured relationship graph needed real data Phase 7 never
-had a reason to expose. That pattern — build the phase that unblocks
-what already exists before adding more surface area — is the intended
-way to keep extending this.
+had a reason to expose. Phase 10 needed a genuinely new governance
+mechanism (`POST /security/verify_environment`, Testing Agent's
+structural sandbox-vs-production gate) and one real policy-file bug fix
+(`devops_agent` was missing `shell.execute: allow` even though `git.*`
+was present, since Git Manager's own calls re-check `shell.execute` for
+the same capability at the Shell Executor layer) — but otherwise reused
+Phase 6's and Phase 7's execution bridges completely unchanged for all
+four new agents' `propose_*` actions, the strongest evidence yet that
+the shared-infrastructure bet made in Phases 4–8 was the right one. That
+pattern — build the phase that unblocks what already exists before
+adding more surface area — is the intended way to keep extending this.

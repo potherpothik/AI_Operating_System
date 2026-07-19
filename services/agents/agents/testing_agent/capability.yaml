@@ -1,0 +1,12 @@
+capability: testing_agent
+allowed_actions:
+  - testing.run_suite
+  - testing.propose_new_test
+  - testing.report_coverage
+forbidden_actions:
+  - testing.run_against_prod
+  - testing.direct_ci_change
+requires_approval:
+  - testing.propose_new_test
+classification_ceiling: internal
+template_id: testing_agent

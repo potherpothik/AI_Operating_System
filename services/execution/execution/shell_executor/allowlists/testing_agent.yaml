@@ -1,0 +1,39 @@
+agent_capability: testing_agent
+commands:
+  # testing.run_suite (Phase 10 doc, Section 5) — declared read_only since
+  # it has no real-world mutating effect; the actual safety gate for
+  # *where* these run is Security Layer's /security/verify_environment,
+  # not this allowlist. Confined to the sandbox working_dir Shell Executor
+  # already enforces per invocation.
+  - pattern: "pytest*"
+    mode: read_only
+  - pattern: "python -m pytest*"
+    mode: read_only
+  - pattern: "python3 -m pytest*"
+    mode: read_only
+  - pattern: "coverage run*"
+    mode: read_only
+  - pattern: "coverage report*"
+    mode: read_only
+  # testing.propose_new_test lands as a Git Manager MR — same read-only
+  # inspection + scoped mutating branch pattern as odoo_agent.
+  - pattern: "git status*"
+    mode: read_only
+  - pattern: "git diff*"
+    mode: read_only
+  - pattern: "git log*"
+    mode: read_only
+  - pattern: "git show*"
+    mode: read_only
+  - pattern: "git rev-parse*"
+    mode: read_only
+  - pattern: "git branch*"
+    mode: read_only
+  - pattern: "git checkout -b testing-agent/*"
+    mode: mutating
+  - pattern: "git add *"
+    mode: mutating
+  - pattern: "git commit *"
+    mode: mutating
+  - pattern: "git push origin testing-agent/*"
+    mode: mutating
