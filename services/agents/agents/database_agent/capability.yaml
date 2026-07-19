@@ -1,0 +1,14 @@
+capability: database_agent
+allowed_actions:
+  - db.read
+  - db.dry_run
+  - db.propose_write
+  - db.propose_migration
+forbidden_actions:
+  - db.write_direct
+  - db.ddl_direct
+requires_approval:
+  - db.propose_write
+  - db.propose_migration
+classification_ceiling: internal
+template_id: database_agent

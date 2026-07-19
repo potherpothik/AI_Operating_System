@@ -1,0 +1,8 @@
+# Column-level classification for the demo_erp target — unlisted columns
+# default to "internal". Illustrative, not exhaustive (same posture as
+# governance's content classifier heuristics).
+res_partner:
+  email: confidential
+  _default: internal
+sale_order:
+  _default: internal
