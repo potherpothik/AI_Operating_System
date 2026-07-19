@@ -34,7 +34,7 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against real Postgres
 ```
 
-39 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+40 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a non-UTC
 session) and a real disposable target database (`demo_erp` — seeded
 `sale_order`/`res_partner` tables, never any service's own operational
@@ -66,6 +66,15 @@ database or anything resembling real production data).
 
 ## What's real
 
+- **`GET /db/schema/{target}` now includes real foreign-key relationships**
+  alongside column names (Phase 9 addition) — `sale_order.partner_id`
+  correctly reports referencing `res_partner.id`, confirmed by
+  introspecting the real constraint, not inferred from naming
+  conventions. Added because Phase 9's ERP Knowledge Engine needed real
+  relationship data for its structured graph query mode ("what tables
+  reference this one") and the original endpoint only returned columns.
+  Same read-only, capability-authorized path as before — no new
+  privilege.
 - **Structural parameterization, not a naming convention.** `/db/query`,
   `/db/dry_run`, and `/db/write` all require a SQL template with
   `:named` placeholders and a SEPARATE params object — there is no code

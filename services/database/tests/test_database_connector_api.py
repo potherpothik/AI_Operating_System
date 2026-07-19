@@ -246,5 +246,19 @@ def test_schema_introspection_returns_real_tables(governance_url):
     db.close()
     assert "sale_order" in result["tables"]
     assert "res_partner" in result["tables"]
-    column_names = {c["name"] for c in result["tables"]["sale_order"]}
+    column_names = {c["name"] for c in result["tables"]["sale_order"]["columns"]}
     assert "amount_total" in column_names
+
+
+def test_schema_introspection_includes_real_foreign_keys(governance_url):
+    """sale_order.partner_id genuinely references res_partner.id in the
+    seeded demo_erp schema — this isn't invented data, it's a real FK
+    constraint, introspected the same way Phase 9's ERP Knowledge Engine
+    will consume it for its structured relationship graph."""
+    db = SessionLocal()
+    result = api.schema("demo_erp", "database_agent", db)
+    db.close()
+    fks = result["tables"]["sale_order"]["foreign_keys"]
+    assert len(fks) == 1
+    assert fks[0]["references_table"] == "res_partner"
+    assert "partner_id" in fks[0]["columns"]

@@ -20,14 +20,14 @@ considered, trade-offs, security implications) before diving into code.
 | 4 | Context Builder, Prompt Builder | [`docs/phase-4-context-prompt-builder.md`](docs/phase-4-context-prompt-builder.md) | [`services/assembly/`](services/assembly/) — 26 tests |
 | 5 | Reasoning Engine, Odoo Agent | [`docs/phase-5-odoo-agent-reasoning-engine.md`](docs/phase-5-odoo-agent-reasoning-engine.md) | [`services/agents/`](services/agents/) — 27 tests |
 | 6 | Shell Executor, Git Manager | [`docs/phase-6-shell-git-manager.md`](docs/phase-6-shell-git-manager.md) | [`services/execution/`](services/execution/) — 45 tests |
-| 7 | Database Connector, Database Agent | [`docs/phase-7-database-connector-agent.md`](docs/phase-7-database-connector-agent.md) | [`services/database/`](services/database/) — 39 tests (Database Agent itself lives in `services/agents/agents/database_agent/`) |
+| 7 | Database Connector, Database Agent | [`docs/phase-7-database-connector-agent.md`](docs/phase-7-database-connector-agent.md) | [`services/database/`](services/database/) — 40 tests (Database Agent itself lives in `services/agents/agents/database_agent/`) |
 | 8 | Planner, Capability Registry | [`docs/phase-8-planner-capability-registry.md`](docs/phase-8-planner-capability-registry.md) | [`services/planning/`](services/planning/) — 27 tests (Planner itself lives in `services/agents/agents/planner/`) |
-| 9 | Documentation Engine, ERP Knowledge Engine | [`docs/phase-9-documentation-erp-knowledge-engine.md`](docs/phase-9-documentation-erp-knowledge-engine.md) | not yet built |
+| 9 | Documentation Engine, ERP Knowledge Engine | [`docs/phase-9-documentation-erp-knowledge-engine.md`](docs/phase-9-documentation-erp-knowledge-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 27 tests |
 | 10 | Django, DevOps, Docker, Testing Agents | [`docs/phase-10-django-devops-docker-testing-agents.md`](docs/phase-10-django-devops-docker-testing-agents.md) | not yet built |
 | 11 | Code Analysis Engine | [`docs/phase-11-code-analysis-engine.md`](docs/phase-11-code-analysis-engine.md) | not yet built |
 | 12–21 | Extensibility, observability, remaining agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 
-Eight services are real, tested code today; everything past Phase 8 is
+Nine services are real, tested code today; everything past Phase 9 is
 fully designed but not yet implemented.
 
 ## Running what exists
@@ -38,11 +38,12 @@ run/test instructions. Dependency order: `governance` has none;
 all three of the others; `execution` and `database` each call only
 `governance` directly; `planning` calls `governance`, `agents` (to sync
 its capability roster and run Planner), and `platform-spine` (to create
-real subtasks); `agents` calls all of the above plus a local Ollama
-instance, and calls back into `execution` (an approved code change),
-`database` (an approved data write or migration), and `planning` (to
-fetch the live capability roster Planner reasons over) — closing all
-three loops end to end.
+real subtasks); `knowledge_pipelines` calls `governance`, `knowledge`
+(where real content actually lands), and `database` (ERP schema sync);
+`agents` calls all of the above plus a local Ollama instance, and calls
+back into `execution` (an approved code change), `database` (an approved
+data write or migration), and `planning` (to fetch the live capability
+roster Planner reasons over) — closing all three loops end to end.
 
 ```bash
 # terminal 1 — DEMO_ERP_DATABASE_URL is only needed once you're using Phase 7;
@@ -87,6 +88,12 @@ cd services/planning && pip install -r requirements.txt
 SECURITY_LAYER_URL=http://localhost:8000 AGENTS_URL=http://localhost:8005 PLATFORM_URL=http://localhost:8002 \
 uvicorn main:app --port 8008
 # once agents is up: curl -X POST localhost:8008/capabilities/sync
+
+# terminal 9
+cd services/knowledge_pipelines && pip install -r requirements.txt
+SECURITY_LAYER_URL=http://localhost:8000 KNOWLEDGE_URL=http://localhost:8003 \
+DATABASE_CONNECTOR_URL=http://localhost:8007 \
+uvicorn main:app --port 8009
 ```
 
 All default to SQLite with zero setup. Point `DATABASE_URL` at Postgres
@@ -148,6 +155,18 @@ connection string format and what's been verified against it (including
   before any subtask could run. Fixed with structural overrides in
   Reasoning Engine, not just prompt instructions. Full detail in
   `services/planning/README.md`.
+- **`knowledge_pipelines`' document parsers are genuinely real** (PyPI
+  access worked in this environment, unlike Phase 3's HuggingFace
+  constraint) — real PDF/DOCX extraction, confirmed by generating actual
+  files with real text and parsing them back, not blank pages or mocks.
+  What's simplified: "watching" a source is poll-triggered via an
+  endpoint, not a continuously-running background daemon (the first
+  genuinely continuous process the Phase 9 doc anticipates, deliberately
+  not built as one), and ERP Knowledge Engine syncs against the same
+  seeded Postgres `demo_erp` database every phase since 7 has used —
+  real relational data with a real foreign key, but not an actual Odoo
+  instance, so there's no real module-manifest concept to introspect.
+  Full detail in `services/knowledge_pipelines/README.md`.
 - Every "what's a stub" note in each service's own README is there because
   it materially affects what you should and shouldn't trust yet — read
   those before deploying anything here for real.
@@ -168,6 +187,9 @@ in Phase 5's `ExecuteRequest` that no earlier caller happened to trigger,
 and two structural routing overrides in Reasoning Engine once a live
 model reasonably applied individual-agent instructions (`delegate_to`,
 self-assessed `risk_classification`) to a routing-only capability they
-were never meant for. That pattern — build the phase that unblocks what
-already exists before adding more surface area — is the intended way to
-keep extending this.
+were never meant for; Phase 9 extended Phase 7's `GET /db/schema/{target}`
+to return foreign keys, not just column names, since ERP Knowledge
+Engine's structured relationship graph needed real data Phase 7 never
+had a reason to expose. That pattern — build the phase that unblocks
+what already exists before adding more surface area — is the intended
+way to keep extending this.
