@@ -242,7 +242,17 @@ def schema(target: str, capability: str, db: Session = Depends(get_db)):
     inspector = inspect(engine)
     tables = {}
     for table_name in inspector.get_table_names():
-        tables[table_name] = [
-            {"name": c["name"], "type": str(c["type"])} for c in inspector.get_columns(table_name)
+        # Foreign keys included alongside columns — added for Phase 9's
+        # ERP Knowledge Engine, which needs real relationship data (e.g.
+        # "what tables reference this one") for its structured graph
+        # query mode, not just column names. Same read-only introspection
+        # path as everything else here — no elevated privilege added.
+        foreign_keys = [
+            {"columns": fk["constrained_columns"], "references_table": fk["referred_table"], "references_columns": fk["referred_columns"]}
+            for fk in inspector.get_foreign_keys(table_name)
         ]
+        tables[table_name] = {
+            "columns": [{"name": c["name"], "type": str(c["type"])} for c in inspector.get_columns(table_name)],
+            "foreign_keys": foreign_keys,
+        }
     return {"target_db": target, "tables": tables}
