@@ -1,0 +1,12 @@
+capability: odoo_agent
+allowed_actions:
+  - odoo.read_orm
+  - odoo.explain_rule
+  - odoo.propose_change
+forbidden_actions:
+  - odoo.write_orm
+  - odoo.execute_migration
+requires_approval:
+  - odoo.propose_change
+classification_ceiling: internal
+template_id: odoo_agent
