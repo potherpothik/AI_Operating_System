@@ -153,7 +153,11 @@ def proposal_repo(execution_sandbox_root, disposable_bare_repo_for_bridge, monke
     import uuid
     work_dir = execution_sandbox_root / f"proposal-repo-{uuid.uuid4().hex[:8]}"
     subprocess.run(["git", "clone", str(disposable_bare_repo_for_bridge), str(work_dir)], check=True, capture_output=True)
-    (work_dir / "README.md").write_text("initial\n")
+    # Unique content per invocation — disposable_bare_repo_for_bridge is
+    # session-scoped, so a second test cloning it already has whatever an
+    # earlier test's proposal_repo pushed to main; identical content here
+    # would mean nothing to commit.
+    (work_dir / "README.md").write_text(f"initial {uuid.uuid4().hex[:8]}\n")
     subprocess.run(["git", "-C", str(work_dir), "add", "README.md"], check=True, capture_output=True)
     subprocess.run(
         ["git", "-C", str(work_dir), "-c", "user.email=test@test.local", "-c", "user.name=test", "commit", "-m", "initial commit"],

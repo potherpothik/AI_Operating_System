@@ -1,9 +1,29 @@
 from sqlalchemy.orm import Session
 
 from agents import clients
-from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, planner_bridge
+from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, planner_bridge
 from agents.reasoning_engine.ollama_adapter import generate, OllamaUnavailable
 from agents.reasoning_engine.models import ReasoningExecution
+
+# Every propose_* action across all six agents (Phase 10 doc, Section 1:
+# "logged identically") that lands as a Git Manager MR — Odoo Agent's own
+# odoo.propose_change already proved this path generic (Phase 6); these
+# four new agents' propose actions reuse it with zero changes to
+# execution_bridge.materialize_propose_change itself.
+GIT_PROPOSE_ACTIONS = {
+    "odoo.propose_change",
+    "django.propose_config_change",
+    "devops.propose_pipeline_change",
+    "devops.propose_infra_change",
+    "docker.propose_compose_change",
+    "testing.propose_new_test",
+}
+
+# Both migration-shaped propose actions materialize via the same Database
+# Connector /db/migrate path (Phase 7) — database_bridge.materialize_propose_migration
+# already derives target_platform from the execution's own result, so
+# django.propose_migration needed zero changes there either.
+DB_MIGRATE_PROPOSE_ACTIONS = {"db.propose_migration", "django.propose_migration"}
 
 
 class UnknownCapability(Exception):
@@ -157,6 +177,7 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
         parsed = validation["parsed"]
         action = parsed.get("action")
         has_fresh_query = bool((parsed.get("sql_template") or "").strip())
+        has_fresh_shell_command = bool((parsed.get("shell_command") or "").strip())
 
         if action in database_bridge.TOOL_ACTIONS and has_fresh_query:
             tool_result = database_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
@@ -168,6 +189,18 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
                 f"Now produce your final structured response based on this — if this was a db.read, set action to db.read "
                 f"again but leave sql_template empty since you already have the data; if this was a db.dry_run, switch "
                 f"action to db.propose_write with the SAME sql_template/params_json plus impact_estimate and risk_classification.]"
+            )
+            if iteration == max_iterations:
+                final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
+            continue
+
+        if action in shell_bridge.TOOL_ACTIONS and has_fresh_shell_command:
+            tool_result = shell_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
+            store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, f"tool_call:{action}")
+            current_task_description = (
+                f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
+                f"Now produce your final structured response based on this — set action to {action} again but leave "
+                f"shell_command empty since you already have the result, unless you genuinely need to run something else.]"
             )
             if iteration == max_iterations:
                 final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
@@ -235,15 +268,18 @@ def resume(db: Session, execution_id: str) -> ReasoningExecution | None:
     approval = clients.get_approval_status(execution.approval_id)
     if approval.get("status") == "approved":
         result = dict(execution.result or {})
-        # Phase 6 doc, Section 3: after approval, an odoo.propose_change
-        # actually gets materialized as a branch/commit/push/MR — not
-        # just marked "completed" and left as text. Any other action
-        # (or unconfigured execution layer) still just completes as before.
-        if result.get("action") == "odoo.propose_change":
+        # Phase 6 doc, Section 3: after approval, a propose_* action
+        # actually gets materialized as a branch/commit/push/MR (or a real
+        # migration file) — not just marked "completed" and left as text.
+        # Any other action (or unconfigured execution layer) still just
+        # completes as before. Phase 10 doc, Section 1: every new agent's
+        # propose_* action reuses these same two bridges unchanged.
+        action = result.get("action")
+        if action in GIT_PROPOSE_ACTIONS:
             result["git_execution"] = execution_bridge.materialize_propose_change(execution)
-        elif result.get("action") == "db.propose_write":
+        elif action == "db.propose_write":
             result["db_execution"] = database_bridge.materialize_propose_write(execution)
-        elif result.get("action") == "db.propose_migration":
+        elif action in DB_MIGRATE_PROPOSE_ACTIONS:
             result["db_execution"] = database_bridge.materialize_propose_migration(execution)
         return store.finalize(
             db, execution, "completed", execution.iterations_used, result=result,

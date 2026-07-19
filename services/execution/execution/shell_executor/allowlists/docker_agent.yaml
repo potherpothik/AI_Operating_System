@@ -1,0 +1,38 @@
+agent_capability: docker_agent
+commands:
+  # Read-only inspection only (Phase 10 doc, Section 4) — no mutating
+  # entries at all. docker exec/stop/rm are structurally impossible here,
+  # not just policy-denied one layer up.
+  - pattern: "docker ps*"
+    mode: read_only
+  - pattern: "docker logs*"
+    mode: read_only
+  - pattern: "docker inspect*"
+    mode: read_only
+  - pattern: "docker compose ps*"
+    mode: read_only
+  - pattern: "docker compose config*"
+    mode: read_only
+  # docker.propose_compose_change lands as a Git Manager MR (Dockerfile /
+  # compose YAML edits) — same read-only inspection + scoped mutating
+  # branch pattern as odoo_agent.
+  - pattern: "git status*"
+    mode: read_only
+  - pattern: "git diff*"
+    mode: read_only
+  - pattern: "git log*"
+    mode: read_only
+  - pattern: "git show*"
+    mode: read_only
+  - pattern: "git rev-parse*"
+    mode: read_only
+  - pattern: "git branch*"
+    mode: read_only
+  - pattern: "git checkout -b docker-agent/*"
+    mode: mutating
+  - pattern: "git add *"
+    mode: mutating
+  - pattern: "git commit *"
+    mode: mutating
+  - pattern: "git push origin docker-agent/*"
+    mode: mutating

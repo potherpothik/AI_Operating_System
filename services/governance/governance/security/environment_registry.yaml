@@ -1,0 +1,11 @@
+# Which execution targets Testing Agent (Phase 10) may actually run a
+# test suite against. Fail-closed: an identifier not listed here is
+# treated as NOT a sandbox, never assumed safe. Same indirection-registry
+# pattern as secrets_registry.yaml — version-controlled, no real
+# infrastructure credentials here, just which names are safe to target.
+test_sandbox_1:
+  is_sandbox: true
+  description: "the disposable local test/dev environment"
+production_erp:
+  is_sandbox: false
+  description: "the live production ERP — never a valid testing.run_suite target"

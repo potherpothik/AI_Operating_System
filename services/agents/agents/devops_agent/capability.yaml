@@ -1,0 +1,13 @@
+capability: devops_agent
+allowed_actions:
+  - devops.explain_topology
+  - devops.propose_pipeline_change
+  - devops.propose_infra_change
+forbidden_actions:
+  - devops.execute_deploy
+  - devops.direct_infra_change
+requires_approval:
+  - devops.propose_pipeline_change
+  - devops.propose_infra_change
+classification_ceiling: internal
+template_id: devops_agent

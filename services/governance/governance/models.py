@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, Text
+from sqlalchemy import Column, String, DateTime, Text, Boolean
 from governance.db import Base
 
 
@@ -50,3 +50,23 @@ class ApprovalRequest(Base):
     decided_by = Column(String, nullable=True)
     decided_at = Column(DateTime(timezone=True), nullable=True)
     comment = Column(Text, default="")
+
+
+class TestExecutionTarget(Base):
+    """
+    Phase 10: Testing Agent's environment-target verification record — a
+    genuinely new safety question beyond classification (what CONTENT is
+    this, per every prior agent) — which ENVIRONMENT does this even point
+    at. One row per verification decision, so "did we actually check
+    before this run" is always answerable, the same audit posture as
+    every approval/secret decision elsewhere in governance.
+    """
+
+    __tablename__ = "test_execution_target"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    capability = Column(String, nullable=False)
+    resolved_environment = Column(String, nullable=False)
+    is_sandbox = Column(Boolean, nullable=False)
+    verified_by_security_layer = Column(String, nullable=False)  # "allow" | "deny"
+    ts = Column(DateTime(timezone=True), default=_now)

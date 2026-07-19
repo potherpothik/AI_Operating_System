@@ -1,0 +1,12 @@
+capability: docker_agent
+allowed_actions:
+  - docker.inspect
+  - docker.propose_compose_change
+forbidden_actions:
+  - docker.exec_into_container
+  - docker.stop_prod
+  - docker.rm
+requires_approval:
+  - docker.propose_compose_change
+classification_ceiling: internal
+template_id: docker_agent

@@ -6,11 +6,15 @@ from agents.reasoning_engine import capability_registry
 from agents.odoo_agent import register as odoo_agent_register
 from agents.database_agent import register as database_agent_register
 from agents.planner import register as planner_register
+from agents.django_agent import register as django_agent_register
+from agents.devops_agent import register as devops_agent_register
+from agents.docker_agent import register as docker_agent_register
+from agents.testing_agent import register as testing_agent_register
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="AI Orchestration Layer — Phase 5/7/8: Reasoning Engine, Odoo Agent, Database Agent & Planner",
+    title="AI Orchestration Layer — Phase 5/7/8/10: Reasoning Engine + six agents",
     description="The shared execution loop every agent runs through, and the agents running on it.",
 )
 
@@ -27,6 +31,10 @@ def on_startup():
     odoo_agent_register.ensure_template_registered()
     database_agent_register.ensure_template_registered()
     planner_register.ensure_template_registered()
+    django_agent_register.ensure_template_registered()
+    devops_agent_register.ensure_template_registered()
+    docker_agent_register.ensure_template_registered()
+    testing_agent_register.ensure_template_registered()
 
 
 @app.post("/capabilities/reload")
@@ -84,11 +92,37 @@ def register_planner_template():
     return planner_register.ensure_template_registered()
 
 
+@app.post("/django_agent/register")
+def register_django_agent_template():
+    return django_agent_register.ensure_template_registered()
+
+
+@app.post("/devops_agent/register")
+def register_devops_agent_template():
+    return devops_agent_register.ensure_template_registered()
+
+
+@app.post("/docker_agent/register")
+def register_docker_agent_template():
+    return docker_agent_register.ensure_template_registered()
+
+
+@app.post("/testing_agent/register")
+def register_testing_agent_template():
+    return testing_agent_register.ensure_template_registered()
+
+
 @app.get("/healthz")
 def healthz():
-    return {"status": "ok", "phase": 5}
+    return {"status": "ok", "phase": 10}
 
 
 @app.get("/")
 def root():
-    return {"status": "ok", "phase": 5, "modules": ["reasoning_engine", "odoo_agent", "database_agent", "planner"]}
+    return {
+        "status": "ok", "phase": 10,
+        "modules": [
+            "reasoning_engine", "odoo_agent", "database_agent", "planner",
+            "django_agent", "devops_agent", "docker_agent", "testing_agent",
+        ],
+    }

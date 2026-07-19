@@ -1,0 +1,13 @@
+capability: django_agent
+allowed_actions:
+  - django.explain_structure
+  - django.propose_migration
+  - django.propose_config_change
+forbidden_actions:
+  - django.direct_deploy
+  - django.write_migration_direct
+requires_approval:
+  - django.propose_migration
+  - django.propose_config_change
+classification_ceiling: internal
+template_id: django_agent

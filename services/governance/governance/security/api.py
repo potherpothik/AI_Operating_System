@@ -3,9 +3,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from governance.db import get_db
+from governance.models import TestExecutionTarget
 from governance.security.policy_engine import PolicyEngine
 from governance.security.classifier import classify_content
-from governance.security import secrets
+from governance.security import secrets, environments
 from governance.audit.store import log_event
 
 router = APIRouter(prefix="/security", tags=["security"])
@@ -27,6 +28,12 @@ class ClassifyRequest(BaseModel):
 
 class SecretResolveRequest(BaseModel):
     target_db: str
+    capability: str
+    correlation_id: str = ""
+
+
+class VerifyEnvironmentRequest(BaseModel):
+    resolved_environment: str
     capability: str
     correlation_id: str = ""
 
@@ -85,6 +92,47 @@ def resolve_secret(req: SecretResolveRequest, db: Session = Depends(get_db)):
 
     log_event(db, actor_id=req.capability, actor_type="agent", action="secrets.resolve", resource=req.target_db, decision="allow", reason="", correlation_id=req.correlation_id)
     return result
+
+
+@router.post("/verify_environment")
+def verify_environment(req: VerifyEnvironmentRequest, db: Session = Depends(get_db)):
+    """
+    Phase 10's Testing Agent calls this before every `testing.run_suite` —
+    a structural check, not a policy convention, that the resolved
+    execution target is a designated sandbox. Fails closed on any
+    unregistered environment, same posture as secrets.resolve. Every
+    verification decision is persisted to TestExecutionTarget in addition
+    to the standard audit log, so "did we actually check before this run"
+    is always answerable on its own.
+    """
+    result = environments.verify(req.resolved_environment)
+    decision = "allow" if result["is_sandbox"] else "deny"
+
+    db.add(
+        TestExecutionTarget(
+            capability=req.capability,
+            resolved_environment=req.resolved_environment,
+            is_sandbox=result["is_sandbox"],
+            verified_by_security_layer=decision,
+        )
+    )
+    db.commit()
+
+    log_event(
+        db,
+        actor_id=req.capability,
+        actor_type="agent",
+        action="testing.verify_environment",
+        resource=req.resolved_environment,
+        decision=decision,
+        reason=result["reason"],
+        correlation_id=req.correlation_id,
+    )
+
+    if not result["is_sandbox"]:
+        raise HTTPException(status_code=403, detail=result["reason"])
+
+    return {"is_sandbox": True, "verified": "allow", "reason": result["reason"]}
 
 
 @router.get("/policy/{role}")

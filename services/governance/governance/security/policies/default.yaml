@@ -137,6 +137,185 @@ roles:
       resource: "*"
       effect: require_approval
 
+  django_agent:
+    - action: "django.explain_structure"
+      resource: "*"
+      effect: allow
+    - action: "django.propose_migration"
+      resource: "*"
+      effect: require_approval
+    - action: "django.propose_config_change"
+      resource: "*"
+      effect: require_approval
+    - action: "django.direct_deploy"
+      resource: "*"
+      effect: deny
+    - action: "django.write_migration_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    # django.propose_migration executes via the same migration_adapter/
+    # django.py path Phase 7's Database Connector already stubbed — allow
+    # here, same split as database_agent's db.migrate: the approval
+    # already happened upstream on the propose_* action itself.
+    - action: "db.migrate"
+      resource: "*"
+      effect: allow
+
+  devops_agent:
+    - action: "devops.explain_topology"
+      resource: "*"
+      effect: allow
+    - action: "devops.propose_pipeline_change"
+      resource: "*"
+      effect: require_approval
+    - action: "devops.propose_infra_change"
+      resource: "*"
+      effect: require_approval
+    - action: "devops.execute_deploy"
+      resource: "*"
+      effect: deny
+    - action: "devops.direct_infra_change"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    # Both propose_* actions land as a Git Manager MR (CI config / infra-as-code
+    # files) — same execution-layer split as odoo_agent above: the human
+    # approval already happened on the propose_* action itself. Git Manager's
+    # branch/commit/push all route through Shell Executor internally, which
+    # re-checks shell.execute for this SAME capability — omitting it here
+    # denies every git.* call even though git.* itself is allowed (caught by
+    # live testing, same class of gap odoo_agent's block already accounts for).
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
+  docker_agent:
+    # Read-only inspection via Shell Executor — Phase 6's read-only
+    # bypass rule applies here: no approval needed, Shell Executor's own
+    # allow-list still confines this to docker ps/logs/inspect patterns.
+    - action: "docker.inspect"
+      resource: "*"
+      effect: allow
+    - action: "docker.propose_compose_change"
+      resource: "*"
+      effect: require_approval
+    - action: "docker.exec_into_container"
+      resource: "*"
+      effect: deny
+    - action: "docker.stop_prod"
+      resource: "*"
+      effect: deny
+    - action: "docker.rm"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
+  testing_agent:
+    # No approval on run_suite itself — it's read-only against a sandbox
+    # with no real-world mutating effect. The environment constraint is
+    # enforced structurally by Security Layer's /security/verify_environment
+    # before every run, not by this policy layer (Phase 10 doc, Section 5).
+    - action: "testing.run_suite"
+      resource: "*"
+      effect: allow
+    - action: "testing.propose_new_test"
+      resource: "*"
+      effect: require_approval
+    - action: "testing.report_coverage"
+      resource: "*"
+      effect: allow
+    - action: "testing.run_against_prod"
+      resource: "*"
+      effect: deny
+    - action: "testing.direct_ci_change"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
   human_admin:
     - action: "*"
       resource: "*"
