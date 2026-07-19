@@ -1,0 +1,2 @@
+rate_limit_per_minute: 60
+request_size_limit_kb: 256

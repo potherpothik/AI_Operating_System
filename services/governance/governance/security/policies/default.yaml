@@ -1,0 +1,32 @@
+# Default policy set. Version-controlled, same branch-protection as application code (Phase 1, Section 1: Security).
+roles:
+  odoo_agent:
+    - action: "odoo.read_orm"
+      resource: "*"
+      effect: allow
+    - action: "odoo.explain_rule"
+      resource: "*"
+      effect: allow
+    - action: "odoo.propose_change"
+      resource: "*"
+      effect: require_approval
+    - action: "odoo.write_orm"
+      resource: "*"
+      effect: deny
+    - action: "odoo.execute_migration"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+
+  human_admin:
+    - action: "*"
+      resource: "*"
+      effect: allow

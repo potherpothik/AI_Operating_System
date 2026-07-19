@@ -1,0 +1,4 @@
+default_local_model: qwen-coder
+fallback_local_model: deepseek-coder
+external_model_allowed: false
+max_iterations: 8
