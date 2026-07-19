@@ -36,6 +36,23 @@ def test_odoo_agent_write_orm_denied():
     assert r.json()["decision"] == "deny"
 
 
+def test_odoo_agent_shell_execute_allowed():
+    r = client.post(
+        "/security/authorize",
+        json={"actor": "odoo_agent", "action": "shell.execute", "resource": "/tmp/ai_os_sandbox/task-1"},
+    )
+    assert r.json()["decision"] == "allow"
+
+
+def test_odoo_agent_git_actions_allowed():
+    for action in ("git.branch", "git.commit", "git.diff", "git.push", "git.open_mr"):
+        r = client.post(
+            "/security/authorize",
+            json={"actor": "odoo_agent", "action": action, "resource": "AI_Operating_System"},
+        )
+        assert r.json()["decision"] == "allow", f"{action} expected allow, got {r.json()}"
+
+
 def test_human_admin_wildcard_allow():
     r = client.post(
         "/security/authorize",

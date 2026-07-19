@@ -25,6 +25,32 @@ roles:
     - action: "task.update_status"
       resource: "*"
       effect: allow
+    # Phase 6: execution layer actions. All "allow" rather than
+    # require_approval again here — the human approval already happened
+    # once, upstream, on odoo.propose_change itself (Phase 5). Shell
+    # Executor and Git Manager still enforce their own allow-lists and
+    # structural branch protection; this policy layer isn't the only
+    # gate, just the one that would otherwise re-prompt a human for
+    # something they already approved (Phase 6 doc, Section 3 end-to-end
+    # diagram shows exactly one approval step, not one per git command).
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
 
   human_admin:
     - action: "*"
