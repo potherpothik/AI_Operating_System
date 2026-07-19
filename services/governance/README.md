@@ -108,7 +108,7 @@ endpoint (like Phase 10's `POST /security/verify_environment`) needs a
 process restart, not just a reload; a call to a not-yet-restarted
 process returns a generic `404`, easy to misread as a policy denial.
 
-## Phase 7 / Phase 10 additions
+## Phase 7 / Phase 10 / Phase 11 additions
 
 - `POST /security/secrets/resolve` (Phase 7): fail-closed credential
   resolution for Database Connector, backed by `secrets_registry.yaml`
@@ -121,6 +121,19 @@ process returns a generic `404`, easy to misread as a policy denial.
   persisted to its own `test_execution_target` table, so "did we
   actually check before this run" is answerable without cross-
   referencing the general audit log.
+- `code_analysis.raw_source_request` (Phase 11): no new endpoint here —
+  routed through the existing `/security/authorize` +
+  `/approval/request` pair, the same two-call pattern every other
+  approval-gated action in this system already uses. Added as
+  `require_approval` to every agent role that plausibly needs real
+  function/class-body detail (`odoo_agent`, `database_agent`,
+  `django_agent`, `devops_agent`, `docker_agent`, `testing_agent`) —
+  `planner` deliberately excluded, since routing decisions never need
+  actual source code. Also added a minimal `git_manager` role
+  (`code_analysis.scan: allow`) for Phase 11's own `on_commit`
+  auto-trigger — a system action attributed to the triggering service,
+  not an agent capability, so it gets its own narrow role rather than
+  piggybacking on `human_admin`'s blanket allow.
 
 ## Next
 

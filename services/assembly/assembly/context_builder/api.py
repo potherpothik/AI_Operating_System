@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from assembly.db import get_db
-from assembly.context_builder import store
+from assembly.context_builder import store, classification
 
 router = APIRouter(prefix="/context", tags=["context"])
 
@@ -50,6 +50,25 @@ def build_context(req: BuildRequest, db: Session = Depends(get_db)):
         db, req.task_id, req.task_description, req.agent_capability, req.target_model, req.namespace, req.budget_words
     )
     return _package_out(package)
+
+
+@router.get("/model-ceiling")
+def model_ceiling(target_model: str):
+    """
+    Exposes classification.ceiling_for_model() over HTTP — the exact
+    local-vs-external model-isolation check this service already applies
+    to every retrieval (Phase 4) — so a caller outside this service
+    (Code Analysis Engine's raw_source_gate.py, Phase 11) can re-verify a
+    target_model before releasing confidential content it never routes
+    through Vector Search at all, rather than duplicating this logic.
+
+    Registered BEFORE GET /{context_id} below — FastAPI matches routes in
+    registration order, and "model-ceiling" would otherwise satisfy the
+    {context_id} path parameter and 404 as "not found" instead of ever
+    reaching this handler (a real bug caught by actually calling this
+    endpoint live, not by reading the route table).
+    """
+    return classification.ceiling_for_model(target_model)
 
 
 @router.get("/{context_id}")

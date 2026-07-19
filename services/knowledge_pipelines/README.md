@@ -1,14 +1,23 @@
-# Phase 9 — Documentation Engine & ERP Knowledge Engine (working implementation)
+# Phase 9/11 — Documentation, ERP Knowledge & Code Analysis Engines (working implementation)
 
 Real, tested code. Every agent built so far — Odoo Agent (Phase 5),
 Database Agent (Phase 7) — and Planner (Phase 8) reasoning about them,
 has been operating against placeholder cached schema and business
-memory. This phase closes that gap: real document parsing feeding real
-content into Vector Search, and real ERP schema introspection feeding
-both Vector Search and business memory. No changes needed anywhere
-upstream — Context Builder, Prompt Builder, Reasoning Engine, and every
-agent were already built against Memory Manager/Vector Search's generic
-interface (Phase 3), so this phase slots in underneath them.
+memory. Phase 9 closed that gap for documents and ERP schema: real
+document parsing feeding real content into Vector Search, and real ERP
+schema introspection feeding both Vector Search and business memory. No
+changes needed anywhere upstream — Context Builder, Prompt Builder,
+Reasoning Engine, and every agent were already built against Memory
+Manager/Vector Search's generic interface (Phase 3), so Phase 9 slotted
+in underneath them. Phase 11 closes the analogous gap for source code:
+Django Agent (Phase 10) has been reasoning about Django app structure
+from documentation alone. Code Analysis Engine adds real static
+analysis via Python's own `ast` module, with a genuine two-tier split —
+structural metadata (signatures, docstrings, call graph) flows into
+Vector Search like any other Phase 9 content, but actual function/class
+bodies are never auto-ingested anywhere, reachable only through an
+explicit, approval-gated request that re-verifies the requesting model
+is local-only at release time, not just at request time.
 
 ## Run it
 
@@ -17,25 +26,44 @@ pip install -r requirements.txt
 export SECURITY_LAYER_URL=http://localhost:8000
 export KNOWLEDGE_URL=http://localhost:8003        # Vector Search + Memory Manager
 export DATABASE_CONNECTOR_URL=http://localhost:8007  # ERP Knowledge Engine's schema source
+export ASSEMBLY_URL=http://localhost:8004  # Code Analysis Engine's raw-source-request model-isolation re-check (Phase 11)
 uvicorn main:app --port 8009
 ```
+
+Code Analysis Engine's `POST /code-analysis/scan` takes a real local
+directory (`repo`), the same "real working_dir on disk" convention
+Phase 6/7's `PROPOSAL_REPO_PATH` established — not a remote URL Git
+Manager clones on its behalf. To get the `on_commit` trigger genuinely
+firing (Phase 11 doc, Section 1), also point Phase 6's execution service
+at this one:
+
+```bash
+# in services/execution's own terminal
+export CODE_ANALYSIS_URL=http://localhost:8009
+```
+
+Without it, `git/commit` still succeeds — the trigger is best-effort and
+never blocks or fails a real commit, it's just skipped (confirmed by
+`test_code_analysis_trigger_is_a_real_no_op_when_unconfigured` in
+`services/execution/tests/test_git_manager.py`).
 
 ## Test it
 
 ```bash
-pytest tests/test_parsers.py -q   # no live dependencies
+pytest tests/test_parsers.py tests/test_code_analysis_parser.py -q   # no live dependencies
 
 SECURITY_LAYER_URL=http://localhost:8000 KNOWLEDGE_URL=http://localhost:8003 \
-DATABASE_CONNECTOR_URL=http://localhost:8007 \
+DATABASE_CONNECTOR_URL=http://localhost:8007 ASSEMBLY_URL=http://localhost:8004 PLATFORM_URL=http://localhost:8002 \
 DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live stack
 ```
 
-27 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+48 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a non-UTC
 session). Real parsing (a genuinely generated PDF via `reportlab`, a
-real `.docx` via `python-docx`, real markdown/YAML/JSON) landing in
-real, independently-queryable Vector Search content — no mocks.
+real `.docx` via `python-docx`, real markdown/YAML/JSON, and real Python
+source via `ast`) landing in real, independently-queryable Vector Search
+content — no mocks.
 
 ## What's real
 
@@ -88,6 +116,41 @@ real, independently-queryable Vector Search content — no mocks.
   independently retrievable with their real `superseded_by` link intact.
   A formula whose name or purpose mentions pricing is confirmed to
   auto-classify `confidential`, not the default `internal`.
+- **Code Analysis Engine's Python parsing is real static analysis via
+  the standard library's own `ast` module**, not a regex approximation
+  or a stub — confirmed against real, genuinely cross-referencing source
+  files: real signatures (including type annotations), real docstrings,
+  real line numbers, and a real intra-file call graph (`Widget.render`
+  calling both `helper` and `self.finalize` resolved as two distinct,
+  correct edges).
+- **The full Phase 11 loop closes for real, end to end, live** — not
+  just unit-tested in isolation: a genuine `git commit` through Phase
+  6's real Git Manager fires Code Analysis Engine's incremental scan
+  automatically, real symbols and a real call graph land in this
+  service's own tables (`last_analyzed_commit` matching the actual
+  commit SHA), and the structural prose is independently queryable back
+  out of Vector Search — confirmed by committing a real two-function
+  file and querying for it afterward, not by reading the code.
+- **The raw-source-request approval gate is real, not a status flip**:
+  confirmed live end to end — request → real governance approval
+  (`POST /approval/{id}/decide`) → fetch → the *exact* bytes on disk
+  come back, verified against the real file content directly. Fetching
+  before approval returns `pending`, never partial or placeholder
+  content. A request approved for a local model but re-checked with a
+  non-local `target_model` at fetch time is refused — confirmed live —
+  because the model-isolation check re-runs fresh at release time, not
+  just once at request time.
+- **A real bug this phase caught, not a hypothetical**: `GET
+  /context/model-ceiling` (added to `assembly` for this phase's
+  raw-source-gate re-check) was originally registered in the router
+  *after* `GET /context/{context_id}`, so FastAPI matched the literal
+  string `"model-ceiling"` against the `{context_id}` path parameter
+  first and returned a plain 404 — invisible to a direct function call,
+  only caught by an actual HTTP request through the real route table.
+  Fixed by registering the literal-path route first; a permanent
+  regression test (`test_model_ceiling_reachable_over_real_http_routing`
+  in `services/assembly/tests/test_classification.py`) uses `TestClient`
+  specifically so this class of bug can't silently return.
 
 ## What's a stub or simplified
 
@@ -119,11 +182,36 @@ real, independently-queryable Vector Search content — no mocks.
   table**, which lists only `GET .../formula/{id}` for retrieval — a
   real, necessary gap (something has to let a human register a formula
   in the first place), filled with a reasonably-scoped addition.
+- **Call-graph resolution is intra-file only** (Phase 11 doc, Section 0
+  names this explicitly: "call-graph accuracy across a real codebase is
+  genuinely hard to get fully right... keeps it tractable"). A call from
+  one file to a function defined in another file is not recorded as an
+  edge — not silently approximated, just genuinely out of scope for this
+  first version. `models.py`'s `CallEdge` docstring and `call_graph.py`'s
+  own comments both say so explicitly at the point a future reader would
+  reasonably assume otherwise.
+- **JavaScript/TypeScript and Odoo XML view parsing are named extension
+  points, not implemented** — `parsers/javascript.py` and `parsers/xml.py`
+  raise `NotImplementedError` (surfaced through the normal
+  `UnsupportedFormat` path, not a crash) rather than pretending to parse
+  something they can't. Python's built-in `ast` module made Python
+  tractable to do for real in this phase; neither JS/TS nor Odoo XML
+  views have an equivalent built-in, and both need real, separate work.
+- **Raw source bodies are never persisted in this service's own
+  database** — `CodeSymbol` stores only the structural tier; an approved
+  `raw-source-request` reads the actual file content live from disk at
+  fetch time. Deliberate: a second confidential copy sitting in a
+  queryable table would undermine the whole point of gating access to it
+  in the first place.
+- **No cross-repository call graph** — explicit out-of-scope per the
+  Phase 11 doc, same as intra-file-only resolution above; single-repo
+  analysis first.
 
 ## Next
 
-Phase 10: round out the core engineering-platform agents — Django Agent,
-DevOps Agent, Docker Agent, Testing Agent — as a batch. The pattern
-(capability.yaml + template + Reasoning Engine + Planner routing + real
-ingested knowledge) is now proven and properly resourced enough to scale
-out agent coverage rather than build more shared infrastructure.
+Phase 12: the business agents — Costing, Inventory, Accounting,
+Manufacturing, Sales, Project Management — the batch flagged as deferred
+back in Phase 10, now with real ERP knowledge (Phase 9) and real code
+structure (Phase 11) to draw on. Code Review Agent, Reverse Engineering
+Agent, and Architecture Agent — the natural first consumers of this
+phase's structural code knowledge — follow after.

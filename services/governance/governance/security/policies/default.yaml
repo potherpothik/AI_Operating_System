@@ -25,6 +25,15 @@ roles:
     - action: "task.update_status"
       resource: "*"
       effect: allow
+    # Phase 11: raw function/class bodies are confidential by default
+    # (Code Analysis Engine's classifier.py) — require_approval here,
+    # never allow, regardless of how low-risk the requesting agent's own
+    # other actions are. The structural tier (signatures, docstrings,
+    # call graph) needs no rule at all: it's classified internal and
+    # freely retrievable the same way any other Phase 9 content is.
+    - action: "code_analysis.raw_source_request"
+      resource: "*"
+      effect: require_approval
     # Phase 6: execution layer actions. All "allow" rather than
     # require_approval again here — the human approval already happened
     # once, upstream, on odoo.propose_change itself (Phase 5). Shell
@@ -102,6 +111,9 @@ roles:
     - action: "task.update_status"
       resource: "*"
       effect: allow
+    - action: "code_analysis.raw_source_request"
+      resource: "*"
+      effect: require_approval
 
   planner:
     - action: "planner.plan"
@@ -162,6 +174,9 @@ roles:
     - action: "task.update_status"
       resource: "*"
       effect: allow
+    - action: "code_analysis.raw_source_request"
+      resource: "*"
+      effect: require_approval
     # django.propose_migration executes via the same migration_adapter/
     # django.py path Phase 7's Database Connector already stubbed — allow
     # here, same split as database_agent's db.migrate: the approval
@@ -195,6 +210,9 @@ roles:
     - action: "task.update_status"
       resource: "*"
       effect: allow
+    - action: "code_analysis.raw_source_request"
+      resource: "*"
+      effect: require_approval
     # Both propose_* actions land as a Git Manager MR (CI config / infra-as-code
     # files) — same execution-layer split as odoo_agent above: the human
     # approval already happened on the propose_* action itself. Git Manager's
@@ -249,6 +267,9 @@ roles:
     - action: "task.update_status"
       resource: "*"
       effect: allow
+    - action: "code_analysis.raw_source_request"
+      resource: "*"
+      effect: require_approval
     - action: "shell.execute"
       resource: "*"
       effect: allow
@@ -297,6 +318,9 @@ roles:
     - action: "task.update_status"
       resource: "*"
       effect: allow
+    - action: "code_analysis.raw_source_request"
+      resource: "*"
+      effect: require_approval
     - action: "shell.execute"
       resource: "*"
       effect: allow
@@ -313,6 +337,15 @@ roles:
       resource: "*"
       effect: allow
     - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
+  # Phase 11: the actor for Git Manager's own best-effort auto-trigger of
+  # an incremental scan after a commit lands (execution/git_manager/api.py)
+  # — a system action, not an agent capability, so it gets its own minimal
+  # role rather than piggybacking on human_admin's blanket allow.
+  git_manager:
+    - action: "code_analysis.scan"
       resource: "*"
       effect: allow
 

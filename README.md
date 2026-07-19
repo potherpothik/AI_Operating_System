@@ -24,12 +24,12 @@ considered, trade-offs, security implications) before diving into code.
 | 8 | Planner, Capability Registry | [`docs/phase-8-planner-capability-registry.md`](docs/phase-8-planner-capability-registry.md) | [`services/planning/`](services/planning/) — 27 tests (Planner itself lives in `services/agents/agents/planner/`) |
 | 9 | Documentation Engine, ERP Knowledge Engine | [`docs/phase-9-documentation-erp-knowledge-engine.md`](docs/phase-9-documentation-erp-knowledge-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 27 tests |
 | 10 | Django, DevOps, Docker, Testing Agents | [`docs/phase-10-django-devops-docker-testing-agents.md`](docs/phase-10-django-devops-docker-testing-agents.md) | [`services/agents/`](services/agents/) — 38 tests (all four agents live in `services/agents/agents/{django_agent,devops_agent,docker_agent,testing_agent}/`) |
-| 11 | Code Analysis Engine | [`docs/phase-11-code-analysis-engine.md`](docs/phase-11-code-analysis-engine.md) | not yet built |
+| 11 | Code Analysis Engine | [`docs/phase-11-code-analysis-engine.md`](docs/phase-11-code-analysis-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 48 tests (Code Analysis Engine itself lives in `services/knowledge_pipelines/knowledge_pipelines/code_analysis_engine/`) |
 | 12–21 | Extensibility, observability, remaining agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 
-Nine services are real, tested code today, now hosting ten phases' worth
-of agents and subsystems; everything past Phase 10 is fully designed but
-not yet implemented.
+Nine services are real, tested code today, now hosting eleven phases'
+worth of agents and subsystems; everything past Phase 11 is fully
+designed but not yet implemented.
 
 ## Running what exists
 
@@ -65,9 +65,11 @@ cd services/assembly && pip install -r requirements.txt
 SECURITY_LAYER_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 KNOWLEDGE_URL=http://localhost:8003 \
 uvicorn main:app --port 8004
 
-# terminal 5
+# terminal 5 — CODE_ANALYSIS_URL is only needed once you're using Phase 11's
+# on_commit auto-trigger; without it, commits still succeed, the trigger
+# is just skipped
 cd services/execution && pip install -r requirements.txt
-SECURITY_LAYER_URL=http://localhost:8000 SANDBOX_ROOT=/tmp/ai_os_sandbox \
+SECURITY_LAYER_URL=http://localhost:8000 SANDBOX_ROOT=/tmp/ai_os_sandbox CODE_ANALYSIS_URL=http://localhost:8009 \
 uvicorn main:app --port 8006
 
 # terminal 6 — governance's secrets_registry.yaml maps target_db "demo_erp"
@@ -90,10 +92,11 @@ SECURITY_LAYER_URL=http://localhost:8000 AGENTS_URL=http://localhost:8005 PLATFO
 uvicorn main:app --port 8008
 # once agents is up: curl -X POST localhost:8008/capabilities/sync
 
-# terminal 9
+# terminal 9 — ASSEMBLY_URL is Phase 11's raw-source-request model-isolation
+# re-check (Code Analysis Engine's raw_source_gate.py)
 cd services/knowledge_pipelines && pip install -r requirements.txt
 SECURITY_LAYER_URL=http://localhost:8000 KNOWLEDGE_URL=http://localhost:8003 \
-DATABASE_CONNECTOR_URL=http://localhost:8007 \
+DATABASE_CONNECTOR_URL=http://localhost:8007 ASSEMBLY_URL=http://localhost:8004 \
 uvicorn main:app --port 8009
 ```
 
@@ -182,6 +185,29 @@ connection string format and what's been verified against it (including
   rather than actual `docker`/`pytest` binaries, since neither is
   installed or on Shell Executor's minimal safe-env `PATH` in this
   environment. Full detail in `services/agents/README.md`.
+- **Phase 11's Code Analysis Engine is real static analysis, not a
+  stub** — Python's own `ast` module (no external dependency needed)
+  extracts genuine signatures, docstrings, and an intra-file call graph,
+  confirmed end to end live: a real `git commit` through Phase 6's Git
+  Manager auto-triggers a real incremental scan, and the resulting
+  structural content is independently queryable back out of Vector
+  Search. The two-tier confidentiality split is the actual security
+  design here: raw function/class bodies are never persisted anywhere
+  in this service's own database, only read live from disk on an
+  approval-gated request that re-verifies the requesting model is
+  local-only *at release time*, not just when the request was filed —
+  confirmed live, including refusing release to an approved-but-external
+  target model. What's scoped down for this first version: call-graph
+  resolution is intra-file only (cross-file calls aren't tracked, named
+  explicitly in the design doc as a tractability trade-off), and
+  JavaScript/TypeScript/Odoo-XML parsing are named extension points that
+  raise a clean, explicit "not implemented" rather than a silent
+  no-op. One real bug this phase caught along the way: `assembly`'s new
+  `GET /context/model-ceiling` endpoint was originally unreachable due
+  to FastAPI route-registration order — a literal path registered after
+  a path-parameter route that happened to match anything, caught only
+  by an actual HTTP call, not a direct function-call test. Full detail
+  in `services/knowledge_pipelines/README.md`.
 - Every "what's a stub" note in each service's own README is there because
   it materially affects what you should and shouldn't trust yet — read
   those before deploying anything here for real.
@@ -213,6 +239,16 @@ was present, since Git Manager's own calls re-check `shell.execute` for
 the same capability at the Shell Executor layer) — but otherwise reused
 Phase 6's and Phase 7's execution bridges completely unchanged for all
 four new agents' `propose_*` actions, the strongest evidence yet that
-the shared-infrastructure bet made in Phases 4–8 was the right one. That
-pattern — build the phase that unblocks what already exists before
-adding more surface area — is the intended way to keep extending this.
+the shared-infrastructure bet made in Phases 4–8 was the right one.
+Phase 11 needed one small, genuinely new endpoint in `assembly`
+(`GET /context/model-ceiling`, exposing Context Builder's existing
+model-isolation check over HTTP so `knowledge_pipelines` could reuse it
+rather than duplicate it) plus new policy rules in `governance` for
+`code_analysis.raw_source_request` and a `git_manager` system role — but
+its own two-tier structural/raw-source split, the whole point of the
+phase, needed no changes to any earlier phase at all, closing the loop
+Phase 10 explicitly flagged (Django Agent's documentation-only
+limitation) with new code contained entirely within
+`knowledge_pipelines`. That pattern — build the phase that unblocks what
+already exists before adding more surface area — is the intended way to
+keep extending this.

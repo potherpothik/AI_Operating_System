@@ -4,6 +4,7 @@ import httpx
 SECURITY_LAYER_URL = os.environ.get("SECURITY_LAYER_URL", "http://localhost:8000")
 KNOWLEDGE_URL = os.environ.get("KNOWLEDGE_URL", "http://localhost:8003")
 DATABASE_CONNECTOR_URL = os.environ.get("DATABASE_CONNECTOR_URL", "http://localhost:8007")
+ASSEMBLY_URL = os.environ.get("ASSEMBLY_URL", "http://localhost:8004")
 
 
 def authorize(actor: str, action: str, resource: str, correlation_id: str = "") -> dict:
@@ -95,6 +96,23 @@ def memory_write(memory_type: str, namespace: str, key: str, value: str, actor: 
     )
     resp.raise_for_status()
     return resp.json()
+
+
+def model_ceiling(target_model: str) -> dict:
+    """
+    Phase 11: raw_source_gate.py's re-verification that target_model is
+    local-only before releasing confidential raw source — reuses Context
+    Builder's own model-isolation check (Phase 4) over HTTP rather than
+    duplicating it. Fails toward the most restrictive tier ("public",
+    i.e. not local) if Context Builder is unreachable — never "assume
+    local and release it."
+    """
+    try:
+        resp = httpx.get(f"{ASSEMBLY_URL}/context/model-ceiling", params={"target_model": target_model}, timeout=10.0)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:  # noqa: BLE001
+        return {"ceiling": "public", "reason": f"context builder unreachable, failing closed: {e}"}
 
 
 class SchemaFetchFailed(Exception):

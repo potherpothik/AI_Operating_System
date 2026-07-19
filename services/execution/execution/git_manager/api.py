@@ -112,6 +112,12 @@ def commit(req: CommitRequest, db: Session = Depends(get_db)):
         result={"exit_code": 0}, status="completed",
     )
     clients.audit_log(actor_id=req.agent_capability, action="git.commit", resource=commit_sha, decision="completed", correlation_id=req.correlation_id or "")
+
+    # Phase 11's on_commit trigger — best-effort, never affects this
+    # endpoint's own response even if it fails (clients.trigger_code_analysis_scan
+    # never raises).
+    clients.trigger_code_analysis_scan(req.repo, req.files_changed, commit_sha)
+
     return _action_out(row)
 
 

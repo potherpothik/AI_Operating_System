@@ -59,6 +59,20 @@ and locked in as a permanent regression test
   function does it unconditionally. Refuses outright rather than
   silently truncating an over-budget prompt.
 
+- **`GET /context/model-ceiling` (Phase 11)**: exposes
+  `classification.ceiling_for_model()` over HTTP so a service outside
+  this one — Code Analysis Engine's `raw_source_gate.py` — can
+  re-verify a target model is local-only before releasing confidential
+  raw source that never routes through Vector Search/Context Builder at
+  all. A real bug caught building it: the route was originally
+  registered *after* `GET /context/{context_id}`, so FastAPI matched
+  the literal string `"model-ceiling"` as a `context_id` and returned a
+  plain 404 instead of ever reaching the new handler — invisible to a
+  direct function-call test, only caught by an actual HTTP request.
+  Fixed by moving it earlier in the router; regression-tested with
+  `TestClient` specifically because a direct function call wouldn't
+  have caught this class of bug (`test_model_ceiling_reachable_over_real_http_routing`).
+
 ## What's a stub or simplified
 
 - **Token budgeting is word-count based, not exact token counting.** A

@@ -112,6 +112,19 @@ that, not a bare rlimit. Locked in as a permanent regression test
   `docker.propose_compose_change`) — `docker exec`/`stop`/`rm` are
   structurally absent, not merely policy-denied one layer up, confirmed
   by `test_docker_agent_has_no_mutating_commands_at_all`.
+- **Phase 11's `on_commit` trigger is real, not just documented**: a
+  successful `/git/commit` fires a best-effort call to Code Analysis
+  Engine's `/code-analysis/scan(mode=incremental)`, reusing the SAME
+  `files_changed` list the commit request already carried rather than
+  computing a separate git diff. Confirmed live: a real commit through
+  this service's own `/git/branch` and `/git/commit` produced a real
+  call graph and real Vector Search content in `knowledge_pipelines`
+  moments later. `CODE_ANALYSIS_URL` unset (the default) makes this a
+  genuine no-op — confirmed by NOT monkeypatching HTTP in
+  `test_code_analysis_trigger_is_a_real_no_op_when_unconfigured`, so a
+  live network attempt with nothing listening would have raised, not
+  returned quietly, if the "unconfigured" branch weren't actually taken
+  first.
 
 ## What's a stub or simplified
 
