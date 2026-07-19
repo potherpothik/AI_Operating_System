@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from governance.db import get_db
 from governance.security.policy_engine import PolicyEngine
 from governance.security.classifier import classify_content
+from governance.security import secrets
 from governance.audit.store import log_event
 
 router = APIRouter(prefix="/security", tags=["security"])
@@ -22,6 +23,12 @@ class AuthorizeRequest(BaseModel):
 class ClassifyRequest(BaseModel):
     content: str
     declared_classification: str = "internal"
+
+
+class SecretResolveRequest(BaseModel):
+    target_db: str
+    capability: str
+    correlation_id: str = ""
 
 
 @router.post("/authorize")
@@ -54,6 +61,30 @@ def classify(req: ClassifyRequest):
     whatever the heuristic detects, never the less restrictive one.
     """
     return classify_content(req.content, req.declared_classification)
+
+
+@router.post("/secrets/resolve")
+def resolve_secret(req: SecretResolveRequest, db: Session = Depends(get_db)):
+    """
+    Phase 7's Database Connector calls this instead of holding any
+    credential itself — fail closed on an unregistered target, a
+    capability not on that target's allow list, or missing credential
+    material, same posture as /security/authorize. The resolved
+    connection string is returned to the caller (it has to be, to open a
+    real connection) but never logged — only the resource name and
+    decision are, same as every other governance log entry.
+    """
+    try:
+        result = secrets.resolve(req.target_db, req.capability)
+    except secrets.SecretNotFound as e:
+        log_event(db, actor_id=req.capability, actor_type="agent", action="secrets.resolve", resource=req.target_db, decision="deny", reason=str(e), correlation_id=req.correlation_id)
+        raise HTTPException(status_code=404, detail=str(e))
+    except secrets.SecretAccessDenied as e:
+        log_event(db, actor_id=req.capability, actor_type="agent", action="secrets.resolve", resource=req.target_db, decision="deny", reason=str(e), correlation_id=req.correlation_id)
+        raise HTTPException(status_code=403, detail=str(e))
+
+    log_event(db, actor_id=req.capability, actor_type="agent", action="secrets.resolve", resource=req.target_db, decision="allow", reason="", correlation_id=req.correlation_id)
+    return result
 
 
 @router.get("/policy/{role}")

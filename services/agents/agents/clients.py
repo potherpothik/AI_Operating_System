@@ -5,6 +5,7 @@ ASSEMBLY_URL = os.environ.get("ASSEMBLY_URL", "http://localhost:8004")
 PLATFORM_URL = os.environ.get("PLATFORM_URL", "http://localhost:8002")
 SECURITY_LAYER_URL = os.environ.get("SECURITY_LAYER_URL", "http://localhost:8000")
 EXECUTION_URL = os.environ.get("EXECUTION_URL", "http://localhost:8006")
+DATABASE_CONNECTOR_URL = os.environ.get("DATABASE_CONNECTOR_URL", "http://localhost:8007")
 GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "dev-odoo-agent-token")
 
 
@@ -218,3 +219,81 @@ def git_open_mr(repo: str, branch_name: str, agent_capability: str, task_id: str
         return resp.json()
     except Exception as e:  # noqa: BLE001
         return {"status": "failed", "result": {"reason": str(e)}}
+
+
+def db_query(target_db: str, table: str, sql_template: str, params: dict, capability: str, requesting_agent: str,
+             task_id: str = None, requester_ceiling: str = "internal", correlation_id: str = "") -> dict:
+    try:
+        resp = httpx.post(
+            f"{DATABASE_CONNECTOR_URL}/db/query",
+            json={
+                "target_db": target_db, "table": table, "sql_template": sql_template, "params": params,
+                "capability": capability, "requesting_agent": requesting_agent, "task_id": task_id,
+                "requester_ceiling": requester_ceiling, "correlation_id": correlation_id,
+            },
+            timeout=20.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
+def db_dry_run(target_db: str, sql_template: str, params: dict, capability: str, requesting_agent: str,
+               task_id: str = None, correlation_id: str = "") -> dict:
+    try:
+        resp = httpx.post(
+            f"{DATABASE_CONNECTOR_URL}/db/dry_run",
+            json={
+                "target_db": target_db, "sql_template": sql_template, "params": params,
+                "capability": capability, "requesting_agent": requesting_agent, "task_id": task_id,
+                "correlation_id": correlation_id,
+            },
+            timeout=20.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
+def db_write(target_db: str, sql_template: str, params: dict, dry_run_id: str, capability: str, requesting_agent: str,
+             task_id: str = None, correlation_id: str = "") -> dict:
+    try:
+        resp = httpx.post(
+            f"{DATABASE_CONNECTOR_URL}/db/write",
+            json={
+                "target_db": target_db, "sql_template": sql_template, "params": params, "dry_run_id": dry_run_id,
+                "capability": capability, "requesting_agent": requesting_agent, "task_id": task_id,
+                "correlation_id": correlation_id,
+            },
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
+def db_migrate(target_platform: str, description: str, capability: str, requesting_agent: str, task_id: str, correlation_id: str = "") -> dict:
+    try:
+        resp = httpx.post(
+            f"{DATABASE_CONNECTOR_URL}/db/migrate",
+            json={
+                "target_platform": target_platform, "description": description, "capability": capability,
+                "requesting_agent": requesting_agent, "task_id": task_id, "correlation_id": correlation_id,
+            },
+            timeout=20.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}

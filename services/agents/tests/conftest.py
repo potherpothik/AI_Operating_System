@@ -164,3 +164,34 @@ def proposal_repo(execution_sandbox_root, disposable_bare_repo_for_bridge, monke
     from agents.reasoning_engine import execution_bridge
     monkeypatch.setattr(execution_bridge, "PROPOSAL_REPO_PATH", str(work_dir))
     return work_dir
+
+
+@pytest.fixture
+def demo_erp_clean():
+    """Resets the disposable demo_erp target's mutable rows before/after
+    each test that writes to it — same throwaway target Phase 7's own
+    test suite uses, never any service's real operational database."""
+    import sqlalchemy
+    target_engine = sqlalchemy.create_engine(os.environ.get("DEMO_ERP_DATABASE_URL", "postgresql://saadi:devpassword@localhost:5432/demo_erp"))
+    with target_engine.begin() as conn:
+        conn.execute(sqlalchemy.text("UPDATE sale_order SET state = 'sale' WHERE name = 'SO0003'"))
+        conn.execute(sqlalchemy.text("DELETE FROM sale_order WHERE name LIKE 'TEST_%'"))
+    yield
+    with target_engine.begin() as conn:
+        conn.execute(sqlalchemy.text("UPDATE sale_order SET state = 'draft' WHERE name = 'SO0003'"))
+        conn.execute(sqlalchemy.text("DELETE FROM sale_order WHERE name LIKE 'TEST_%'"))
+
+
+@pytest.fixture(scope="session")
+def database_url(governance_url):
+    url, proc = _ensure_service(
+        "DATABASE_CONNECTOR_URL", "http://localhost:8007", "PHASE7_PATH", 8007,
+        extra_env={
+            "SECURITY_LAYER_URL": governance_url,
+            "DEMO_ERP_DATABASE_URL": os.environ.get("DEMO_ERP_DATABASE_URL", "postgresql://saadi:devpassword@localhost:5432/demo_erp"),
+        },
+    )
+    yield url
+    if proc:
+        proc.terminate()
+        proc.wait(timeout=5)
