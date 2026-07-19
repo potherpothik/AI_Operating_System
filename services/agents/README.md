@@ -18,6 +18,11 @@ export PLATFORM_URL=http://localhost:8002
 export KNOWLEDGE_URL=http://localhost:8003
 export ASSEMBLY_URL=http://localhost:8004
 export OLLAMA_URL=http://localhost:11434   # default, only needed if Ollama runs elsewhere
+# Optional — closes the Phase 6 loop: an approved odoo.propose_change
+# gets materialized as a real branch/commit/push/MR. Without these,
+# resume() still completes normally; it just skips execution.
+export EXECUTION_URL=http://localhost:8006
+export PROPOSAL_REPO_PATH=/tmp/ai_os_sandbox/your-real-repo-clone
 uvicorn main:app --port 8005
 ```
 
@@ -113,6 +118,13 @@ tests (`test_generate_requests_thinking_disabled`,
   `agents/<name>/capability.yaml` under this package is picked up by
   `capability_registry.load_all()` — adding Django Agent, Database Agent,
   etc. later is a new subfolder, not a code change to Reasoning Engine.
+- **Approval → execution is real, not just a status flip** (Phase 6):
+  `resume()` on an approved `odoo.propose_change` calls into Phase 6's
+  Git Manager via `execution_bridge.py` — confirmed live: a real branch,
+  a real commit (with the model's actual proposal text as the file
+  content, and the full provenance trailer), and a real push landed in a
+  disposable repo, verified by reading that repo's own log and file
+  contents directly rather than trusting the returned status.
 
 ## What's a stub or simplified
 

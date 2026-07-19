@@ -19,7 +19,7 @@ considered, trade-offs, security implications) before diving into code.
 | 3 | Memory Manager, Vector Search | [`docs/phase-3-memory-vector-search.md`](docs/phase-3-memory-vector-search.md) | [`services/knowledge/`](services/knowledge/) — 22 tests |
 | 4 | Context Builder, Prompt Builder | [`docs/phase-4-context-prompt-builder.md`](docs/phase-4-context-prompt-builder.md) | [`services/assembly/`](services/assembly/) — 26 tests |
 | 5 | Reasoning Engine, Odoo Agent | [`docs/phase-5-odoo-agent-reasoning-engine.md`](docs/phase-5-odoo-agent-reasoning-engine.md) | [`services/agents/`](services/agents/) — 18 tests |
-| 6 | Shell Executor, Git Manager | [`docs/phase-6-shell-git-manager.md`](docs/phase-6-shell-git-manager.md) | not yet built |
+| 6 | Shell Executor, Git Manager | [`docs/phase-6-shell-git-manager.md`](docs/phase-6-shell-git-manager.md) | [`services/execution/`](services/execution/) — 45 tests |
 | 7 | Database Connector, Database Agent | [`docs/phase-7-database-connector-agent.md`](docs/phase-7-database-connector-agent.md) | not yet built |
 | 8 | Planner, Capability Registry | [`docs/phase-8-planner-capability-registry.md`](docs/phase-8-planner-capability-registry.md) | not yet built |
 | 9 | Documentation Engine, ERP Knowledge Engine | [`docs/phase-9-documentation-erp-knowledge-engine.md`](docs/phase-9-documentation-erp-knowledge-engine.md) | not yet built |
@@ -27,7 +27,7 @@ considered, trade-offs, security implications) before diving into code.
 | 11 | Code Analysis Engine | [`docs/phase-11-code-analysis-engine.md`](docs/phase-11-code-analysis-engine.md) | not yet built |
 | 12–21 | Extensibility, observability, remaining agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 
-Five services are real, tested code today; everything past Phase 5 is
+Six services are real, tested code today; everything past Phase 6 is
 fully designed but not yet implemented.
 
 ## Running what exists
@@ -36,7 +36,9 @@ Each service is independently runnable and has its own README with real
 run/test instructions. Dependency order: `governance` has none;
 `platform-spine` and `knowledge` both call `governance`; `assembly` calls
 all three of the others; `agents` calls all four, plus a local Ollama
-instance.
+instance; `execution` calls only `governance` directly, but `agents`
+calls back into `execution` once a proposal is approved, closing the
+loop end to end.
 
 ```bash
 # terminal 1
@@ -59,7 +61,13 @@ uvicorn main:app --port 8004
 cd services/agents && pip install -r requirements.txt
 SECURITY_LAYER_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 \
 KNOWLEDGE_URL=http://localhost:8003 ASSEMBLY_URL=http://localhost:8004 \
+EXECUTION_URL=http://localhost:8006 PROPOSAL_REPO_PATH=/tmp/ai_os_sandbox/your-real-repo-clone \
 uvicorn main:app --port 8005
+
+# terminal 6
+cd services/execution && pip install -r requirements.txt
+SECURITY_LAYER_URL=http://localhost:8000 SANDBOX_ROOT=/tmp/ai_os_sandbox \
+uvicorn main:app --port 8006
 ```
 
 All default to SQLite with zero setup. Point `DATABASE_URL` at Postgres
@@ -87,6 +95,17 @@ connection string format and what's been verified against it (including
   output budget on invisible chain-of-thought and never answer — a real
   bug caught by reading a raw API response, not by any schema check. Full
   detail in `services/agents/README.md`.
+- **`execution`'s sandbox runs on a subprocess fallback, not real Docker
+  containers.** Docker isn't installed in this environment (confirmed: no
+  `docker` binary at all). `DockerSandbox` is written to the real `docker
+  run` contract but never actually run here; `SubprocessSandbox` is what's
+  genuinely tested — real timeout/resource limits and working-directory
+  confinement, but not real filesystem or network isolation (the command
+  allowlist is the actual defense there). Also worth knowing: an earlier
+  version set a process-count resource limit that broke `git push`
+  entirely, because that particular limit is scoped per-user system-wide,
+  not per-command — found by actually pushing to a repo, not by the test
+  suite's assertions alone. Full detail in `services/execution/README.md`.
 - Every "what's a stub" note in each service's own README is there because
   it materially affects what you should and shouldn't trust yet — read
   those before deploying anything here for real.
