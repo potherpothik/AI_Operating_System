@@ -4,6 +4,7 @@ import httpx
 ASSEMBLY_URL = os.environ.get("ASSEMBLY_URL", "http://localhost:8004")
 PLATFORM_URL = os.environ.get("PLATFORM_URL", "http://localhost:8002")
 SECURITY_LAYER_URL = os.environ.get("SECURITY_LAYER_URL", "http://localhost:8000")
+EXECUTION_URL = os.environ.get("EXECUTION_URL", "http://localhost:8006")
 GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "dev-odoo-agent-token")
 
 
@@ -155,3 +156,65 @@ def create_delegate_task(title: str, description: str, correlation_id: str = "")
         return task
     except Exception as e:  # noqa: BLE001
         return {"id": None, "error": str(e)}
+
+
+def git_branch(repo: str, agent_capability: str, task_id: str, requesting_agent: str, correlation_id: str = "") -> dict:
+    try:
+        resp = httpx.post(
+            f"{EXECUTION_URL}/git/branch",
+            json={"repo": repo, "agent_capability": agent_capability, "task_id": task_id, "requesting_agent": requesting_agent, "correlation_id": correlation_id},
+            timeout=15.0,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:  # noqa: BLE001
+        return {"status": "failed", "result": {"reason": str(e)}}
+
+
+def git_commit(repo: str, agent_capability: str, task_id: str, requesting_agent: str, files_changed: list, summary: str,
+               reasoning_execution_id: str = None, context_id: str = None, correlation_id: str = "") -> dict:
+    try:
+        resp = httpx.post(
+            f"{EXECUTION_URL}/git/commit",
+            json={
+                "repo": repo, "agent_capability": agent_capability, "task_id": task_id, "requesting_agent": requesting_agent,
+                "files_changed": files_changed, "summary": summary, "reasoning_execution_id": reasoning_execution_id,
+                "context_id": context_id, "correlation_id": correlation_id,
+            },
+            timeout=15.0,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:  # noqa: BLE001
+        return {"status": "failed", "result": {"reason": str(e)}}
+
+
+def git_push(repo: str, agent_capability: str, task_id: str, requesting_agent: str, branch_name: str, correlation_id: str = "") -> dict:
+    try:
+        resp = httpx.post(
+            f"{EXECUTION_URL}/git/push",
+            json={"repo": repo, "agent_capability": agent_capability, "task_id": task_id, "requesting_agent": requesting_agent, "branch_name": branch_name, "correlation_id": correlation_id},
+            timeout=15.0,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:  # noqa: BLE001
+        return {"status": "failed", "result": {"reason": str(e)}}
+
+
+def git_open_mr(repo: str, branch_name: str, agent_capability: str, task_id: str, requesting_agent: str,
+                proposal_text: str, risk_classification: str, files_changed: list = None, correlation_id: str = "") -> dict:
+    try:
+        resp = httpx.post(
+            f"{EXECUTION_URL}/git/open_mr",
+            json={
+                "repo": repo, "branch_name": branch_name, "agent_capability": agent_capability, "task_id": task_id,
+                "requesting_agent": requesting_agent, "proposal_text": proposal_text, "risk_classification": risk_classification,
+                "files_changed": files_changed or [], "correlation_id": correlation_id,
+            },
+            timeout=15.0,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:  # noqa: BLE001
+        return {"status": "failed", "result": {"reason": str(e)}}

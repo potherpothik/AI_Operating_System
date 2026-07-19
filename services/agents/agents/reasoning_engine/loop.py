@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from agents import clients
-from agents.reasoning_engine import store, capability_registry
+from agents.reasoning_engine import store, capability_registry, execution_bridge
 from agents.reasoning_engine.ollama_adapter import generate, OllamaUnavailable
 from agents.reasoning_engine.models import ReasoningExecution
 
@@ -167,8 +167,15 @@ def resume(db: Session, execution_id: str) -> ReasoningExecution | None:
 
     approval = clients.get_approval_status(execution.approval_id)
     if approval.get("status") == "approved":
+        result = dict(execution.result or {})
+        # Phase 6 doc, Section 3: after approval, an odoo.propose_change
+        # actually gets materialized as a branch/commit/push/MR — not
+        # just marked "completed" and left as text. Any other action
+        # (or unconfigured execution layer) still just completes as before.
+        if result.get("action") == "odoo.propose_change":
+            result["git_execution"] = execution_bridge.materialize_propose_change(execution)
         return store.finalize(
-            db, execution, "completed", execution.iterations_used, result=execution.result,
+            db, execution, "completed", execution.iterations_used, result=result,
             approval_id=execution.approval_id,
         )
     if approval.get("status") in ("rejected", "expired"):

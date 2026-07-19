@@ -114,3 +114,53 @@ def ollama_available():
         return httpx.get(f"{url}/api/tags", timeout=2.0).status_code == 200
     except Exception:
         return False
+
+
+@pytest.fixture(scope="session")
+def execution_sandbox_root(tmp_path_factory):
+    return tmp_path_factory.mktemp("execution_sandbox_root")
+
+
+@pytest.fixture(scope="session")
+def execution_url(governance_url, execution_sandbox_root):
+    url, proc = _ensure_service(
+        "EXECUTION_URL", "http://localhost:8006", "PHASE6_PATH", 8006,
+        extra_env={"SECURITY_LAYER_URL": governance_url, "SANDBOX_ROOT": str(execution_sandbox_root)},
+    )
+    yield url
+    if proc:
+        proc.terminate()
+        proc.wait(timeout=5)
+
+
+@pytest.fixture
+def disposable_bare_repo_for_bridge(execution_sandbox_root):
+    """A real, throwaway bare repo the wired-together Phase 5/6 flow
+    pushes to — never the actual project repo or real GitHub."""
+    import subprocess
+    bare = execution_sandbox_root / "origin.git"
+    if not bare.exists():
+        subprocess.run(["git", "init", "--bare", "-b", "main", str(bare)], check=True, capture_output=True)
+    return bare
+
+
+@pytest.fixture
+def proposal_repo(execution_sandbox_root, disposable_bare_repo_for_bridge, monkeypatch):
+    """A real clone, inside execution's own SANDBOX_ROOT so the live
+    execution service (a separate process) will accept it as a
+    working_dir, with an initial commit so there's a real HEAD."""
+    import subprocess
+    import uuid
+    work_dir = execution_sandbox_root / f"proposal-repo-{uuid.uuid4().hex[:8]}"
+    subprocess.run(["git", "clone", str(disposable_bare_repo_for_bridge), str(work_dir)], check=True, capture_output=True)
+    (work_dir / "README.md").write_text("initial\n")
+    subprocess.run(["git", "-C", str(work_dir), "add", "README.md"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(work_dir), "-c", "user.email=test@test.local", "-c", "user.name=test", "commit", "-m", "initial commit"],
+        check=True, capture_output=True,
+    )
+    subprocess.run(["git", "-C", str(work_dir), "push", "origin", "main"], check=True, capture_output=True)
+    monkeypatch.setenv("PROPOSAL_REPO_PATH", str(work_dir))
+    from agents.reasoning_engine import execution_bridge
+    monkeypatch.setattr(execution_bridge, "PROPOSAL_REPO_PATH", str(work_dir))
+    return work_dir
