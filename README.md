@@ -18,7 +18,7 @@ considered, trade-offs, security implications) before diving into code.
 | 2 | Configuration Manager, Gateway, Task Manager | [`docs/phase-2-gateway-task-manager-config.md`](docs/phase-2-gateway-task-manager-config.md) | [`services/platform-spine/`](services/platform-spine/) — 21 tests |
 | 3 | Memory Manager, Vector Search | [`docs/phase-3-memory-vector-search.md`](docs/phase-3-memory-vector-search.md) | [`services/knowledge/`](services/knowledge/) — 22 tests |
 | 4 | Context Builder, Prompt Builder | [`docs/phase-4-context-prompt-builder.md`](docs/phase-4-context-prompt-builder.md) | [`services/assembly/`](services/assembly/) — 26 tests |
-| 5 | Reasoning Engine, Odoo Agent | [`docs/phase-5-odoo-agent-reasoning-engine.md`](docs/phase-5-odoo-agent-reasoning-engine.md) | not yet built |
+| 5 | Reasoning Engine, Odoo Agent | [`docs/phase-5-odoo-agent-reasoning-engine.md`](docs/phase-5-odoo-agent-reasoning-engine.md) | [`services/agents/`](services/agents/) — 18 tests |
 | 6 | Shell Executor, Git Manager | [`docs/phase-6-shell-git-manager.md`](docs/phase-6-shell-git-manager.md) | not yet built |
 | 7 | Database Connector, Database Agent | [`docs/phase-7-database-connector-agent.md`](docs/phase-7-database-connector-agent.md) | not yet built |
 | 8 | Planner, Capability Registry | [`docs/phase-8-planner-capability-registry.md`](docs/phase-8-planner-capability-registry.md) | not yet built |
@@ -27,7 +27,7 @@ considered, trade-offs, security implications) before diving into code.
 | 11 | Code Analysis Engine | [`docs/phase-11-code-analysis-engine.md`](docs/phase-11-code-analysis-engine.md) | not yet built |
 | 12–21 | Extensibility, observability, remaining agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 
-Four services are real, tested code today; everything past Phase 4 is
+Five services are real, tested code today; everything past Phase 5 is
 fully designed but not yet implemented.
 
 ## Running what exists
@@ -35,7 +35,8 @@ fully designed but not yet implemented.
 Each service is independently runnable and has its own README with real
 run/test instructions. Dependency order: `governance` has none;
 `platform-spine` and `knowledge` both call `governance`; `assembly` calls
-all three of the others.
+all three of the others; `agents` calls all four, plus a local Ollama
+instance.
 
 ```bash
 # terminal 1
@@ -53,12 +54,18 @@ SECURITY_LAYER_URL=http://localhost:8000 uvicorn main:app --port 8003
 cd services/assembly && pip install -r requirements.txt
 SECURITY_LAYER_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 KNOWLEDGE_URL=http://localhost:8003 \
 uvicorn main:app --port 8004
+
+# terminal 5 — needs Ollama running locally with a model pulled
+cd services/agents && pip install -r requirements.txt
+SECURITY_LAYER_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 \
+KNOWLEDGE_URL=http://localhost:8003 ASSEMBLY_URL=http://localhost:8004 \
+uvicorn main:app --port 8005
 ```
 
-All three default to SQLite with zero setup. Point `DATABASE_URL` at
-Postgres for the real deployment target — each service's README has the
-exact connection string format and what's been verified against it
-(including `knowledge`'s use of real pgvector, not a stand-in).
+All default to SQLite with zero setup. Point `DATABASE_URL` at Postgres
+for the real deployment target — each service's README has the exact
+connection string format and what's been verified against it (including
+`knowledge`'s use of real pgvector, not a stand-in).
 
 ## Honesty notes worth reading before relying on this
 
@@ -72,6 +79,14 @@ exact connection string format and what's been verified against it
   sandbox can't download. Swappable in `budget.py`.
 - **`platform-spine`'s auth** is a stub token→role file, explicitly standing
   in for real SSO/LDAP.
+- **`agents`' model routing targets whatever's actually pulled in Ollama.**
+  The design names `qwen-coder`/`deepseek-coder`; verified here against
+  `qwen3.5:4b`, applied via `platform-spine`'s config override mechanism
+  rather than editing Phase 2's shipped defaults. Thinking-capable models
+  need `think: false` passed to Ollama or they can burn their entire
+  output budget on invisible chain-of-thought and never answer — a real
+  bug caught by reading a raw API response, not by any schema check. Full
+  detail in `services/agents/README.md`.
 - Every "what's a stub" note in each service's own README is there because
   it materially affects what you should and shouldn't trust yet — read
   those before deploying anything here for real.
