@@ -65,6 +65,58 @@ def test_commit_creates_real_commit_with_provenance_trailer(cloned_repo, governa
     assert "Reasoning-Execution-Id: exec-1" in commit_body
 
 
+def test_commit_triggers_code_analysis_scan_with_the_real_files_changed_list(cloned_repo, governance_url, monkeypatch):
+    """
+    Phase 11's on_commit trigger — fired from inside commit() itself
+    using the SAME files_changed list the request already carried, not
+    a separate git-diff call. Monkeypatches the actual HTTP call
+    (clients.trigger_code_analysis_scan) rather than running a live Code
+    Analysis Engine here, since that belongs to knowledge_pipelines'
+    own test suite — what's under test here is that Git Manager calls it
+    at all, with the right arguments, not Code Analysis Engine's own
+    scanning logic.
+    """
+    from execution.git_manager import api as git_api_module
+
+    calls = []
+    monkeypatch.setattr(
+        git_api_module.clients, "trigger_code_analysis_scan",
+        lambda repo, files, commit_ref: calls.append({"repo": repo, "files": files, "commit_ref": commit_ref}) or {"attempted": True},
+    )
+
+    db = SessionLocal()
+    git_api.branch(
+        git_api.BranchRequest(repo=str(cloned_repo), agent_capability="odoo_agent", task_id="task-scan-1", requesting_agent="reasoning_engine"),
+        db,
+    )
+    (cloned_repo / "proposed_change.py").write_text("def f():\n    return 1\n")
+    result = git_api.commit(
+        git_api.CommitRequest(
+            repo=str(cloned_repo), agent_capability="odoo_agent", task_id="task-scan-1", requesting_agent="reasoning_engine",
+            files_changed=["proposed_change.py"], summary="Add a function",
+        ),
+        db,
+    )
+    db.close()
+
+    assert len(calls) == 1
+    assert calls[0]["repo"] == str(cloned_repo)
+    assert calls[0]["files"] == ["proposed_change.py"]
+    assert calls[0]["commit_ref"] == result["commit_sha"]
+
+
+def test_code_analysis_trigger_is_a_real_no_op_when_unconfigured():
+    """CODE_ANALYSIS_URL unset (the default in this environment) means
+    the trigger returns cleanly without ever attempting an HTTP call —
+    confirmed by NOT monkeypatching httpx here at all; a real network
+    attempt with nothing listening would raise, not return quietly."""
+    from execution import clients as clients_module
+
+    assert clients_module.CODE_ANALYSIS_URL is None
+    result = clients_module.trigger_code_analysis_scan("/tmp/some/repo", ["a.py"], "deadbeef")
+    assert result == {"attempted": False, "reason": "CODE_ANALYSIS_URL not configured"}
+
+
 def test_commit_uses_distinct_agent_identity_not_host_identity(cloned_repo, governance_url):
     db = SessionLocal()
     git_api.branch(

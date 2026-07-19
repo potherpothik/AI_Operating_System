@@ -77,6 +77,30 @@ def knowledge_url(governance_url):
 
 
 @pytest.fixture(scope="session")
+def platform_url(governance_url):
+    url, proc = _ensure_service(
+        "PLATFORM_URL", "http://localhost:8002", "PHASE2_PATH", 8002,
+        extra_env={"SECURITY_LAYER_URL": governance_url},
+    )
+    yield url
+    if proc:
+        proc.terminate()
+        proc.wait(timeout=5)
+
+
+@pytest.fixture(scope="session")
+def assembly_url(governance_url, platform_url, knowledge_url):
+    url, proc = _ensure_service(
+        "ASSEMBLY_URL", "http://localhost:8004", "PHASE4_PATH", 8004,
+        extra_env={"SECURITY_LAYER_URL": governance_url, "PLATFORM_URL": platform_url, "KNOWLEDGE_URL": knowledge_url},
+    )
+    yield url
+    if proc:
+        proc.terminate()
+        proc.wait(timeout=5)
+
+
+@pytest.fixture(scope="session")
 def database_url(governance_url):
     url, proc = _ensure_service(
         "DATABASE_CONNECTOR_URL", "http://localhost:8007", "PHASE7_PATH", 8007,
