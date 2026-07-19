@@ -1,0 +1,11 @@
+capability: costing_agent
+allowed_actions:
+  - costing.calculate
+  - costing.explain_formula
+  - costing.propose_formula_change
+forbidden_actions:
+  - costing.modify_formula_direct
+requires_approval:
+  - costing.propose_formula_change
+classification_ceiling: confidential
+template_id: costing_agent

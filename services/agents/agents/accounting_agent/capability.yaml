@@ -1,0 +1,12 @@
+capability: accounting_agent
+allowed_actions:
+  - accounting.read_ledger
+  - accounting.explain_entry
+  - accounting.propose_entry
+forbidden_actions:
+  - accounting.write_ledger_direct
+  - accounting.close_period
+requires_approval:
+  - accounting.propose_entry
+classification_ceiling: confidential
+template_id: accounting_agent

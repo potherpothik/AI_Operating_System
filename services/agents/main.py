@@ -10,11 +10,14 @@ from agents.django_agent import register as django_agent_register
 from agents.devops_agent import register as devops_agent_register
 from agents.docker_agent import register as docker_agent_register
 from agents.testing_agent import register as testing_agent_register
+from agents.costing_agent import register as costing_agent_register
+from agents.accounting_agent import register as accounting_agent_register
+from agents.inventory_agent import register as inventory_agent_register
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="AI Orchestration Layer — Phase 5/7/8/10: Reasoning Engine + six agents",
+    title="AI Orchestration Layer — Phase 5/7/8/10/14: Reasoning Engine + nine agents",
     description="The shared execution loop every agent runs through, and the agents running on it.",
 )
 
@@ -35,6 +38,9 @@ def on_startup():
     devops_agent_register.ensure_template_registered()
     docker_agent_register.ensure_template_registered()
     testing_agent_register.ensure_template_registered()
+    costing_agent_register.ensure_template_registered()
+    accounting_agent_register.ensure_template_registered()
+    inventory_agent_register.ensure_template_registered()
 
 
 @app.post("/capabilities/reload")
@@ -112,17 +118,33 @@ def register_testing_agent_template():
     return testing_agent_register.ensure_template_registered()
 
 
+@app.post("/costing_agent/register")
+def register_costing_agent_template():
+    return costing_agent_register.ensure_template_registered()
+
+
+@app.post("/accounting_agent/register")
+def register_accounting_agent_template():
+    return accounting_agent_register.ensure_template_registered()
+
+
+@app.post("/inventory_agent/register")
+def register_inventory_agent_template():
+    return inventory_agent_register.ensure_template_registered()
+
+
 @app.get("/healthz")
 def healthz():
-    return {"status": "ok", "phase": 10}
+    return {"status": "ok", "phase": 14}
 
 
 @app.get("/")
 def root():
     return {
-        "status": "ok", "phase": 10,
+        "status": "ok", "phase": 14,
         "modules": [
             "reasoning_engine", "odoo_agent", "database_agent", "planner",
             "django_agent", "devops_agent", "docker_agent", "testing_agent",
+            "costing_agent", "accounting_agent", "inventory_agent",
         ],
     }

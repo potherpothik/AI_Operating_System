@@ -34,6 +34,14 @@ roles:
     - action: "code_analysis.raw_source_request"
       resource: "*"
       effect: require_approval
+    # Phase 12: MCP Client is a new tool SOURCE, not a new trust boundary
+    # (doc, MCP Client Security) — allow here mirrors shell.execute's
+    # existing precedent: the individual server was already approval-gated
+    # at registration time, this is authorize-checked defense-in-depth on
+    # each call, not a second human approval per invocation.
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
     # Phase 6: execution layer actions. All "allow" rather than
     # require_approval again here — the human approval already happened
     # once, upstream, on odoo.propose_change itself (Phase 5). Shell
@@ -114,6 +122,14 @@ roles:
     - action: "code_analysis.raw_source_request"
       resource: "*"
       effect: require_approval
+    # Phase 12: MCP Client is a new tool SOURCE, not a new trust boundary
+    # (doc, MCP Client Security) — allow here mirrors shell.execute's
+    # existing precedent: the individual server was already approval-gated
+    # at registration time, this is authorize-checked defense-in-depth on
+    # each call, not a second human approval per invocation.
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
 
   planner:
     - action: "planner.plan"
@@ -177,6 +193,14 @@ roles:
     - action: "code_analysis.raw_source_request"
       resource: "*"
       effect: require_approval
+    # Phase 12: MCP Client is a new tool SOURCE, not a new trust boundary
+    # (doc, MCP Client Security) — allow here mirrors shell.execute's
+    # existing precedent: the individual server was already approval-gated
+    # at registration time, this is authorize-checked defense-in-depth on
+    # each call, not a second human approval per invocation.
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
     # django.propose_migration executes via the same migration_adapter/
     # django.py path Phase 7's Database Connector already stubbed — allow
     # here, same split as database_agent's db.migrate: the approval
@@ -213,6 +237,14 @@ roles:
     - action: "code_analysis.raw_source_request"
       resource: "*"
       effect: require_approval
+    # Phase 12: MCP Client is a new tool SOURCE, not a new trust boundary
+    # (doc, MCP Client Security) — allow here mirrors shell.execute's
+    # existing precedent: the individual server was already approval-gated
+    # at registration time, this is authorize-checked defense-in-depth on
+    # each call, not a second human approval per invocation.
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
     # Both propose_* actions land as a Git Manager MR (CI config / infra-as-code
     # files) — same execution-layer split as odoo_agent above: the human
     # approval already happened on the propose_* action itself. Git Manager's
@@ -270,6 +302,14 @@ roles:
     - action: "code_analysis.raw_source_request"
       resource: "*"
       effect: require_approval
+    # Phase 12: MCP Client is a new tool SOURCE, not a new trust boundary
+    # (doc, MCP Client Security) — allow here mirrors shell.execute's
+    # existing precedent: the individual server was already approval-gated
+    # at registration time, this is authorize-checked defense-in-depth on
+    # each call, not a second human approval per invocation.
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
     - action: "shell.execute"
       resource: "*"
       effect: allow
@@ -321,6 +361,14 @@ roles:
     - action: "code_analysis.raw_source_request"
       resource: "*"
       effect: require_approval
+    # Phase 12: MCP Client is a new tool SOURCE, not a new trust boundary
+    # (doc, MCP Client Security) — allow here mirrors shell.execute's
+    # existing precedent: the individual server was already approval-gated
+    # at registration time, this is authorize-checked defense-in-depth on
+    # each call, not a second human approval per invocation.
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
     - action: "shell.execute"
       resource: "*"
       effect: allow
@@ -337,6 +385,133 @@ roles:
       resource: "*"
       effect: allow
     - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
+  costing_agent:
+    - action: "costing.calculate"
+      resource: "*"
+      effect: allow
+    - action: "costing.explain_formula"
+      resource: "*"
+      effect: allow
+    - action: "costing.propose_formula_change"
+      resource: "*"
+      effect: require_approval
+    - action: "costing.modify_formula_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+
+  accounting_agent:
+    # The most conservative role in this file by design (Phase 14 doc):
+    # accounting.propose_entry requires approval unconditionally, and
+    # there is no db.write allow here at all — an approved proposal
+    # materializes as a real, reviewable git document (execution_bridge,
+    # same as odoo.propose_change), never a direct ledger write. Real
+    # ledger READS still need db.read (the tool-call step
+    # accounting.read_ledger's template uses), so that alone is allowed.
+    - action: "accounting.read_ledger"
+      resource: "*"
+      effect: allow
+    - action: "accounting.explain_entry"
+      resource: "*"
+      effect: allow
+    - action: "accounting.propose_entry"
+      resource: "*"
+      effect: require_approval
+    - action: "accounting.write_ledger_direct"
+      resource: "*"
+      effect: deny
+    - action: "accounting.close_period"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    - action: "db.read"
+      resource: "*"
+      effect: allow
+    # accounting.propose_entry materializes via Git Manager (same split
+    # as odoo_agent above) — shell.execute needed for the same reason
+    # devops_agent's role docs this: Git Manager's own branch/commit/push
+    # calls re-check shell.execute for this SAME capability.
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
+  inventory_agent:
+    - action: "inventory.read_stock"
+      resource: "*"
+      effect: allow
+    - action: "inventory.propose_adjustment"
+      resource: "*"
+      effect: require_approval
+    - action: "inventory.propose_reorder"
+      resource: "*"
+      effect: require_approval
+    - action: "inventory.write_stock_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    # Reuses database_agent's exact dry-run-then-write path
+    # (database_bridge.materialize_propose_write) — same three connector-
+    # level actions that role already needed, for the same reason: the
+    # capability-level approval already happened on inventory.propose_adjustment/
+    # inventory.propose_reorder itself.
+    - action: "db.read"
+      resource: "*"
+      effect: allow
+    - action: "db.dry_run"
+      resource: "*"
+      effect: allow
+    - action: "db.write"
       resource: "*"
       effect: allow
 

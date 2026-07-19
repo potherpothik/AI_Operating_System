@@ -25,11 +25,16 @@ considered, trade-offs, security implications) before diving into code.
 | 9 | Documentation Engine, ERP Knowledge Engine | [`docs/phase-9-documentation-erp-knowledge-engine.md`](docs/phase-9-documentation-erp-knowledge-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 27 tests |
 | 10 | Django, DevOps, Docker, Testing Agents | [`docs/phase-10-django-devops-docker-testing-agents.md`](docs/phase-10-django-devops-docker-testing-agents.md) | [`services/agents/`](services/agents/) — 38 tests (all four agents live in `services/agents/agents/{django_agent,devops_agent,docker_agent,testing_agent}/`) |
 | 11 | Code Analysis Engine | [`docs/phase-11-code-analysis-engine.md`](docs/phase-11-code-analysis-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 48 tests (Code Analysis Engine itself lives in `services/knowledge_pipelines/knowledge_pipelines/code_analysis_engine/`) |
-| 12–21 | Extensibility, observability, remaining agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
+| 12 | MCP Client, Plugin System | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/extensibility/`](services/extensibility/) — 25 tests |
+| 13 | Metrics Dashboard, Health Monitor | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
+| 14 | Costing, Accounting, Inventory Agents | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/agents/`](services/agents/) — 49 tests (all three agents live in `services/agents/agents/{costing_agent,accounting_agent,inventory_agent}/`) |
+| 15–21 | Operations/code-quality/engineering/cross-cutting agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 
-Nine services are real, tested code today, now hosting eleven phases'
-worth of agents and subsystems; everything past Phase 11 is fully
-designed but not yet implemented.
+Ten services are real, tested code today, now hosting thirteen phases'
+worth of agents and subsystems (Phases 1–11 plus 12 and 14 — Phase 13
+is next); everything past that is fully designed but not yet
+implemented. Phases 12–21 all live in one consolidated design doc rather
+than one doc per phase, per that doc's own stated scope.
 
 ## Running what exists
 
@@ -43,8 +48,14 @@ real subtasks); `knowledge_pipelines` calls `governance`, `knowledge`
 (where real content actually lands), and `database` (ERP schema sync);
 `agents` calls all of the above plus a local Ollama instance, and calls
 back into `execution` (an approved code change), `database` (an approved
-data write or migration), and `planning` (to fetch the live capability
-roster Planner reasons over) — closing all three loops end to end.
+data write or migration), `knowledge_pipelines` (an approved formula
+change, Phase 14), and `planning` (to fetch the live capability roster
+Planner reasons over) — closing all three loops end to end.
+`extensibility` (Phase 12) calls `governance`, `assembly` (to register a
+plugin's template), and `agents` (to trigger a hot capability reload
+after a plugin is approved) — the `agents` service itself needs to be
+told the same `PLUGIN_CAPABILITIES_DIR` for that reload to actually
+surface anything.
 
 ```bash
 # terminal 1 — DEMO_ERP_DATABASE_URL is only needed once you're using Phase 7;
@@ -78,12 +89,15 @@ cd services/database && pip install -r requirements.txt
 SECURITY_LAYER_URL=http://localhost:8000 \
 uvicorn main:app --port 8007
 
-# terminal 7 — needs Ollama running locally with a model pulled
+# terminal 7 — needs Ollama running locally with a model pulled.
+# KNOWLEDGE_PIPELINES_URL closes Phase 14's costing.propose_formula_change
+# loop; PLUGIN_CAPABILITIES_DIR must match terminal 10's own env var (Phase 12)
 cd services/agents && pip install -r requirements.txt
 SECURITY_LAYER_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 \
 KNOWLEDGE_URL=http://localhost:8003 ASSEMBLY_URL=http://localhost:8004 \
 EXECUTION_URL=http://localhost:8006 PROPOSAL_REPO_PATH=/tmp/ai_os_sandbox/your-real-repo-clone \
 DATABASE_CONNECTOR_URL=http://localhost:8007 CAPABILITY_REGISTRY_URL=http://localhost:8008 \
+KNOWLEDGE_PIPELINES_URL=http://localhost:8009 PLUGIN_CAPABILITIES_DIR=/tmp/ai_os_plugins \
 uvicorn main:app --port 8005
 
 # terminal 8
@@ -98,6 +112,13 @@ cd services/knowledge_pipelines && pip install -r requirements.txt
 SECURITY_LAYER_URL=http://localhost:8000 KNOWLEDGE_URL=http://localhost:8003 \
 DATABASE_CONNECTOR_URL=http://localhost:8007 ASSEMBLY_URL=http://localhost:8004 \
 uvicorn main:app --port 8009
+
+# terminal 10 — Phase 12: PLUGIN_CAPABILITIES_DIR must match terminal 7's
+# own env var of the same name
+cd services/extensibility && pip install -r requirements.txt
+SECURITY_LAYER_URL=http://localhost:8000 ASSEMBLY_URL=http://localhost:8004 \
+AGENTS_URL=http://localhost:8005 PLUGIN_CAPABILITIES_DIR=/tmp/ai_os_plugins \
+uvicorn main:app --port 8010
 ```
 
 All default to SQLite with zero setup. Point `DATABASE_URL` at Postgres
@@ -208,6 +229,39 @@ connection string format and what's been verified against it (including
   a path-parameter route that happened to match anything, caught only
   by an actual HTTP call, not a direct function-call test. Full detail
   in `services/knowledge_pipelines/README.md`.
+- **Phase 12's MCP Client speaks a deliberately simplified REST
+  contract, not full MCP JSON-RPC 2.0** — the same "real but reduced,
+  honestly labeled" posture as Phase 3's `HashingEmbedding` and Phase
+  6's `SubprocessSandbox`. What's genuinely real and live-tested: the
+  register → approve → activate → invoke lifecycle against a real local
+  stub HTTP server (a genuine `http.server.HTTPServer`, not a mocked
+  `httpx` call), an unreachable server failing closed rather than
+  fabricating a result, and a result outside a server's declared schema
+  being rejected. Plugin System's claim — a new agent addable "without
+  modifying core code" — is proven live, not just architecturally: an
+  approved plugin's `capability.yaml` lands on disk and a running
+  `agents` service's own `GET /capabilities` shows the new capability
+  moments later, after one small, real change to
+  `capability_registry.py` (a second, configurable directory it also
+  globs) rather than any change to how loading itself works. Full
+  detail in `services/extensibility/README.md`.
+- **Phase 14's three business agents (Costing, Accounting, Inventory)
+  needed almost no new Reasoning Engine code** — Inventory Agent reuses
+  Database Agent's exact dry-run-then-write path unchanged, Accounting
+  Agent reuses Odoo Agent's exact git-proposal path unchanged (never a
+  direct ledger write, matching this agent's deliberate conservatism),
+  and the one genuinely new bridge (Costing Agent's formula-change path)
+  is a ~15-line wrapper around Phase 9's already-existing formula
+  registration. Planner routes to all three with zero Planner code
+  changes, confirmed live the same way as Phase 10. Two real,
+  independent permission-boundary gaps were caught by live testing here
+  — a stale `secrets_registry.yaml` allow-list, and a missing Shell
+  Executor allowlist file for `accounting_agent` — both are now fixed
+  and covered by regression tests, and both are worth reading about if
+  you're adding the *next* agent: a capability boundary in this system
+  lives in more than one file, and governance's own `roles:` policy
+  being correct is necessary but not sufficient. Full detail in
+  `services/agents/README.md` and `services/governance/README.md`.
 - Every "what's a stub" note in each service's own README is there because
   it materially affects what you should and shouldn't trust yet — read
   those before deploying anything here for real.
@@ -249,6 +303,22 @@ its own two-tier structural/raw-source split, the whole point of the
 phase, needed no changes to any earlier phase at all, closing the loop
 Phase 10 explicitly flagged (Django Agent's documentation-only
 limitation) with new code contained entirely within
-`knowledge_pipelines`. That pattern — build the phase that unblocks what
-already exists before adding more surface area — is the intended way to
+`knowledge_pipelines`. Phase 12 (a genuinely new service,
+`services/extensibility/`) needed one small, real change outside itself
+— `agents/reasoning_engine/capability_registry.py` gained a second,
+configurable glob directory so an approved plugin's `capability.yaml`
+is discoverable without touching how discovery itself works — otherwise
+its entire lifecycle (register, approve, activate, invoke; install,
+approve, activate, auto-disable) is self-contained. Phase 14 needed
+zero new bridge code for two of its three agents (Inventory Agent and
+Accounting Agent both reuse existing bridges completely unchanged) and
+one small (~15-line) new bridge for the third (Costing Agent, wrapping
+Phase 9's existing formula registration) — but surfaced two real,
+independent permission-boundary gaps live testing alone could catch:
+`secrets_registry.yaml`'s allow-list and Shell Executor's allowlist
+files are both separate from governance's own `roles:` policy, and a
+new agent needs updating in all of them, not just one. That pattern —
+build the phase that unblocks what already exists before adding more
+surface area, and trust live testing over code review to find the gaps
+between files that individually look correct — is the intended way to
 keep extending this.

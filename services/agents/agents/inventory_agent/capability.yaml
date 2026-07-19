@@ -1,0 +1,12 @@
+capability: inventory_agent
+allowed_actions:
+  - inventory.read_stock
+  - inventory.propose_adjustment
+  - inventory.propose_reorder
+forbidden_actions:
+  - inventory.write_stock_direct
+requires_approval:
+  - inventory.propose_adjustment
+  - inventory.propose_reorder
+classification_ceiling: internal
+template_id: inventory_agent
