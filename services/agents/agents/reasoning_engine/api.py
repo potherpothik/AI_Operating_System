@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -13,9 +14,15 @@ class ExecuteRequest(BaseModel):
     task_description: str
     agent_capability: str
     namespace: str = "default"
-    target_model: str = None
-    max_iterations: int = None
-    correlation_id: str = None
+    # Explicit Optional[...] rather than bare "str = None" — in Pydantic
+    # v2, "str = None" only sets the default, it does NOT widen the type
+    # to accept an explicit `null` in the request body. Found live: a
+    # caller that sends target_model: null (rather than omitting the
+    # field entirely) got a 422 even though the field is meant to be
+    # optional. Any caller relying on omission alone worked by accident.
+    target_model: Optional[str] = None
+    max_iterations: Optional[int] = None
+    correlation_id: Optional[str] = None
 
 
 def _execution_out(execution) -> dict:

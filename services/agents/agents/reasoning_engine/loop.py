@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from agents import clients
-from agents.reasoning_engine import store, capability_registry, execution_bridge
+from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, planner_bridge
 from agents.reasoning_engine.ollama_adapter import generate, OllamaUnavailable
 from agents.reasoning_engine.models import ReasoningExecution
 
@@ -19,10 +19,31 @@ def _decide_routing(parsed: dict, cap_def, task_id: str) -> tuple[str, str]:
     anywhere (Phase 5 doc, Reasoning Engine security notes).
     """
     delegate_to = parsed.get("delegate_to")
-    if delegate_to:
+    # Planner has its own decomposition/routing mechanism (task_graph,
+    # Phase 8) — delegate_to means "hand this single task to one other
+    # capability," an individual agent's redirect mechanism that doesn't
+    # apply to a capability whose entire job is deciding how work is
+    # routed. Ignored here as defense in depth, not just a prompt
+    # instruction: found live that the shared fragment's generic
+    # delegate_to guidance is generic enough a model will reasonably
+    # apply it to Planner too, which would otherwise discard a
+    # perfectly good task_graph in favor of a generic handoff.
+    if delegate_to and cap_def.agent_capability != "planner":
         return "delegate", delegate_to
 
     risk = parsed.get("risk_classification", "high")  # missing/unknown risk defaults to the most restrictive
+    if cap_def.agent_capability == "planner":
+        # Structural invariant, not a judgment call to trust the model
+        # on: producing a task_graph never touches real code, data, or
+        # systems — each subtask still goes through its own independent
+        # approval gate when it actually executes. A plan that itself
+        # required human sign-off before any subtask could even be
+        # attempted would make routing slower than asking a human
+        # directly, defeating Planner's purpose. Found live: the model
+        # reasonably self-assessed risk_classification="low" for a plan
+        # touching a sensitive-sounding topic, which routed the ENTIRE
+        # plan into require_approval before any subtask ever ran.
+        risk = "informational"
     action = parsed.get("action")
 
     if action:
@@ -65,18 +86,33 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
 
     execution = store.create_execution(db, task_id, agent_capability, target_model, max_iterations, correlation_id)
 
+    # Planner fails closed if Capability Registry is unreachable — no
+    # plan is ever produced against a stale or absent roster, and no
+    # model call happens at all (Phase 8 doc, Planner failure handling).
+    roster_augmentation = None
+    if agent_capability == "planner":
+        try:
+            roster_augmentation = planner_bridge.augment_task_description(task_description)
+        except planner_bridge.CapabilityRegistryUnavailable as e:
+            return store.finalize(
+                db, execution, "failed", 0,
+                failure_reason=f"capability registry unreachable, failing closed: {e}",
+                context_id=None,
+            )
+
     context = clients.build_context(task_id, task_description, agent_capability, target_model, namespace)
     context_id = context["id"]
     context_full = clients.get_context(context_id)
     context_items = context_full.get("items", [])
 
-    current_task_description = task_description
+    current_task_description = roster_augmentation or task_description
     iterations_used = 0
     final_status = "failed"
     final_result = None
     failure_reason = "iteration_limit_exceeded"
     approval_id = None
     delegate_task_id = None
+    last_dry_run_id = None
 
     for iteration in range(1, max_iterations + 1):
         iterations_used = iteration
@@ -103,8 +139,15 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
         if not validation["valid"]:
             store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, None, "invalid_schema:retry")
             errors = "; ".join(validation.get("errors", []))
+            # Built from current_task_description, not the original
+            # task_description parameter — otherwise a schema-invalid
+            # response one iteration after a successful tool call (Phase
+            # 7's db.read/db.dry_run) would silently discard the real
+            # tool result already folded into current_task_description,
+            # and the model would lose the data it was supposed to be
+            # reasoning from on its retry.
             current_task_description = (
-                f"{task_description}\n\n[Your previous response failed validation: {errors}. "
+                f"{current_task_description}\n\n[Your previous response failed validation: {errors}. "
                 f"Respond again with ONLY a single JSON object matching the required schema.]"
             )
             if iteration == max_iterations:
@@ -112,6 +155,30 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
             continue
 
         parsed = validation["parsed"]
+        action = parsed.get("action")
+        has_fresh_query = bool((parsed.get("sql_template") or "").strip())
+
+        if action in database_bridge.TOOL_ACTIONS and has_fresh_query:
+            tool_result = database_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
+            store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, f"tool_call:{action}")
+            if action == "db.dry_run" and tool_result.get("dry_run_id"):
+                last_dry_run_id = tool_result["dry_run_id"]
+            current_task_description = (
+                f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
+                f"Now produce your final structured response based on this — if this was a db.read, set action to db.read "
+                f"again but leave sql_template empty since you already have the data; if this was a db.dry_run, switch "
+                f"action to db.propose_write with the SAME sql_template/params_json plus impact_estimate and risk_classification.]"
+            )
+            if iteration == max_iterations:
+                final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
+            continue
+
+        if last_dry_run_id:
+            # System-tracked, never model-supplied — carried onto whatever
+            # gets finalized so resume() can execute the matching write
+            # without trusting the model to echo an ID back correctly.
+            parsed["dry_run_id"] = last_dry_run_id
+
         outcome, detail = _decide_routing(parsed, cap_def, task_id)
         clients.audit_log(
             actor_id=agent_capability, action=f"reasoning.{outcome}", resource=task_id,
@@ -174,6 +241,10 @@ def resume(db: Session, execution_id: str) -> ReasoningExecution | None:
         # (or unconfigured execution layer) still just completes as before.
         if result.get("action") == "odoo.propose_change":
             result["git_execution"] = execution_bridge.materialize_propose_change(execution)
+        elif result.get("action") == "db.propose_write":
+            result["db_execution"] = database_bridge.materialize_propose_write(execution)
+        elif result.get("action") == "db.propose_migration":
+            result["db_execution"] = database_bridge.materialize_propose_migration(execution)
         return store.finalize(
             db, execution, "completed", execution.iterations_used, result=result,
             approval_id=execution.approval_id,

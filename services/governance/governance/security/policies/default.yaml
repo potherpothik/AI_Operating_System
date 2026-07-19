@@ -52,6 +52,91 @@ roles:
       resource: "*"
       effect: allow
 
+  database_agent:
+    - action: "db.read"
+      resource: "*"
+      effect: allow
+    - action: "db.dry_run"
+      resource: "*"
+      effect: allow
+    # Both write paths require approval unconditionally at this layer —
+    # not conditioned on the dry-run's impact estimate, which the policy
+    # engine has no visibility into. "Above trivial impact" (Phase 7 doc)
+    # is Database Agent's own job to judge when deciding whether to even
+    # request db.propose_write; this policy layer stays maximally
+    # conservative regardless, same posture as odoo.propose_change.
+    # db.propose_migration in particular the doc calls out as a hard
+    # rule that "cannot be granted to any capability regardless of how
+    # it's declared" — never allow, ever.
+    - action: "db.propose_write"
+      resource: "*"
+      effect: require_approval
+    - action: "db.propose_migration"
+      resource: "*"
+      effect: require_approval
+    # Connector-level execution actions — distinct from the propose_*
+    # actions above, same split as Phase 6's git.push vs
+    # odoo.propose_change. Allow here, because Database Connector's own
+    # /db/write and /db/migrate are only ever reached after the matching
+    # db.propose_write / db.propose_migration was already approved
+    # upstream and Reasoning Engine's resume() is executing that
+    # decision — not a second, independent request for the same action.
+    - action: "db.write"
+      resource: "*"
+      effect: allow
+    - action: "db.migrate"
+      resource: "*"
+      effect: allow
+    - action: "db.write_direct"
+      resource: "*"
+      effect: deny
+    - action: "db.ddl_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+
+  planner:
+    - action: "planner.plan"
+      resource: "*"
+      effect: allow
+    - action: "planner.replan"
+      resource: "*"
+      effect: allow
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    # Capability Registry (Phase 8) actions — planner is also the actor
+    # for the registry's own startup sync from the agents service.
+    # Registering a genuinely NEW capability is allow (it's just
+    # reflecting an agent that's already shipped and code-reviewed);
+    # CHANGING an existing capability's already-active scope, or
+    # deprecating one, is the security-relevant event the Phase 8 doc
+    # calls out ("routes through the same approval gate as Phase 2's
+    # security-tagged config changes") — require_approval, not allow.
+    - action: "capability.register_new"
+      resource: "*"
+      effect: allow
+    - action: "capability.change_scope"
+      resource: "*"
+      effect: require_approval
+    - action: "capability.deprecate"
+      resource: "*"
+      effect: require_approval
+
   human_admin:
     - action: "*"
       resource: "*"

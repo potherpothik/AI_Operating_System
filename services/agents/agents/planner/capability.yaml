@@ -1,0 +1,8 @@
+capability: planner
+allowed_actions:
+  - planner.plan
+  - planner.replan
+forbidden_actions: []
+requires_approval: []
+classification_ceiling: confidential
+template_id: planner

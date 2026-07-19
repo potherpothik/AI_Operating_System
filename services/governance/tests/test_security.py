@@ -53,6 +53,51 @@ def test_odoo_agent_git_actions_allowed():
         assert r.json()["decision"] == "allow", f"{action} expected allow, got {r.json()}"
 
 
+def test_database_agent_read_and_dry_run_allowed():
+    for action in ("db.read", "db.dry_run"):
+        r = client.post("/security/authorize", json={"actor": "database_agent", "action": action, "resource": "demo_erp"})
+        assert r.json()["decision"] == "allow", f"{action} expected allow, got {r.json()}"
+
+
+def test_database_agent_write_and_migration_require_approval():
+    for action in ("db.propose_write", "db.propose_migration"):
+        r = client.post("/security/authorize", json={"actor": "database_agent", "action": action, "resource": "demo_erp"})
+        assert r.json()["decision"] == "require_approval", f"{action} expected require_approval, got {r.json()}"
+
+
+def test_database_agent_connector_execution_actions_allowed():
+    for action in ("db.write", "db.migrate"):
+        r = client.post("/security/authorize", json={"actor": "database_agent", "action": action, "resource": "demo_erp"})
+        assert r.json()["decision"] == "allow", f"{action} expected allow, got {r.json()}"
+
+
+def test_database_agent_direct_write_and_ddl_denied():
+    for action in ("db.write_direct", "db.ddl_direct"):
+        r = client.post("/security/authorize", json={"actor": "database_agent", "action": action, "resource": "demo_erp"})
+        assert r.json()["decision"] == "deny", f"{action} expected deny, got {r.json()}"
+
+
+def test_planner_plan_and_replan_allowed():
+    for action in ("planner.plan", "planner.replan"):
+        r = client.post("/security/authorize", json={"actor": "planner", "action": action, "resource": "task-1"})
+        assert r.json()["decision"] == "allow", f"{action} expected allow, got {r.json()}"
+
+
+def test_planner_new_capability_registration_allowed():
+    r = client.post("/security/authorize", json={"actor": "planner", "action": "capability.register_new", "resource": "some_agent"})
+    assert r.json()["decision"] == "allow"
+
+
+def test_planner_capability_scope_change_requires_approval():
+    r = client.post("/security/authorize", json={"actor": "planner", "action": "capability.change_scope", "resource": "odoo_agent"})
+    assert r.json()["decision"] == "require_approval"
+
+
+def test_planner_capability_deprecation_requires_approval():
+    r = client.post("/security/authorize", json={"actor": "planner", "action": "capability.deprecate", "resource": "odoo_agent"})
+    assert r.json()["decision"] == "require_approval"
+
+
 def test_human_admin_wildcard_allow():
     r = client.post(
         "/security/authorize",
