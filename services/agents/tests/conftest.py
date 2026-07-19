@@ -199,3 +199,17 @@ def database_url(governance_url):
     if proc:
         proc.terminate()
         proc.wait(timeout=5)
+
+
+@pytest.fixture(scope="session")
+def knowledge_pipelines_url(governance_url, knowledge_url, database_url):
+    """Phase 14: Costing Agent's costing.propose_formula_change materializes
+    via ERP Knowledge Engine's real formula registration (Phase 9)."""
+    url, proc = _ensure_service(
+        "KNOWLEDGE_PIPELINES_URL", "http://localhost:8009", "PHASE9_PATH", 8009,
+        extra_env={"SECURITY_LAYER_URL": governance_url, "KNOWLEDGE_URL": knowledge_url, "DATABASE_CONNECTOR_URL": database_url},
+    )
+    yield url
+    if proc:
+        proc.terminate()
+        proc.wait(timeout=5)

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from agents import clients
-from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, planner_bridge
+from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge
 from agents.reasoning_engine.ollama_adapter import generate, OllamaUnavailable
 from agents.reasoning_engine.models import ReasoningExecution
 
@@ -9,7 +9,10 @@ from agents.reasoning_engine.models import ReasoningExecution
 # "logged identically") that lands as a Git Manager MR — Odoo Agent's own
 # odoo.propose_change already proved this path generic (Phase 6); these
 # four new agents' propose actions reuse it with zero changes to
-# execution_bridge.materialize_propose_change itself.
+# execution_bridge.materialize_propose_change itself. accounting.propose_entry
+# (Phase 14) reuses it too — a proposed entry becomes a real reviewable
+# document, never a direct ledger write, matching this agent's
+# deliberately conservative design (doc: "defers... to a human accountant").
 GIT_PROPOSE_ACTIONS = {
     "odoo.propose_change",
     "django.propose_config_change",
@@ -17,6 +20,7 @@ GIT_PROPOSE_ACTIONS = {
     "devops.propose_infra_change",
     "docker.propose_compose_change",
     "testing.propose_new_test",
+    "accounting.propose_entry",
 }
 
 # Both migration-shaped propose actions materialize via the same Database
@@ -24,6 +28,19 @@ GIT_PROPOSE_ACTIONS = {
 # already derives target_platform from the execution's own result, so
 # django.propose_migration needed zero changes there either.
 DB_MIGRATE_PROPOSE_ACTIONS = {"db.propose_migration", "django.propose_migration"}
+
+# Phase 14: Inventory Agent's two propose actions reuse the SAME
+# dry-run-then-write path db.propose_write already established —
+# database_bridge.materialize_propose_write derives everything from the
+# execution's own tracked dry_run_id/agent_capability, needing zero
+# changes to support a second agent using it.
+DB_WRITE_PROPOSE_ACTIONS = {"db.propose_write", "inventory.propose_adjustment", "inventory.propose_reorder"}
+
+# Phase 14: the one genuinely new materialization path this batch needed
+# — costing.propose_formula_change routes through ERP Knowledge Engine's
+# existing business-memory registration (Phase 9), not a new write
+# mechanism invented for this agent.
+ERP_FORMULA_PROPOSE_ACTIONS = {"costing.propose_formula_change"}
 
 
 class UnknownCapability(Exception):
@@ -277,10 +294,12 @@ def resume(db: Session, execution_id: str) -> ReasoningExecution | None:
         action = result.get("action")
         if action in GIT_PROPOSE_ACTIONS:
             result["git_execution"] = execution_bridge.materialize_propose_change(execution)
-        elif action == "db.propose_write":
+        elif action in DB_WRITE_PROPOSE_ACTIONS:
             result["db_execution"] = database_bridge.materialize_propose_write(execution)
         elif action in DB_MIGRATE_PROPOSE_ACTIONS:
             result["db_execution"] = database_bridge.materialize_propose_migration(execution)
+        elif action in ERP_FORMULA_PROPOSE_ACTIONS:
+            result["erp_execution"] = erp_bridge.materialize_propose_formula_change(execution)
         return store.finalize(
             db, execution, "completed", execution.iterations_used, result=result,
             approval_id=execution.approval_id,

@@ -82,3 +82,21 @@ def test_docker_agent_push_only_allowed_to_own_branch_namespace():
     assert allowed is True
     allowed, reason = allowlist.check("docker_agent", "git", ["push", "origin", "main"], "mutating")
     assert allowed is False
+
+
+def test_accounting_agent_push_only_allowed_to_own_branch_namespace():
+    """Regression test for a real bug caught by live testing: accounting_agent's
+    governance policy role (shell.execute/git.*: allow) was correct, but
+    this separate, structurally-enforced allowlist file didn't exist at
+    all — Git Manager's own branch/commit/push calls were denied with
+    'no command allowlist registered', a failure mode invisible from
+    reading default.yaml alone."""
+    allowed, _ = allowlist.check("accounting_agent", "git", ["push", "origin", "accounting-agent/task-1"], "mutating")
+    assert allowed is True
+    allowed, reason = allowlist.check("accounting_agent", "git", ["push", "origin", "main"], "mutating")
+    assert allowed is False
+
+
+def test_accounting_agent_has_no_non_git_commands():
+    allowed, reason = allowlist.check("accounting_agent", "psql", ["-c", "UPDATE ledger SET amount=0"], "mutating")
+    assert allowed is False

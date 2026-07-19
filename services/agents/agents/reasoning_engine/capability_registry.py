@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import yaml
 from sqlalchemy.orm import Session
@@ -6,10 +7,23 @@ from agents.reasoning_engine.models import AgentCapabilityDef
 
 AGENTS_DIR = Path(__file__).parent.parent
 
+# Phase 12: Plugin System writes an approved plugin's capability.yaml
+# here (same agents/<name>/capability.yaml shape, just a second root) —
+# "adding new agents... without modifying core code" means exactly this:
+# no change to how load_all() itself works, just a second place it looks.
+# Unset by default, so an environment with no plugins configured behaves
+# identically to before this phase existed.
+PLUGIN_CAPABILITIES_DIR = os.environ.get("PLUGIN_CAPABILITIES_DIR")
+
 
 def _discover_capability_files():
-    """Any agents/<name>/capability.yaml under this package — new agents register themselves just by existing here."""
-    return sorted(AGENTS_DIR.glob("*/capability.yaml"))
+    """Any agents/<name>/capability.yaml under this package, plus any
+    under PLUGIN_CAPABILITIES_DIR if configured — new agents (built-in
+    or plugin-installed) register themselves just by existing here."""
+    files = sorted(AGENTS_DIR.glob("*/capability.yaml"))
+    if PLUGIN_CAPABILITIES_DIR and Path(PLUGIN_CAPABILITIES_DIR).is_dir():
+        files += sorted(Path(PLUGIN_CAPABILITIES_DIR).glob("*/capability.yaml"))
+    return files
 
 
 def load_all(db: Session):

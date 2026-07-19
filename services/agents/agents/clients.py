@@ -6,6 +6,7 @@ PLATFORM_URL = os.environ.get("PLATFORM_URL", "http://localhost:8002")
 SECURITY_LAYER_URL = os.environ.get("SECURITY_LAYER_URL", "http://localhost:8000")
 EXECUTION_URL = os.environ.get("EXECUTION_URL", "http://localhost:8006")
 DATABASE_CONNECTOR_URL = os.environ.get("DATABASE_CONNECTOR_URL", "http://localhost:8007")
+KNOWLEDGE_PIPELINES_URL = os.environ.get("KNOWLEDGE_PIPELINES_URL", "http://localhost:8009")
 GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "dev-odoo-agent-token")
 
 
@@ -318,6 +319,30 @@ def shell_execute(command: str, args: list, working_dir: str, capability: str, r
         )
         resp.raise_for_status()
         return {"ok": True, "result": resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
+def register_formula(name: str, formula_ref: str, business_purpose: str, defined_by: str, target_namespace: str) -> dict:
+    """
+    Phase 14: Costing Agent's approved formula changes register through
+    ERP Knowledge Engine's existing business-memory path (Phase 9) —
+    itself already approval-gated by Memory Manager's retention policy —
+    rather than a new write mechanism invented for this agent.
+    """
+    try:
+        resp = httpx.post(
+            f"{KNOWLEDGE_PIPELINES_URL}/erp-knowledge/formula/register",
+            json={
+                "name": name, "formula_ref": formula_ref, "business_purpose": business_purpose,
+                "defined_by": defined_by, "target_namespace": target_namespace,
+            },
+            timeout=20.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
     except httpx.HTTPStatusError as e:
         return {"ok": False, "error": e.response.json().get("detail", str(e))}
     except Exception as e:  # noqa: BLE001

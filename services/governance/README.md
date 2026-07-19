@@ -107,8 +107,27 @@ YAML — it does not pick up new API routes.** Adding a genuinely new
 endpoint (like Phase 10's `POST /security/verify_environment`) needs a
 process restart, not just a reload; a call to a not-yet-restarted
 process returns a generic `404`, easy to misread as a policy denial.
+If the agent's real reads/writes touch `demo_erp` (or any target in
+`secrets_registry.yaml`), its capability name also needs adding to that
+target's own `allowed_capabilities` list — a *separate* allow-list from
+this file's `roles:` section, enforced by Database Connector's own
+`secrets.resolve` call, not by `/security/authorize` at all. Getting the
+`db.read`/`db.propose_write` policy rule right here is not sufficient
+on its own; a Phase 14 live test caught exactly this gap (`database_agent`
+was the only entry `secrets_registry.yaml` had, from when Phase 7 wrote
+it, so `accounting_agent`/`inventory_agent` got a `403` at the
+credential-resolution layer even with a fully correct policy role).
+Similarly, if the agent's mutating actions route through Git Manager,
+it needs its own `services/execution/execution/shell_executor/allowlists/<name>.yaml`
+file — a *third* independent gate from this file's `git.*`/`shell.execute`
+rules, enforced by Shell Executor's own default-deny lookup. Missing
+that file entirely denies with `"no command allowlist registered for
+'<name>'"`, a different failure mode from the missing-`shell.execute`
+bug above but the same root cause: a real capability boundary lives in
+more than one file, and adding an agent means updating all of them, not
+just this one.
 
-## Phase 7 / Phase 10 / Phase 11 additions
+## Phase 7 / Phase 10 / Phase 11 / Phase 12 / Phase 14 additions
 
 - `POST /security/secrets/resolve` (Phase 7): fail-closed credential
   resolution for Database Connector, backed by `secrets_registry.yaml`
@@ -134,6 +153,24 @@ process returns a generic `404`, easy to misread as a policy denial.
   auto-trigger — a system action attributed to the triggering service,
   not an agent capability, so it gets its own narrow role rather than
   piggybacking on `human_admin`'s blanket allow.
+- `mcp.invoke` (Phase 12): added `allow` to every existing non-planner
+  agent role — MCP Client is a new tool *source*, not a new trust
+  boundary (the doc's own framing), so this mirrors `shell.execute`'s
+  existing precedent: the individual MCP server was already
+  approval-gated at registration time, this is authorize-checked
+  defense-in-depth per call, not a second human approval per invocation.
+  `mcp.register` and `plugin.install` themselves needed no new policy
+  rule at all — both are unconditionally approval-gated in
+  `services/extensibility/`'s own code, the same posture Documentation
+  Engine's `classify-override` already established, not conditioned on
+  an `authorize()` decision first.
+- `costing_agent` / `accounting_agent` / `inventory_agent` (Phase 14):
+  new roles following the same pattern as every prior batch.
+  `accounting_agent` is deliberately the most restrictive of the three —
+  no `db.write` at all, since `accounting.propose_entry` materializes as
+  a reviewable git document (execution_bridge), never a direct ledger
+  write, matching the Phase 14 doc's explicit conservatism for this one
+  agent.
 
 ## Next
 

@@ -1,11 +1,12 @@
-# Phase 5/7/8/10 — Reasoning Engine + six agents (working implementation)
+# Phase 5/7/8/10/14 — Reasoning Engine + nine agents (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
-Odoo Agent (Phase 5), Database Agent (Phase 7), Planner (Phase 8), and
-now Django Agent, DevOps Agent, Docker Agent, and Testing Agent (Phase
-10) all run on it — each a thin capability declaration (`capability.yaml`)
-plus a prompt template (`template.md`), not a bespoke service of its own.
+Odoo Agent (Phase 5), Database Agent (Phase 7), Planner (Phase 8), Django
+Agent, DevOps Agent, Docker Agent, Testing Agent (Phase 10), and now
+Costing Agent, Accounting Agent, and Inventory Agent (Phase 14) all run
+on it — each a thin capability declaration (`capability.yaml`) plus a
+prompt template (`template.md`), not a bespoke service of its own.
 Database Agent also needed Reasoning Engine to gain a small,
 explicitly-scoped tool-call mechanism (`database_bridge.py`) for its
 mandatory dry-run-before-write pattern — the first time this loop calls
@@ -20,7 +21,16 @@ and `database_bridge.py` were already generic enough to reuse unchanged
 for their `propose_*` actions, and the only genuinely new mechanism
 (`shell_bridge.py`) is a small tool-call extension of the same pattern
 `database_bridge.py` established, for Docker Agent's read-only
-`docker.inspect` and Testing Agent's `testing.run_suite`.
+`docker.inspect` and Testing Agent's `testing.run_suite`. Phase 14's
+three business agents pushed that reuse even further: Inventory Agent's
+propose actions reuse `database_bridge.materialize_propose_write`
+completely unchanged (a *second* agent on the exact dry-run-then-write
+path Database Agent established), Accounting Agent's `propose_entry`
+reuses `execution_bridge.materialize_propose_change` unchanged, and the
+one genuinely new bridge this batch needed (`erp_bridge.py`, for Costing
+Agent's `propose_formula_change`) is a thin ~15-line wrapper around ERP
+Knowledge Engine's already-existing, already-approval-gated formula
+registration (Phase 9) — no new write mechanism invented for it.
 
 ## Run it
 
@@ -47,17 +57,26 @@ export DATABASE_CONNECTOR_URL=http://localhost:8007
 # Required for Planner (Phase 8) — without it, any capability="planner"
 # execution fails closed before ever calling a model.
 export CAPABILITY_REGISTRY_URL=http://localhost:8008
+# Optional — closes the Phase 14 loop: an approved costing.propose_formula_change
+# actually calls ERP Knowledge Engine's real formula registration.
+export KNOWLEDGE_PIPELINES_URL=http://localhost:8009
+# Optional — Phase 12: where a plugin's approved capability.yaml gets
+# discovered from. Must match services/extensibility's own env var of
+# the same name.
+export PLUGIN_CAPABILITIES_DIR=/tmp/ai_os_plugins
 uvicorn main:app --port 8005
 ```
 
 On startup this service auto-loads every `agents/<name>/capability.yaml`
 it finds (currently `odoo_agent`, `database_agent`, `planner`,
-`django_agent`, `devops_agent`, `docker_agent`, and `testing_agent`) into
-its own DB, and best-effort attempts to register each agent's prompt
-template with Prompt Builder. Template registration is approval-gated
-through governance (same as every other template) — a human still has
-to approve it once via governance's `/approval` endpoints before any of
-them can actually run:
+`django_agent`, `devops_agent`, `docker_agent`, `testing_agent`,
+`costing_agent`, `accounting_agent`, and `inventory_agent` — plus any
+Phase 12 plugin capabilities under `PLUGIN_CAPABILITIES_DIR`, see
+`services/extensibility/README.md`) into its own DB, and best-effort
+attempts to register each agent's prompt template with Prompt Builder.
+Template registration is approval-gated through governance (same as
+every other template) — a human still has to approve it once via
+governance's `/approval` endpoints before any of them can actually run:
 
 ```bash
 curl -X POST localhost:8005/odoo_agent/register       # check/retry registration
@@ -67,6 +86,9 @@ curl -X POST localhost:8005/django_agent/register
 curl -X POST localhost:8005/devops_agent/register
 curl -X POST localhost:8005/docker_agent/register
 curl -X POST localhost:8005/testing_agent/register
+curl -X POST localhost:8005/costing_agent/register
+curl -X POST localhost:8005/accounting_agent/register
+curl -X POST localhost:8005/inventory_agent/register
 # find the approval_id from the response or GET /approval/pending on governance, then:
 curl -X POST localhost:8000/approval/<approval_id>/decide \
   -d '{"decided_by":"human_admin","approve":true}'
@@ -103,11 +125,12 @@ pytest tests/test_capability_registry.py tests/test_ollama_adapter.py -q   # no 
 SECURITY_LAYER_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 \
 KNOWLEDGE_URL=http://localhost:8003 ASSEMBLY_URL=http://localhost:8004 \
 PHASE6_PATH=/path/to/services/execution PHASE7_PATH=/path/to/services/database \
+PHASE9_PATH=/path/to/services/knowledge_pipelines \
 DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
-pytest tests/ -v   # full suite against the live 6-service stack + live Ollama
+pytest tests/ -v   # full suite against the live 8-service stack + live Ollama
 ```
 
-38 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+49 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a deliberately
 non-UTC session) and a real live Ollama model — not mocked, except for
 deliberately-stubbed tests (see below) used specifically where live-model
@@ -118,7 +141,15 @@ propose-action bridges against a real disposable Git repo, the
 `shell_bridge.py` tool-call round trip against a real command, Testing
 Agent's environment verification (both allow and deny paths, plus
 fail-closed on an unregistered name), and one live-model smoke test each
-for Django Agent and DevOps Agent.
+for Django Agent and DevOps Agent. `tests/test_phase14_agents.py`
+(Phase 14) covers all three business agents: Costing Agent's
+`propose_formula_change` verified against ERP Knowledge Engine's real
+`GET /erp-knowledge/formula/{id}` (not just the response Reasoning
+Engine itself got back), Accounting Agent's `db.read` tool call plus its
+unconditional-approval `propose_entry` materializing as a real git
+document, Inventory Agent's real dry-run-then-write round trip against
+the same disposable `demo_erp` target Database Agent's own tests use,
+and one live-model smoke test each.
 
 ## Real bugs found by live testing, not the test suite
 
@@ -167,6 +198,26 @@ for Django Agent and DevOps Agent.
   endpoint returned a generic `404 Not Found` indistinguishable at first
   glance from a policy denial) before the actual cause — stale process,
   not stale policy — was confirmed.
+- **A real capability's permission boundary lives in more than one
+  file, and Phase 14 caught two different ways of missing one of them.**
+  (1) `secrets_registry.yaml`'s `demo_erp` entry only listed
+  `database_agent` in its `allowed_capabilities` — a separate allow-list
+  from governance's `roles:` policy, enforced by Database Connector's
+  own `secrets.resolve` call. `accounting_agent`/`inventory_agent` had a
+  fully correct governance role (`db.read: allow` etc.) but still got a
+  real `403 Forbidden` from `/security/secrets/resolve` the first time
+  Accounting Agent's `db.read` tool call actually ran. (2)
+  `accounting_agent` had no
+  `services/execution/execution/shell_executor/allowlists/accounting_agent.yaml`
+  file at all — its governance role correctly had `shell.execute: allow`
+  and every `git.*` action, but Shell Executor's own default-deny lookup
+  denied with `"no command allowlist registered for 'accounting_agent'"`
+  the first time `accounting.propose_entry` tried to materialize via
+  Git Manager. Neither gap was visible from reading `default.yaml`
+  alone — both needed an actual live call through the real dependent
+  service to surface, and both are now locked in as regression tests
+  (`services/governance/tests/test_secrets.py`,
+  `services/execution/tests/test_allowlist.py`).
 
 ## What's real
 
@@ -264,6 +315,41 @@ for Django Agent and DevOps Agent.
   prompt — confirmed live by asserting the exact real output (a real git
   commit message) is absent from the first turn's prompt and present on
   the second.
+- **Phase 14's three business agents pushed bridge reuse further than
+  any prior batch — two of the three needed literally zero new
+  materialization code.** Inventory Agent's `propose_adjustment`/
+  `propose_reorder` reuse `database_bridge.materialize_propose_write()`
+  — the SAME dry-run-then-write path Database Agent established in
+  Phase 7, now genuinely exercised by a second, independent agent's own
+  policy role and capability boundary, confirmed live with a real write
+  landing in the disposable `demo_erp` database and rolling back
+  cleanly on the fixture's teardown. Accounting Agent's `propose_entry`
+  reuses `execution_bridge.materialize_propose_change()` — confirmed
+  live with a real branch/commit/push, deliberately never touching
+  `database_bridge` at all, matching the Phase 14 doc's explicit
+  conservatism for this one agent (no direct ledger write path exists
+  for it to reuse).
+- **The one genuinely new bridge this batch needed
+  (`erp_bridge.py`, for Costing Agent's `costing.propose_formula_change`)
+  is real, not a stub returning a canned success** — confirmed live: an
+  approved formula change reaches ERP Knowledge Engine's actual
+  `POST /erp-knowledge/formula/register` (Phase 9), and the resulting
+  record is independently verified by fetching it back via that
+  service's own `GET /erp-knowledge/formula/{id}`, not by trusting
+  Reasoning Engine's own report of what happened.
+- **Planner requires zero code changes to route to any of the three new
+  business agents either**, confirmed live the same way Phase 10's
+  claim was: after a `POST /capabilities/sync`, a live Planner call
+  asking to "have Costing Agent explain how the standard costing
+  formula works" produced a `task_graph` routing to `costing_agent`. One
+  live run first came back `no_capability_found` on a more ambiguous
+  phrasing of the same question — an accepted instance of the
+  small-model phrasing variance already documented for Planner in
+  `services/planning/README.md`, not a wiring issue; a second, more
+  direct phrasing routed correctly, and the routing mechanism itself
+  (Capability Registry lookup, task_graph construction) is unchanged
+  code exercising it, not new code written to make this particular
+  question work.
 
 ## What's a stub or simplified
 
@@ -316,10 +402,32 @@ for Django Agent and DevOps Agent.
   not a placeholder for something half-built — the Phase 10 doc defers
   it to its own future phase, the same way real database writes got
   Phase 7 rather than riding along with Phase 6.
+- **`demo_erp` has no literal stock table** (only `sale_order` and
+  `res_partner` — no live Odoo instance in this environment, same
+  constraint every phase since 7 has documented), so Inventory Agent's
+  dry-run-then-write test reuses `sale_order` the same way Database
+  Agent's own Phase 7 tests do. What's genuinely proven is the WIRING —
+  inventory_agent's own policy role and capability boundary driving the
+  real dry-run-then-write path end to end — not literal inventory
+  semantics against a real warehouse schema.
+- **Costing/Accounting/Inventory Agent's `explain`/`calculate`/
+  `read_ledger` actions reason over whatever's already in retrieved
+  context** (Vector Search content, prior tool-call results this turn) —
+  none of them have a dedicated formula- or ledger-specific retrieval
+  mechanism beyond what Context Builder already assembles generically
+  for every agent.
+- **Sales, Manufacturing, and Project Management Agents (Phase 15) are
+  not built this phase** — Phase 14 covers only the financial/inventory
+  batch the doc groups together for a tighter delegate-boundary review
+  (costing feeds sales quoting, inventory feeds manufacturing); the
+  operations batch is deferred to its own pass.
 
 ## Next
 
-Phase 11: Code Analysis Engine — closes the gap Phase 10 explicitly
-surfaced (Django Agent's dependence on documentation-level understanding
-alone) before the next agent batch (business agents: Costing, Inventory,
-Accounting, Manufacturing, Sales, Project Management).
+Phase 13: Metrics Dashboard, Health Monitor — read-only aggregation,
+now that Phase 10/14's agent roster gives it real usage variety to
+dashboard. Phase 15: the operations agents (Manufacturing, Sales,
+Project Management) — the natural continuation of Phase 14's business
+batch, including Sales Agent's PII-aware classification dimension, the
+first agent in this system needing a legal category beyond
+internal/confidential.
