@@ -1,0 +1,25 @@
+---
+description: Standard folder layout and wiring pattern for services in this repo
+globs: services/**
+alwaysApply: false
+---
+
+# Service Structure
+
+Every subsystem in `services/` follows the same shape, established since Phase 1:
+
+```
+services/<service-name>/
+├── main.py              # FastAPI app, include_router(...)
+├── requirements.txt
+├── README.md            # run/test instructions + Honesty notes section
+├── <package>/           # domain modules: api.py, store.py, models, policies/*.yaml, etc.
+└── tests/                # conftest.py + test_*.py (pytest)
+```
+
+- **Design doc lands in `docs/` before implementation.** Add `docs/phase-N-<name>.md` first, following the existing phase-doc skeleton (Priority Decision / Alternatives Considered / Trade-offs / Security Implications, per-module Responsibilities/Inputs/Outputs/APIs/Failure Handling, interaction flow, minimal data model, folder structure, explicitly out of scope, next). See any file in `docs/` for the pattern.
+- **Wire dependencies via env vars**, not hardcoded URLs: `SECURITY_LAYER_URL` for governance, and `*_URL` for every peer service a new service calls (e.g. `PLATFORM_URL`, `KNOWLEDGE_URL`, `ASSEMBLY_URL`). Follow the dependency order in the root `README.md`'s "Running what exists" section.
+- **Agents are not separate services.** A new agent capability is `capability.yaml` + `template.md` layered on the shared Reasoning Engine in `services/agents/`, registered with the Capability Registry - not a new FastAPI service. See `agent-capability-schema.mdc` for the required shape. New domain agents declare `brain: erp | coding` (flat roster under `services/agents/agents/`; no physical `erp/` vs `coding/` split).
+- **`services/extensibility/` already exists** (Phase 12 MCP Client / Plugin System — the vision's "MCP Manager"). Extend it for new plugin/MCP surfaces; do not add a parallel plugin mechanism.
+- **Extend by unblocking what already exists** before adding new surface area - check whether an earlier phase is missing an endpoint or field a new phase needs (this repo's real commit history follows exactly that pattern) rather than duplicating logic in the new service.
+- Naming: service directories are lowercase with `-` or `_` (`platform-spine`, `knowledge_pipelines`); HTTP routes are prefixed by domain (`/security/*`, `/db/*`, `/git/*`, `/reasoning/*`); actions are `domain.verb` (`db.propose_write`, `secrets.resolve`); env vars are `SCREAMING_SNAKE_CASE`.

@@ -9,6 +9,8 @@ touches anything real.
 Designed and built one subsystem at a time — see [`docs/`](docs/) for the
 full phase-by-phase architecture (why each decision was made, alternatives
 considered, trade-offs, security implications) before diving into code.
+Long-term picture (ERP Brain + Coding Brain on one kernel, Model Router
+gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/architecture-vision.md).
 
 ## Status
 
@@ -29,12 +31,16 @@ considered, trade-offs, security implications) before diving into code.
 | 13 | Metrics Dashboard, Health Monitor | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 | 14 | Costing, Accounting, Inventory Agents | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/agents/`](services/agents/) — 49 tests (all three agents live in `services/agents/agents/{costing_agent,accounting_agent,inventory_agent}/`) |
 | 15–21 | Operations/code-quality/engineering/cross-cutting agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
+| 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | not yet built |
 
 Ten services are real, tested code today, now hosting thirteen phases'
 worth of agents and subsystems (Phases 1–11 plus 12 and 14 — Phase 13
 is next); everything past that is fully designed but not yet
 implemented. Phases 12–21 all live in one consolidated design doc rather
-than one doc per phase, per that doc's own stated scope.
+than one doc per phase, per that doc's own stated scope. Vision and
+ElizaOS study notes:
+[`docs/architecture-vision.md`](docs/architecture-vision.md),
+[`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md).
 
 ## Running what exists
 

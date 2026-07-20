@@ -5,3 +5,5 @@ __pycache__/
 .env
 *.egg-info/
 .venv/
+eliza-develop/
+.claude/settings.local.json

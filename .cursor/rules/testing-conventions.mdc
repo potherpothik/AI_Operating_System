@@ -1,0 +1,14 @@
+---
+description: Testing philosophy for services in this repo - real Postgres, real bugs kept as regressions
+globs: services/**
+alwaysApply: false
+---
+
+# Testing Conventions
+
+- **Framework is pytest**, run as `pytest tests/ -v` from each service's own directory.
+- **Real Postgres is the tested, primary path** - not a mock. SQLite is only for zero-setup local runs; don't treat SQLite-only test coverage as equivalent to verifying against Postgres, especially for anything involving timestamps, constraints, or migrations.
+- **Don't mock around a real dependency you can stand up** (Postgres, git, Ollama, the sandboxed shell). Where a real integration was genuinely exercised in this repo, a mock is a regression, not an improvement.
+- **Keep real-bug regressions as permanent tests.** When a live run surfaces a genuine bug (e.g. a TIMESTAMPTZ round-trip issue, a resource limit that broke `git push`, a schema-retry path silently discarding context), add a test that pins the fix - don't just patch and move on.
+- **Never fake a success path.** If a feature has no real target to run against in this environment (e.g. no live Django/Odoo project), the correct behavior is to report `not_configured` cleanly, and the test should assert that honestly reported state - not a faked success.
+- Every dry-run-before-write gate needs a test that proves the dry-run can pass while the real write still fails safely (and rolls back), not just a happy-path test.

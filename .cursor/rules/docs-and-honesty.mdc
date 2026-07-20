@@ -1,0 +1,12 @@
+---
+description: Design-doc-first process and the Honesty notes documentation convention
+globs:
+alwaysApply: true
+---
+
+# Docs-First and Honesty Notes
+
+- **Design doc before code.** Every subsystem in this repo was designed one phase at a time - the doc in `docs/phase-N-<name>.md` lands before its implementation in `services/`. When adding or materially changing a subsystem, write or update the design doc first.
+- **Extend by unblocking existing gaps before adding new surface area.** This repo's real history is later phases surfacing genuine gaps in earlier ones (missing endpoints, missing fields, latent bugs) and fixing those first, rather than working around them in the new code.
+- **Every service README needs an honest "what's real vs. what's a stub" account.** Mirror the root `README.md`'s "Honesty notes worth reading before relying on this" section: call out anything that's simplified, mocked, or not wired to a real dependency in this environment, and say how to swap it for the real thing. Don't let a passing test suite imply more real-world coverage than actually exists.
+- Never silently claim a capability is fully implemented when it's a stub - report `not_configured` / partial results explicitly instead of faking success (see `testing-conventions.mdc`).

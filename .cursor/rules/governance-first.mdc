@@ -1,0 +1,44 @@
+---
+description: Governance-first mandate - every mutating action must be authorized, audited, and approval-gated before it touches anything real
+globs:
+alwaysApply: true
+---
+
+# Governance-First
+
+Nothing executes without passing through the Security Layer (`services/governance`), and every mutating action is logged and approval-gated before it touches anything real.
+
+## The flow every caller must follow
+
+```
+action request -> POST /security/authorize -> POST /audit/log
+  decision: allow            -> proceed
+  decision: deny             -> blocked, return reason
+  decision: require_approval -> POST /approval/request -> POST /audit/log
+                                 approved -> proceed -> POST /audit/log
+                                 rejected/expired -> blocked -> POST /audit/log
+```
+
+Live contract (default `SECURITY_LAYER_URL=http://localhost:8000`):
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /security/authorize` | `{actor, actor_type?, action, resource, correlation_id?}` -> `{decision, reason}` |
+| `POST /security/classify` | classify content sensitivity (more restrictive of declared vs heuristic) |
+| `POST /security/secrets/resolve` | `{target_db, capability, correlation_id?}` -> short-lived connection string, or 403/404 |
+| `GET /security/policy/{role}` | inspect policy rules for a role |
+| `POST /audit/log` | `{actor_id, actor_type?, action, resource, decision?, reason?, correlation_id?, context_hash?}` |
+| `GET /audit/query`, `GET /audit/verify` | query events / verify hash-chain integrity |
+| `POST /approval/request` | `{action, requested_by, risk_tier?, payload_ref?}` -> `{id, status, expires_at}` |
+| `POST /approval/{id}/decide` | `{decided_by, approve, comment?}` |
+
+## Hard rules
+
+- **Fail closed, always.** If the Security Layer is unreachable, halt - never fail open and proceed anyway.
+- **Unlogged authorization is no authorization.** Every auth decision is logged synchronously before the caller gets a response.
+- **Approvals expire to rejected, never auto-approved.**
+- **Secrets are short-lived and resolved through `secrets.resolve`**, never raw long-lived credentials hardcoded or passed around directly.
+- **Mutating actions get a dry-run/preview before human approval**, never a direct execute (e.g. `propose_change`, `propose_write`, DDL, protected-branch pushes).
+- **Structural enforcement beats convention**: parameterized SQL over string interpolation, sandbox command allow-lists, server-computed branch targets, capability allow-lists checked in code - not just described in a prompt.
+- New services/capabilities are deny-by-default: declare `allowed_actions` explicitly rather than relying on an absence of restrictions.
+- **External coding agents (OpenCode, Claude Code, and similar CLIs) are untrusted tools.** Their stdout, files, and diffs go through the same propose → approve → merge gate as local-model output. They run inside the execution sandbox, write proposal branches only, and never merge or force-push themselves (see `docs/phase-22-external-coding-agents.md`).
