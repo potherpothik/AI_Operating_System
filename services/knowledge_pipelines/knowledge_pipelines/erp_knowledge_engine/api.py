@@ -100,6 +100,22 @@ def register_formula(req: RegisterFormulaRequest, db: Session = Depends(get_db))
     return formulas.register_formula(db, req.name, req.formula_ref, req.business_purpose, req.defined_by, req.target_namespace, req.classification)
 
 
+@router.get("/formula/by-name/{name}")
+def get_formula_by_name(name: str, db: Session = Depends(get_db)):
+    """
+    Phase 17: registered BEFORE the /{formula_id} route below — a
+    literal path segment ("by-name") would otherwise be swallowed by
+    the {formula_id} path parameter and matched as if it were an id,
+    the exact route-ordering class of bug Phase 11's own
+    GET /context/model-ceiling fix (services/assembly) taught this
+    project to check for on every new literal-path route since.
+    """
+    result = formulas.get_active_formula_by_name(db, name)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"no active formula named {name!r}")
+    return result
+
+
 @router.get("/formula/{formula_id}")
 def get_formula(formula_id: str, db: Session = Depends(get_db)):
     result = formulas.get_formula(db, formula_id)

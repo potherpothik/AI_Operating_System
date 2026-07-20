@@ -819,6 +819,117 @@ roles:
   # an incremental scan after a commit lands (execution/git_manager/api.py)
   # — a system action, not an agent capability, so it gets its own minimal
   # role rather than piggybacking on human_admin's blanket allow.
+  calculation_agent:
+    - action: "calc.apply_formula"
+      resource: "*"
+      effect: allow
+    - action: "calc.explain_formula"
+      resource: "*"
+      effect: allow
+    - action: "calc.assert_unverified_number"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    # calc.apply_formula's real evaluation runs via Shell Executor's
+    # sandbox (eval_formula.py, Phase 17) — shell.execute needed for the
+    # same reason every sandboxed-tool-call role documents it. No git.*
+    # at all: this agent has no propose_* action, nothing ever
+    # materializes via Git Manager.
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+
+  cutlist_optimization_agent:
+    - action: "cutlist.gather_parameters"
+      resource: "*"
+      effect: allow
+    - action: "cutlist.explain_result"
+      resource: "*"
+      effect: allow
+    # The tool-call itself bypasses this check by design (Phase 7's
+    # established tool-call mechanism) — this require_approval rule only
+    # ever fires on the FINALIZING turn (stock_length left empty, the
+    # model reporting its already-real result), per the Phase 17 doc's
+    # own scope decision to keep this unconditionally approval-gated
+    # rather than try to structurally detect "feeds a real schedule
+    # change" from the call alone.
+    - action: "cutlist.run_optimizer"
+      resource: "*"
+      effect: require_approval
+    - action: "cutlist.generate_layout_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+
+  autocad_agent:
+    - action: "autocad.explain_drawing"
+      resource: "*"
+      effect: allow
+    - action: "autocad.propose_annotation"
+      resource: "*"
+      effect: require_approval
+    - action: "autocad.modify_drawing_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    # shell.execute covers both real needs: dxf_parse.py's sandboxed run
+    # AND propose_annotation's git materialization re-checking it at the
+    # Shell Executor layer.
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
   git_manager:
     - action: "code_analysis.scan"
       resource: "*"

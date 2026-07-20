@@ -1,9 +1,16 @@
-# Phase 6 — Shell Executor & Git Manager (working implementation)
+# Phase 6/17 — Shell Executor & Git Manager (working implementation)
 
 Real, tested code. The highest-stakes phase so far — the first time the
 system can make a real, if contained, change on disk. Shell Executor is
 the *only* module permitted to run a shell command; Git Manager is a
-policy-aware consumer of it, never a separate git implementation.
+policy-aware consumer of it, never a separate git implementation. Phase
+17 added a new kind of artifact under `shell_executor/scripts/`: real,
+reviewed, deterministic Python tools (`eval_formula.py`, `cutlist_solver.py`,
+`dxf_parse.py`) that Calculation/Cutlist Optimization/AutoCAD Agents
+invoke via the exact same sandboxed-subprocess path every other
+allowlisted command already uses — never the model's own arithmetic or
+layout guess. See `services/agents/README.md`'s Phase 17 section for the
+full mechanism and the bridges that call these scripts.
 
 ## Run it
 
@@ -27,10 +34,17 @@ pytest tests/test_branch_policy.py tests/test_provenance.py tests/test_codeowner
 SECURITY_LAYER_URL=http://localhost:8000 pytest tests/ -v   # full suite, governance auto-started if PHASE1_PATH is set
 ```
 
-57 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+72 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns under a non-UTC session) and real git — `test_git_manager.py`
 runs branch/commit/diff/push/open_mr against a real, disposable bare
 repo created fresh per test run, never the actual project repo.
+`test_calc_scripts.py` (Phase 17) tests `shell_executor/scripts/`
+directly, as real subprocesses, independent of any live model: a real
+computed formula result, a real injection attempt structurally rejected
+(never reaching a function call regardless of the input string), a real
+known bin-packing case, and real DXF parsing including a real
+geometric-extents computation confirmed to differ from (and be more
+accurate than) the DXF header's own potentially-stale fields.
 
 ## Docker isn't installed in this environment — read this before trusting sandbox isolation
 
@@ -75,6 +89,23 @@ that, not a bare rlimit. Locked in as a permanent regression test
 
 ## What's real
 
+- **Phase 17 addition:** three new real, reviewed, deterministic scripts
+  under `shell_executor/scripts/` — `eval_formula.py` (a restricted
+  `ast`-based arithmetic evaluator, structurally incapable of anything
+  beyond named-variable arithmetic, confirmed live with an actual
+  injection attempt rejected before it ever reaches a function call),
+  `cutlist_solver.py` (a real first-fit-decreasing bin-packing
+  heuristic, honestly labeled as one in its own output), and
+  `dxf_parse.py` (real `ezdxf`-based DXF parsing, using
+  `ezdxf.bbox.extents()` for real geometric bounding-box computation
+  rather than trusting a DXF file's own potentially-stale header
+  fields). All three are invoked the exact same way any other
+  allowlisted command already is — a real sandboxed subprocess, no new
+  execution mechanism. `ezdxf` needs to be importable by whichever
+  `python3` this service's own process resolves via `PATH` — activate
+  this service's venv before running it (same as every other service's
+  own README already instructs), or `dxf_parse.py` reports a clean
+  `ezdxf not installed` error rather than silently failing.
 - **Phase 16 addition:** `POST /git/diff` is genuinely driven by an
   agent for the first time — Code Review Agent's `review.fetch_diff`
   tool call (`services/agents/README.md`'s Phase 16 section). No code

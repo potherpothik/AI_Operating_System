@@ -1,0 +1,7 @@
+agent_capability: calculation_agent
+commands:
+  # calc.apply_formula's real evaluation runs eval_formula.py (Phase 17)
+  # — a fixed, reviewed script, never a model-supplied path. No git
+  # commands at all: this agent has no propose_* action.
+  - pattern: "python3 */eval_formula.py *"
+    mode: read_only

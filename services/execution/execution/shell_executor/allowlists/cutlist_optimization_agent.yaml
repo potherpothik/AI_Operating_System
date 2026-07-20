@@ -1,0 +1,7 @@
+agent_capability: cutlist_optimization_agent
+commands:
+  # cutlist.run_optimizer's real solve runs cutlist_solver.py (Phase 17)
+  # — a fixed, reviewed script, never a model-supplied path. No git
+  # commands at all: this agent has no propose_* action.
+  - pattern: "python3 */cutlist_solver.py *"
+    mode: read_only

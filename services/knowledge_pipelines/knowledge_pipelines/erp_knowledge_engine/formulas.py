@@ -64,3 +64,24 @@ def get_formula(db: Session, formula_id: str) -> dict | None:
         "classification": row.classification, "defined_by": row.defined_by, "version": row.version,
         "status": row.status, "superseded_by": row.superseded_by, "created_at": row.created_at.isoformat(),
     }
+
+
+def get_active_formula_by_name(db: Session, name: str) -> dict | None:
+    """
+    Phase 17: Calculation Agent needs to resolve a formula it's asking
+    about by the real registered NAME (the only thing it can plausibly
+    know from a task description or retrieved context) — store.py's own
+    get_active_formula_by_name() has existed since Phase 14 (register_formula
+    uses it internally to detect an existing formula before creating a
+    new version) but was never reachable over HTTP until this phase
+    needed it, the same "extend by unblocking an existing gap" pattern
+    this project's whole history follows.
+    """
+    row = store.get_active_formula_by_name(db, name)
+    if not row:
+        return None
+    return {
+        "id": row.id, "name": row.name, "formula_ref": row.formula_ref, "business_purpose": row.business_purpose,
+        "classification": row.classification, "defined_by": row.defined_by, "version": row.version,
+        "status": row.status, "superseded_by": row.superseded_by, "created_at": row.created_at.isoformat(),
+    }

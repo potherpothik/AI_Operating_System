@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from agents import clients
-from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge, review_bridge, reverse_eng_bridge
+from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge, review_bridge, reverse_eng_bridge, calc_bridge, cutlist_bridge, autocad_bridge
 from agents.reasoning_engine.ollama_adapter import generate, OllamaUnavailable
 from agents.reasoning_engine.models import ReasoningExecution
 
@@ -35,6 +35,10 @@ GIT_PROPOSE_ACTIONS = {
     # below) once the git half lands.
     "reverse_eng.propose_documentation_draft",
     "architecture.propose_decision",
+    # Phase 17: AutoCAD Agent's proposed annotation reuses the same
+    # git-proposal path unchanged too — a plain-language document for a
+    # human to review, same as every other propose_* action.
+    "autocad.propose_annotation",
 }
 
 # Phase 16: the one action whose git materialization needs a chained
@@ -217,6 +221,9 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
         has_fresh_shell_command = bool((parsed.get("shell_command") or "").strip())
         has_fresh_task_lookup = bool((parsed.get("target_task_id") or "").strip())
         has_fresh_review_request = bool((parsed.get("target_repo") or "").strip())
+        has_fresh_formula_request = bool((parsed.get("formula_name") or "").strip())
+        has_fresh_cutlist_request = bool((parsed.get("stock_length") or "").strip())
+        has_fresh_dxf_request = bool((parsed.get("dxf_path") or "").strip())
 
         if action in database_bridge.TOOL_ACTIONS and has_fresh_query:
             tool_result = database_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id, requester_ceiling=cap_def.classification_ceiling)
@@ -265,6 +272,45 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
                 f"Now produce your final structured response based on this — set action to {action} again but leave "
                 f"target_repo empty since you already have the result, unless you genuinely need to check something else, "
                 f"or set action to review.flag_concern/review.approve_recommendation to finalize.]"
+            )
+            if iteration == max_iterations:
+                final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
+            continue
+
+        if action in calc_bridge.TOOL_ACTIONS and has_fresh_formula_request:
+            tool_result = calc_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
+            store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, f"tool_call:{action}")
+            current_task_description = (
+                f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
+                f"Now produce your final structured response based on this real number — set action to {action} again "
+                f"but leave formula_name empty since you already have the real result, unless you genuinely need a "
+                f"different formula. Never state a different number than the one you were actually given.]"
+            )
+            if iteration == max_iterations:
+                final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
+            continue
+
+        if action in cutlist_bridge.TOOL_ACTIONS and has_fresh_cutlist_request:
+            tool_result = cutlist_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
+            store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, f"tool_call:{action}")
+            current_task_description = (
+                f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
+                f"Now produce your final structured response based on this real solver result — set action to {action} "
+                f"again but leave stock_length empty since you already have the real result, unless you genuinely need "
+                f"a different solve. This finalizing turn requires human approval before the result is treated as final.]"
+            )
+            if iteration == max_iterations:
+                final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
+            continue
+
+        if action in autocad_bridge.TOOL_ACTIONS and has_fresh_dxf_request:
+            tool_result = autocad_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
+            store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, f"tool_call:{action}")
+            current_task_description = (
+                f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
+                f"Now produce your final structured response based on this real parsed structure — set action to "
+                f"{action} again but leave dxf_path empty since you already have the real result, unless you genuinely "
+                f"need to parse a different file.]"
             )
             if iteration == max_iterations:
                 final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"

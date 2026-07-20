@@ -1,4 +1,4 @@
-# Phase 5/7/8/10/14/15/16 — Reasoning Engine + fifteen agents (working implementation)
+# Phase 5/7/8/10/14/15/16/17 — Reasoning Engine + eighteen agents (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
@@ -81,6 +81,28 @@ gives it two real tool calls (a real `git diff` via Git Manager, a real
 call-graph lookup via Code Analysis Engine) mirroring `database_bridge.py`'s
 exact shape.
 
+Phase 17's three agents (Calculation, Cutlist Optimization, AutoCAD)
+share one integrity principle: none of them let the model assert a
+numeric or layout result from its own generation. Every real number or
+layout comes from an actual deterministic script — `eval_formula.py` (a
+restricted `ast`-based arithmetic evaluator, structurally incapable of
+calling a function or importing anything, regardless of what expression
+string reaches it — never Python's own `eval()`), `cutlist_solver.py` (a
+real first-fit-decreasing bin-packing heuristic), and `dxf_parse.py` (real
+`ezdxf`-based DXF structure extraction) — executed via Shell Executor's
+existing sandbox (Phase 6), the same real subprocess path `shell_bridge.py`
+already established, just against a fixed, reviewed script instead of a
+model-chosen command. `calc_bridge.py`, `cutlist_bridge.py`, and
+`autocad_bridge.py` are three small new tool-call bridges, all following
+the same shape. Calculation Agent surfaced one genuine gap in ERP
+Knowledge Engine (Phase 9/14): `store.get_active_formula_by_name()` has
+existed since Phase 14 (used internally when registering a new formula
+version) but was never reachable over HTTP until a model needed to
+resolve a real formula by name — `GET /erp-knowledge/formula/by-name/{name}`
+closes it. AutoCAD Agent's `propose_annotation` reuses
+`execution_bridge.materialize_propose_change` unchanged, same as every
+other `propose_*` action.
+
 ## Run it
 
 ```bash
@@ -113,6 +135,18 @@ export KNOWLEDGE_PIPELINES_URL=http://localhost:8009
 # discovered from. Must match services/extensibility's own env var of
 # the same name.
 export PLUGIN_CAPABILITIES_DIR=/tmp/ai_os_plugins
+# Optional — closes the Phase 17 loop: Calculation/Cutlist/AutoCAD
+# Agents' real sandboxed scripts (eval_formula.py, cutlist_solver.py,
+# dxf_parse.py). Without it, calc.apply_formula/cutlist.run_optimizer/
+# autocad.explain_drawing all report not_configured rather than guessing
+# a path — must point at the real absolute path to
+# services/execution/execution/shell_executor/scripts/ on shared storage
+# (same "real local path, single-host dev convention" PROPOSAL_REPO_PATH
+# already uses). The interpreter that ACTUALLY runs these scripts is
+# whichever `python3` resolves on Shell Executor's own PATH — activate
+# that service's venv before running it, or ezdxf (needed by
+# dxf_parse.py) won't be importable even though it's in requirements.txt.
+export CALC_SCRIPTS_DIR=/home/you/AI_Operating_System/services/execution/execution/shell_executor/scripts
 uvicorn main:app --port 8005
 ```
 
@@ -121,7 +155,8 @@ it finds (currently `odoo_agent`, `database_agent`, `planner`,
 `django_agent`, `devops_agent`, `docker_agent`, `testing_agent`,
 `costing_agent`, `accounting_agent`, `inventory_agent`,
 `manufacturing_agent`, `sales_agent`, `project_management_agent`,
-`code_review_agent`, `reverse_engineering_agent`, and `architecture_agent` —
+`code_review_agent`, `reverse_engineering_agent`, `architecture_agent`,
+`calculation_agent`, `cutlist_optimization_agent`, and `autocad_agent` —
 plus any Phase 12 plugin capabilities under `PLUGIN_CAPABILITIES_DIR`,
 see `services/extensibility/README.md`) into its own DB, and best-effort
 attempts to register each agent's prompt template with Prompt Builder.
@@ -146,6 +181,9 @@ curl -X POST localhost:8005/project_management_agent/register
 curl -X POST localhost:8005/code_review_agent/register
 curl -X POST localhost:8005/reverse_engineering_agent/register
 curl -X POST localhost:8005/architecture_agent/register
+curl -X POST localhost:8005/calculation_agent/register
+curl -X POST localhost:8005/cutlist_optimization_agent/register
+curl -X POST localhost:8005/autocad_agent/register
 # find the approval_id from the response or GET /approval/pending on governance, then:
 curl -X POST localhost:8000/approval/<approval_id>/decide \
   -d '{"decided_by":"human_admin","approve":true}'
@@ -187,7 +225,7 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live 8-service stack + live Ollama
 ```
 
-69 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+78 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a deliberately
 non-UTC session) and a real live Ollama model — not mocked, except for
 deliberately-stubbed tests (see below) used specifically where live-model
@@ -231,6 +269,21 @@ document AND independently show up in Documentation Engine's own
 `GET /docs/sources` listing, Architecture Agent's `propose_decision`
 materializing as a real git document with zero chained step (unlike
 Reverse Engineering Agent), and one live-model smoke test each.
+`tests/test_phase17_agents.py` (Phase 17) covers all three engineering
+agents: Calculation Agent's `calc.apply_formula` verified against a real
+formula registered through ERP Knowledge Engine's real approval flow
+during the test itself, confirming the exact real computed number (not
+a model guess) shows up in the next-turn prompt, plus a structural test
+confirming an unresolvable formula name never reaches `completed` —
+the agent exhausts its iteration budget rather than fabricating a
+result. Cutlist Optimization Agent's `cutlist.run_optimizer` verified
+against `services/execution/tests/test_calc_scripts.py`'s exact known
+packing case, confirming the real `bins_used`/algorithm name show up in
+the next-turn prompt and that the finalizing turn genuinely requires
+approval. AutoCAD Agent's `explain_drawing` verified against a real
+generated DXF file (real layers, real text, real geometric extents all
+showing up in the next prompt) plus `propose_annotation` materializing
+as a real git document, and one live-model smoke test each.
 
 ## Real bugs found by live testing, not the test suite
 
@@ -349,6 +402,32 @@ Reverse Engineering Agent), and one live-model smoke test each.
   uncommitted. Fixed by building `main...{target_branch}` automatically
   in `review_bridge.py` rather than pushing git range syntax onto the
   model, which had never needed to know it before.
+- **Phase 17: a literal JSON example in Calculation Agent's own prompt
+  template broke prompt rendering for every task, not just formula
+  ones** — Prompt Builder's `render()` (`services/assembly`) calls Python's
+  `str.format()` on the raw template body to substitute `{task_description}`/
+  `{context}`/etc.; a template author writing a plain-language example
+  like `` `{"base_cost": 420}` `` in prose gets the same treatment,
+  and `.format()` tried to resolve `"base_cost"` as a field name,
+  raising a real `500` on every single render. Found live, not by
+  reading the code — invisible from the template file alone, since
+  nothing about it looks like code. Fixed by escaping the literal braces
+  (`{{`/`}}`, the standard `str.format()` escape) in
+  `calculation_agent/template.md`; every other agent's template was
+  checked and had no literal braces to begin with. Worth remembering for
+  any future template that wants to show a JSON example in its own
+  prose.
+- **Not a code bug, but a real operational gotcha this phase's own
+  scripts exposed**: `dxf_parse.py` needs `ezdxf` importable by whichever
+  `python3` Shell Executor's sandboxed subprocess actually resolves via
+  `PATH` — which is inherited from Shell Executor's OWN process
+  environment (`sandbox.py`'s `_safe_env()`), not hardcoded. Running
+  Shell Executor from an activated venv (as every service's own README
+  already instructs) resolves this correctly; running it via an
+  unactivated interpreter's absolute path does not, even if `ezdxf` is
+  correctly listed in `requirements.txt` and installed into that same
+  venv. Caught during this phase's own test setup, not a defect in any
+  shipped code.
 
 ## What's real
 
@@ -546,6 +625,28 @@ Reverse Engineering Agent), and one live-model smoke test each.
   said `delegate_to "architecture_agent" if you recognize one` since
   Phase 7, unchanged this phase; building Architecture Agent is the only
   change needed for that delegation to actually resolve to something.
+- **Every Phase 17 numeric/layout result is structurally, not just
+  promptedly, real** — confirmed live: `calc.apply_formula`'s result
+  comes from `eval_formula.py`'s actual restricted-AST evaluation of a
+  real registered formula (verified with the exact expected computed
+  value, `420 * 1.05 = 441.0`, present in the model's next-turn prompt);
+  `cutlist.run_optimizer`'s result comes from `cutlist_solver.py`'s
+  actual first-fit-decreasing packing of a known input case (verified
+  against `services/execution/tests/test_calc_scripts.py`'s identical
+  scenario); `autocad.explain_drawing`'s result comes from `dxf_parse.py`'s
+  actual `ezdxf` parse of a real generated DXF file (verified with the
+  real text content and real computed geometric extents, not the DXF
+  header's own potentially-stale `$EXTMIN`/`$EXTMAX` fields).
+- **`eval_formula.py`'s restricted evaluator is a real security
+  boundary, not a convention**: confirmed live with an actual injection
+  attempt (`__import__('os').system(...)`) structurally rejected — the
+  AST walker has no code path that reaches a function call at all,
+  regardless of what expression string is handed to it.
+- **The one genuinely new gap-fill this batch needed**
+  (`GET /erp-knowledge/formula/by-name/{name}`) is real, not a stub —
+  confirmed live end to end: registering a real formula through the
+  existing approval-gated path, then resolving it by name through the
+  new endpoint, gets back the exact real `formula_ref` just registered.
 
 ## What's a stub or simplified
 
@@ -645,13 +746,32 @@ Reverse Engineering Agent), and one live-model smoke test each.
   inferred/reconstructed) plus the existing human-approval gate on
   `propose_documentation_draft` are what stand between a plausible-
   sounding guess and something Documentation Engine treats as real.
+- **`cutlist_solver.py` is a real, deterministic first-fit-decreasing
+  heuristic, honestly labeled as one** (its own output includes
+  `"algorithm": "first_fit_decreasing"`) — not a proven-optimal
+  bin-packing solver. Swapping in a real ILP/exact solver later is a
+  contained change to that one script, per the Phase 17 doc's own
+  explicit scope decision.
+- **AutoCAD Agent has no native `.dwg` support at all** — a real,
+  honestly-named platform constraint (Phase 17 doc, Section 4), not a
+  gap worked around. No open-source `.dwg` parser exists and this is a
+  Linux environment with no Autodesk tooling; `dxf_parse.py` only ever
+  reads real `.dxf` files, assuming a conversion happened upstream.
+- **`cutlist.run_optimizer`'s approval requirement is unconditional**,
+  not actually detecting "does this specific result feed a downstream
+  production-schedule change" the way the master roadmap's own
+  conditional phrasing describes — a deliberate Phase 17 scope
+  simplification (there's no existing signal this system could check
+  that distinction against), documented explicitly rather than silently
+  narrowed.
 
 ## Next
 
-Phase 17: Engineering & Calculation Agents (`calculation_agent`,
-`cutlist_optimization_agent` — Manufacturing Agent's already-named future
-delegate target from Phase 15). Phase 18: Cross-Cutting Agents (Security
-Agent, Research Agent) — natural next consumers of this phase's new
-approval-review attachment mechanism. Phase 24 (Control UI) is also now
-designed (`docs/phase-24-control-ui.md`) and could be prioritized instead
-once operator-facing UI work is ready to start.
+Phase 18: Cross-Cutting Agents (Python Agent, Documentation Agent,
+Security Agent, Research Agent) — Documentation Agent explicitly names
+Reverse Engineering Agent (Phase 16) as its own delegate target when
+nothing is written down at all, and Security Agent is a natural next
+consumer of Phase 16's approval-review attachment mechanism. Phase 24
+(Control UI) is also now designed (`docs/phase-24-control-ui.md`) and
+could be prioritized instead once operator-facing UI work is ready to
+start.

@@ -23,27 +23,29 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 | 3 | Memory Manager, Vector Search | [`docs/phase-3-memory-vector-search.md`](docs/phase-3-memory-vector-search.md) | [`services/knowledge/`](services/knowledge/) — 22 tests |
 | 4 | Context Builder, Prompt Builder | [`docs/phase-4-context-prompt-builder.md`](docs/phase-4-context-prompt-builder.md) | [`services/assembly/`](services/assembly/) — 26 tests |
 | 5 | Reasoning Engine, Odoo Agent | [`docs/phase-5-odoo-agent-reasoning-engine.md`](docs/phase-5-odoo-agent-reasoning-engine.md) | [`services/agents/`](services/agents/) — 27 tests |
-| 6 | Shell Executor, Git Manager | [`docs/phase-6-shell-git-manager.md`](docs/phase-6-shell-git-manager.md) | [`services/execution/`](services/execution/) — 45 tests |
+| 6 | Shell Executor, Git Manager | [`docs/phase-6-shell-git-manager.md`](docs/phase-6-shell-git-manager.md) | [`services/execution/`](services/execution/) — 72 tests |
 | 7 | Database Connector, Database Agent | [`docs/phase-7-database-connector-agent.md`](docs/phase-7-database-connector-agent.md) | [`services/database/`](services/database/) — 54 tests (Database Agent itself lives in `services/agents/agents/database_agent/`) |
 | 8 | Planner, Capability Registry | [`docs/phase-8-planner-capability-registry.md`](docs/phase-8-planner-capability-registry.md) | [`services/planning/`](services/planning/) — 27 tests (Planner itself lives in `services/agents/agents/planner/`) |
 | 9 | Documentation Engine, ERP Knowledge Engine | [`docs/phase-9-documentation-erp-knowledge-engine.md`](docs/phase-9-documentation-erp-knowledge-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 27 tests |
 | 10 | Django, DevOps, Docker, Testing Agents | [`docs/phase-10-django-devops-docker-testing-agents.md`](docs/phase-10-django-devops-docker-testing-agents.md) | [`services/agents/`](services/agents/) — 38 tests (all four agents live in `services/agents/agents/{django_agent,devops_agent,docker_agent,testing_agent}/`) |
-| 11 | Code Analysis Engine | [`docs/phase-11-code-analysis-engine.md`](docs/phase-11-code-analysis-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 48 tests (Code Analysis Engine itself lives in `services/knowledge_pipelines/knowledge_pipelines/code_analysis_engine/`) |
+| 11 | Code Analysis Engine | [`docs/phase-11-code-analysis-engine.md`](docs/phase-11-code-analysis-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 53 tests (Code Analysis Engine itself lives in `services/knowledge_pipelines/knowledge_pipelines/code_analysis_engine/`) |
 | 12 | MCP Client, Plugin System | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/extensibility/`](services/extensibility/) — 25 tests |
 | 13 | Metrics Dashboard, Health Monitor | [`docs/phase-13-metrics-health.md`](docs/phase-13-metrics-health.md) | [`services/observability/`](services/observability/) — 19 tests |
 | 14 | Costing, Accounting, Inventory Agents | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/agents/`](services/agents/) — 50 tests (all three agents live in `services/agents/agents/{costing_agent,accounting_agent,inventory_agent}/`) |
 | 15 | Manufacturing, Sales, Project Management Agents | [`docs/phase-15-operations-agents.md`](docs/phase-15-operations-agents.md) | [`services/agents/`](services/agents/) — 61 tests (all three agents live in `services/agents/agents/{manufacturing_agent,sales_agent,project_management_agent}/`; also extends `services/database/` with a new PII classification dimension and `services/platform-spine/` with a task-events endpoint) |
 | 16 | Code Review, Reverse Engineering, Architecture Agents | [`docs/phase-16-code-quality-agents.md`](docs/phase-16-code-quality-agents.md) | [`services/agents/`](services/agents/) — 69 tests (all three agents live in `services/agents/agents/{code_review_agent,reverse_engineering_agent,architecture_agent}/`; also extends `services/governance/` with an approval-review attachment mechanism) |
-| 17–21 | Engineering/cross-cutting agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
+| 17 | Calculation, Cutlist Optimization, AutoCAD Agents | [`docs/phase-17-engineering-calculation-agents.md`](docs/phase-17-engineering-calculation-agents.md) | [`services/agents/`](services/agents/) — 78 tests (all three agents live in `services/agents/agents/{calculation_agent,cutlist_optimization_agent,autocad_agent}/`; also adds real deterministic scripts under `services/execution/` and a formula-by-name gap-fill on `services/knowledge_pipelines/`) |
+| 18–21 | Cross-cutting agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 | 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | not yet built |
 | 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/phase-24-control-ui.md`](docs/phase-24-control-ui.md) | not yet built |
 
-Eleven services are real, tested code today, now hosting Phases 1–16
+Eleven services are real, tested code today, now hosting Phases 1–17
 (1–11 as their own dedicated design docs, 12–14 from the consolidated
-Phases 12–21 doc, 15 and 16 each from their own dedicated design doc —
+Phases 12–21 doc, 15/16/17 each from their own dedicated design doc —
 written separately because each phase's core mechanism (PII scoping;
-approval-review attachment) is a material change to an already-built
-service, not just agent configuration); everything past that is fully
+approval-review attachment; real sandboxed deterministic execution) is a
+material change to an already-built service, not just agent
+configuration); everything past that is fully
 designed but not yet implemented. Vision and ElizaOS study notes:
 [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md). Doc
@@ -328,6 +330,29 @@ connection string format and what's been verified against it (including
   instead of `main` (fixed on the caller's side, not the read-only
   endpoint itself). Full detail in `services/agents/README.md` and
   `services/governance/README.md`.
+- **Phase 17's three engineering agents share one integrity principle:
+  none of them let the model assert a numeric or layout result from its
+  own generation.** Every real computation routes through an actual
+  deterministic script (`eval_formula.py`, `cutlist_solver.py`,
+  `dxf_parse.py`) under a new `services/execution/execution/shell_executor/scripts/`
+  directory, invoked via the exact same sandboxed-subprocess path every
+  other allowlisted command already uses — the model never computes
+  arithmetic or a bin-packing layout itself. `eval_formula.py`'s
+  restricted `ast` walker is a real security boundary, confirmed live
+  with an actual code-injection attempt (`__import__('os').system(...)`)
+  structurally rejected before it ever reaches a function call — never
+  Python's own `eval()`. Two real bugs surfaced live in the same
+  session, neither in the new scripts themselves: a literal JSON example
+  in Calculation Agent's own prompt template collided with Prompt
+  Builder's `str.format()`-based rendering (a `{"base_cost": 420}` in
+  prose reads as a format placeholder, not an example — fixed by
+  escaping the braces), and a genuine gap in ERP Knowledge Engine
+  (Phase 9/14): a formula could only ever be looked up by internal id,
+  never by the real name a model could plausibly know, closed with
+  `GET /erp-knowledge/formula/by-name/{name}` — the underlying store
+  function had existed since Phase 14, just never reachable over HTTP.
+  Full detail in `services/agents/README.md`, `services/execution/README.md`,
+  and `services/knowledge_pipelines/README.md`.
 - **Phase 13's Health Monitor and Metrics Dashboard have no write path
   to anything** — every number is computed live from six small, real
   listing endpoints added to earlier services (none of which gained a
@@ -440,7 +465,22 @@ caller code itself, not in what it called: `/graph` resolves caller ids
 to real names while `/symbol/{ref}`'s own callers list doesn't, so the
 first version picked the wrong one of two existing endpoints; and a
 bare branch name diffs against the working tree, not `main`, unless the
-caller builds that comparison explicitly. That pattern —
+caller builds that comparison explicitly. Phase 17 needed one genuinely
+new artifact type in `execution` (real, reviewed, deterministic scripts
+under `shell_executor/scripts/`, invoked through the exact same
+sandboxed-command path every other allowlisted tool already uses — not
+a new execution mechanism, just a new kind of thing that mechanism
+runs) plus one small, real gap-fill in `knowledge_pipelines`
+(`GET /erp-knowledge/formula/by-name/{name}` — the underlying store
+function existed since Phase 14, reachable over HTTP for the first time
+only once a model genuinely needed to resolve a formula by name rather
+than by id). Live testing caught a bug neither in the new scripts nor
+in what they called: a literal JSON example in a prompt template
+collided with Prompt Builder's own `str.format()`-based rendering,
+breaking every single render for that agent, not just the one
+demonstrating a formula — invisible from reading the template file
+alone, since nothing about a plain-language example looks like code.
+That pattern —
 build the phase that unblocks what already exists before adding more
 surface area, and trust live testing over code review to find the gaps
 between files that individually look correct, including gaps in a

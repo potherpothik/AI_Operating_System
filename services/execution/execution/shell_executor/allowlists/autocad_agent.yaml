@@ -1,0 +1,29 @@
+agent_capability: autocad_agent
+commands:
+  # autocad.explain_drawing's real parse runs dxf_parse.py (Phase 17) —
+  # a fixed, reviewed script. autocad.propose_annotation lands as a Git
+  # Manager MR (a proposed document, never a direct drawing edit) — same
+  # read-only inspection + scoped mutating branch pattern as every other
+  # propose_*-capable agent.
+  - pattern: "python3 */dxf_parse.py *"
+    mode: read_only
+  - pattern: "git status*"
+    mode: read_only
+  - pattern: "git diff*"
+    mode: read_only
+  - pattern: "git log*"
+    mode: read_only
+  - pattern: "git show*"
+    mode: read_only
+  - pattern: "git rev-parse*"
+    mode: read_only
+  - pattern: "git branch*"
+    mode: read_only
+  - pattern: "git checkout -b autocad-agent/*"
+    mode: mutating
+  - pattern: "git add *"
+    mode: mutating
+  - pattern: "git commit *"
+    mode: mutating
+  - pattern: "git push origin autocad-agent/*"
+    mode: mutating

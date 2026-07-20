@@ -1,0 +1,12 @@
+capability: cutlist_optimization_agent
+brain: erp
+allowed_actions:
+  - cutlist.gather_parameters
+  - cutlist.run_optimizer
+  - cutlist.explain_result
+forbidden_actions:
+  - cutlist.generate_layout_direct
+requires_approval:
+  - cutlist.run_optimizer
+classification_ceiling: internal
+template_id: cutlist_optimization_agent

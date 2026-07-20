@@ -460,6 +460,22 @@ def shell_execute(command: str, args: list, working_dir: str, capability: str, r
         return {"ok": False, "error": str(e)}
 
 
+def get_formula_by_name(name: str) -> dict:
+    """
+    Phase 17: Calculation Agent's calc.apply_formula tool call resolves
+    a real registered formula by name (Phase 9/14's existing formula
+    registration) — never invents a formula_ref of its own.
+    """
+    try:
+        resp = httpx.get(f"{KNOWLEDGE_PIPELINES_URL}/erp-knowledge/formula/by-name/{name}", timeout=10.0)
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
 def register_formula(name: str, formula_ref: str, business_purpose: str, defined_by: str, target_namespace: str) -> dict:
     """
     Phase 14: Costing Agent's approved formula changes register through

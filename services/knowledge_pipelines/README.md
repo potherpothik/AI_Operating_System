@@ -58,7 +58,7 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live stack
 ```
 
-49 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+53 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a non-UTC
 session). Real parsing (a genuinely generated PDF via `reportlab`, a
 real `.docx` via `python-docx`, real markdown/YAML/JSON, and real Python
@@ -67,6 +67,18 @@ content — no mocks.
 
 ## What's real
 
+- **Phase 17 addition:** `GET /erp-knowledge/formula/by-name/{name}` — a
+  real gap-fill, registered *before* the existing `GET /formula/{formula_id}`
+  route (the same route-ordering discipline Phase 11's own
+  `model-ceiling` fix taught this project to check on every new
+  literal-path route since — confirmed with a permanent `TestClient`-based
+  regression test, not just a direct function call). `store.get_active_formula_by_name()`
+  has existed since Phase 14 (used internally by `register_formula` to
+  detect an existing formula before creating a new version) but was
+  never reachable over HTTP until Calculation Agent needed to resolve a
+  real registered formula by name (`services/agents/README.md`'s Phase
+  17 section) — the model can plausibly know a formula's name from a
+  task description, never its internal id.
 - **Phase 16 addition:** `POST /docs/ingest` and `GET /code-analysis/graph`
   are now genuinely driven by an agent for the first time — Reverse
   Engineering Agent's approved `propose_documentation_draft` calls

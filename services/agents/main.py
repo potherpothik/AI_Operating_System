@@ -19,11 +19,14 @@ from agents.project_management_agent import register as project_management_agent
 from agents.code_review_agent import register as code_review_agent_register
 from agents.reverse_engineering_agent import register as reverse_engineering_agent_register
 from agents.architecture_agent import register as architecture_agent_register
+from agents.calculation_agent import register as calculation_agent_register
+from agents.cutlist_optimization_agent import register as cutlist_optimization_agent_register
+from agents.autocad_agent import register as autocad_agent_register
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="AI Orchestration Layer — Phase 5/7/8/10/14/15/16: Reasoning Engine + fifteen agents",
+    title="AI Orchestration Layer — Phase 5/7/8/10/14/15/16/17: Reasoning Engine + eighteen agents",
     description="The shared execution loop every agent runs through, and the agents running on it.",
 )
 
@@ -53,6 +56,9 @@ def on_startup():
     code_review_agent_register.ensure_template_registered()
     reverse_engineering_agent_register.ensure_template_registered()
     architecture_agent_register.ensure_template_registered()
+    calculation_agent_register.ensure_template_registered()
+    cutlist_optimization_agent_register.ensure_template_registered()
+    autocad_agent_register.ensure_template_registered()
 
 
 @app.post("/capabilities/reload")
@@ -175,20 +181,36 @@ def register_architecture_agent_template():
     return architecture_agent_register.ensure_template_registered()
 
 
+@app.post("/calculation_agent/register")
+def register_calculation_agent_template():
+    return calculation_agent_register.ensure_template_registered()
+
+
+@app.post("/cutlist_optimization_agent/register")
+def register_cutlist_optimization_agent_template():
+    return cutlist_optimization_agent_register.ensure_template_registered()
+
+
+@app.post("/autocad_agent/register")
+def register_autocad_agent_template():
+    return autocad_agent_register.ensure_template_registered()
+
+
 @app.get("/healthz")
 def healthz():
-    return {"status": "ok", "phase": 16}
+    return {"status": "ok", "phase": 17}
 
 
 @app.get("/")
 def root():
     return {
-        "status": "ok", "phase": 16,
+        "status": "ok", "phase": 17,
         "modules": [
             "reasoning_engine", "odoo_agent", "database_agent", "planner",
             "django_agent", "devops_agent", "docker_agent", "testing_agent",
             "costing_agent", "accounting_agent", "inventory_agent",
             "manufacturing_agent", "sales_agent", "project_management_agent",
             "code_review_agent", "reverse_engineering_agent", "architecture_agent",
+            "calculation_agent", "cutlist_optimization_agent", "autocad_agent",
         ],
     }

@@ -182,3 +182,72 @@ def test_formula_re_registration_supersedes_the_prior_version(governance_url, kn
     assert second["version"] == "2"
     assert first_fetched["status"] == "superseded"
     assert first_fetched["superseded_by"] == second["id"]
+
+
+# ---------------------------------------------------------------------------
+# Phase 17 — GET /formula/by-name/{name}: real gap-fill, store.py's
+# get_active_formula_by_name() existed since Phase 14 but was never
+# reachable over HTTP until Calculation Agent needed to resolve a
+# formula by the real registered name.
+# ---------------------------------------------------------------------------
+
+def test_get_formula_by_name_returns_the_active_version(governance_url, knowledge_url, database_url):
+    db = SessionLocal()
+    api.register_formula(
+        api.RegisterFormulaRequest(
+            name="by_name_lookup_test", formula_ref="x = a * 2", business_purpose="test",
+            defined_by="human_admin", target_namespace="demo_erp",
+        ),
+        db,
+    )
+    fetched = api.get_formula_by_name("by_name_lookup_test", db)
+    db.close()
+
+    assert fetched["formula_ref"] == "x = a * 2"
+    assert fetched["status"] == "active"
+
+
+def test_get_formula_by_name_returns_only_the_active_version_after_supersession(governance_url, knowledge_url, database_url):
+    db = SessionLocal()
+    api.register_formula(
+        api.RegisterFormulaRequest(
+            name="by_name_supersede_test", formula_ref="v1", business_purpose="first",
+            defined_by="human_admin", target_namespace="demo_erp",
+        ),
+        db,
+    )
+    api.register_formula(
+        api.RegisterFormulaRequest(
+            name="by_name_supersede_test", formula_ref="v2", business_purpose="second",
+            defined_by="human_admin", target_namespace="demo_erp",
+        ),
+        db,
+    )
+    fetched = api.get_formula_by_name("by_name_supersede_test", db)
+    db.close()
+    assert fetched["formula_ref"] == "v2"
+    assert fetched["version"] == "2"
+
+
+def test_get_formula_by_name_unknown_name_returns_404():
+    from fastapi import HTTPException
+    db = SessionLocal()
+    with pytest.raises(HTTPException) as exc_info:
+        api.get_formula_by_name("nonexistent_formula_name_xyz", db)
+    db.close()
+    assert exc_info.value.status_code == 404
+
+
+def test_by_name_route_not_shadowed_by_formula_id_wildcard():
+    """Regression test for the exact route-ordering bug class Phase 11's
+    GET /context/model-ceiling fix taught this project to check for:
+    'by-name' must never be matched as a literal {formula_id} value.
+    Uses a real HTTP TestClient (not a direct function call) since a
+    route-ordering bug is invisible to calling api.get_formula_by_name()
+    directly — it only shows up through the actual FastAPI route table."""
+    from fastapi.testclient import TestClient
+    from main import app
+    client = TestClient(app)
+    r = client.get("/erp-knowledge/formula/by-name/definitely_does_not_exist_xyz")
+    assert r.status_code == 404
+    assert "definitely_does_not_exist_xyz" in r.json()["detail"]

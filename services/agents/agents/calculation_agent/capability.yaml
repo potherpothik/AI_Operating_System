@@ -1,0 +1,10 @@
+capability: calculation_agent
+brain: erp
+allowed_actions:
+  - calc.apply_formula
+  - calc.explain_formula
+forbidden_actions:
+  - calc.assert_unverified_number
+requires_approval: []
+classification_ceiling: internal
+template_id: calculation_agent
