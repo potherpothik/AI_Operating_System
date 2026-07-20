@@ -134,7 +134,7 @@ approval).
 
 ## 4. Domain roadmap
 
-**Built today:** Phases 1–18 (governance, platform spine, memory, assembly,
+**Built today:** Phases 1–21 (governance, platform spine, memory, assembly,
 agents + Reasoning Engine, execution, database, planning, knowledge pipelines,
 extensibility/MCP, observability metrics/health, costing/accounting/inventory
 agents, manufacturing/sales/PM agents, code-review/reverse-engineering/
@@ -148,13 +148,14 @@ restore scripts (`deploy/backup.sh`, `deploy/restore.sh`) are a third
 honesty tier of their own: real, live-drilled against this environment's
 own Postgres instance (`pg_dump`/`pg_restore` ARE available here, unlike
 a Docker daemon) — see [`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md)
-Section 3 for the real drill result. See root
-[`README.md`](../README.md) status table for the authoritative phase →
-service map.
+Section 3 for the real drill result. Phase 21 regenerates the original
+speculative component diagram, API surface index, and DB schema index
+from the real, grepped source — see
+[`phase-21-consolidated-reference.md`](phase-21-consolidated-reference.md).
+See root [`README.md`](../README.md) status table for the authoritative
+phase → service map.
 
 **Designed, not built:**
-- Phase 21 — consolidated reference
-  (see [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md))
 - **Phase 22** — External coding agents (OpenCode, Claude Code) via a
   governed Coding Agent Gateway
   ([`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md))
@@ -169,7 +170,8 @@ Built-phase design docs worth re-reading before extending code:
 [`phase-17-engineering-calculation-agents.md`](phase-17-engineering-calculation-agents.md),
 [`phase-18-cross-cutting-agents.md`](phase-18-cross-cutting-agents.md),
 [`phase-19-deployment-docker.md`](phase-19-deployment-docker.md),
-[`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md).
+[`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md),
+[`phase-21-consolidated-reference.md`](phase-21-consolidated-reference.md).
 
 ---
 
@@ -207,8 +209,9 @@ Before any implementation, follow the doc-reading protocol in
 
 ## Next
 
-Implement remaining designed agents (Phases 16–18) as config over the
-shared Reasoning Engine; then Phase 22 (Coding Agent Gateway) and/or
-Phase 24 (Control UI) when operator-facing UI is prioritized; then a full
-Phase 23 Model Router doc when multi-model routing becomes a real
-bottleneck rather than a config override.
+Phase 22 (Coding Agent Gateway) is next to build, following the same
+discipline as every phase through 21 — design doc first, real
+implementation, real tests, honest README. Phase 24 (Control UI) when
+operator-facing UI is prioritized; a full Phase 23 Model Router doc when
+multi-model routing becomes a real bottleneck rather than a config
+override.

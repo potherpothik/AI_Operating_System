@@ -38,7 +38,7 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 | 18 | Python, Documentation, Security, Research Agents | [`docs/phase-18-cross-cutting-agents.md`](docs/phase-18-cross-cutting-agents.md) | [`services/agents/`](services/agents/) — 87 tests (all four agents live in `services/agents/agents/{python_agent,documentation_agent,security_agent,research_agent}/`; also adds a `correlation_id` filter to `services/governance/`'s audit query) |
 | 19 | Deployment Architecture, Docker Deployment | [`docs/phase-19-deployment-docker.md`](docs/phase-19-deployment-docker.md) | real `Dockerfile`s (all eleven services) + [`docker-compose.yml`](docker-compose.yml) — written to the real interface, unbuilt/unverified (no Docker daemon in this environment) |
 | 20 | Backup Strategy, Disaster Recovery | [`docs/phase-20-backup-disaster-recovery.md`](docs/phase-20-backup-disaster-recovery.md) | [`deploy/backup.sh`](deploy/backup.sh), [`deploy/restore.sh`](deploy/restore.sh) — real, live restore drill run against a disposable database; result in [`services/governance/README.md`](services/governance/README.md#phase-20-addition--real-restore-drill-result) |
-| 21 | Consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
+| 21 | Consolidated reference | [`docs/phase-21-consolidated-reference.md`](docs/phase-21-consolidated-reference.md) | regenerated from real, grepped source — component diagram, API surface index, DB schema index, agent list, canonical message format |
 | 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | not yet built |
 | 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/phase-24-control-ui.md`](docs/phase-24-control-ui.md) | not yet built |
 
@@ -53,9 +53,12 @@ configuration). Phase 19 adds real deployment artifacts written to the
 interface but unverified (no Docker daemon here). Phase 20 adds two real
 shell scripts, live-drilled against this environment's own Postgres
 instance — a genuinely different, stronger honesty tier than Phase 19,
-since `pg_dump`/`pg_restore` are actually available here. Everything past
-Phase 20 is fully designed but not yet implemented. Vision and ElizaOS
-study notes:
+since `pg_dump`/`pg_restore` are actually available here. Phase 21
+regenerates the original speculative consolidated reference (component
+diagram, API surface index, DB schema index) from the real, grepped
+source instead of the design-time sketch — no new code, a corrected
+reference. Everything past Phase 21 is fully designed but not yet
+implemented. Vision and ElizaOS study notes:
 [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md). Doc
 index and mandatory read-before-code checklist: [`docs/README.md`](docs/README.md).
@@ -443,6 +446,23 @@ step.
   explicit, un-covered gap rather than silently assumed fine. Full detail
   in `docs/phase-20-backup-disaster-recovery.md` and
   `services/governance/README.md`.
+- **Phase 21 found the real system already matched its own speculative
+  design closely — all 21 API base paths, grepped straight from
+  `APIRouter(prefix=...)` calls, are identical to the ones sketched
+  before any of Phases 1–20 were built.** The one real, named
+  divergence: `role`/`role_permission` database tables were never
+  built — Phase 1's own README has said so since the beginning, policy
+  is a single YAML file, reloaded via `POST /security/reload`, not
+  database-backed RBAC — the original consolidated doc's schema table
+  was simply never updated to match a decision made and documented back
+  in Phase 1. Also surfaced a real mechanism the original design never
+  anticipated: the tool-call bridge pattern (`execution_bridge`,
+  `database_bridge`, `calc_bridge`, and others), a within-agent real
+  HTTP call to a downstream service that feeds its result back into the
+  SAME agent's next turn — distinct from `delegate_to`'s inter-agent
+  handoff, and only necessary once agents needed to actually call real
+  services starting Phase 6. Full detail in
+  `docs/phase-21-consolidated-reference.md`.
 - **Phase 13's Health Monitor and Metrics Dashboard have no write path
   to anything** — every number is computed live from six small, real
   listing endpoints added to earlier services (none of which gained a
