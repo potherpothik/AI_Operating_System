@@ -1,0 +1,264 @@
+# Phase 19 — real deployment topology, adapted from the master roadmap's
+# illustrative skeleton (docs/phases-12-21-remaining-subsystems.md) to
+# the actual, as-built eleven-service module boundaries. See
+# docs/phase-19-deployment-docker.md for the full design and the honest
+# note that this has not been built or run against a live Docker daemon
+# in this development environment (none is installed here).
+#
+# Build contexts are the repo root for every service (see each
+# services/<name>/Dockerfile's own COPY paths) so all eleven share one
+# root .dockerignore instead of needing per-service copies.
+
+services:
+  # ---------------------------------------------------------------------
+  # Governance — no dependencies, everything else depends on it directly
+  # or transitively.
+  # ---------------------------------------------------------------------
+  governance:
+    build:
+      context: .
+      dockerfile: services/governance/Dockerfile
+    networks: [internal, data-net]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/governance
+      # governance/security/secrets.py (Phase 7) reads this as a plain
+      # env var today — sourced from .env here (never committed), not a
+      # literal value in this file. Swapping to a real Docker `secrets:`
+      # file mount would need a small entrypoint wrapper reading
+      # /run/secrets/* into the process env before uvicorn starts, since
+      # the application code itself has no _FILE-suffix convention built
+      # in yet — a real, named hardening gap, not silently solved here.
+      DEMO_ERP_DATABASE_URL: ${DEMO_ERP_DATABASE_URL:-}
+    depends_on: [postgres]
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------
+  # Platform spine
+  # ---------------------------------------------------------------------
+  platform-spine:
+    build:
+      context: .
+      dockerfile: services/platform-spine/Dockerfile
+    networks: [internal, public, data-net]
+    ports: ["8002:8002"]   # the ONLY service with a host-published port — Gateway is the sole external entry point (master roadmap's own topology decision)
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/platform
+      SECURITY_LAYER_URL: http://governance:8000
+    depends_on: [governance, postgres]
+    restart: unless-stopped
+
+  knowledge:
+    build:
+      context: .
+      dockerfile: services/knowledge/Dockerfile
+    networks: [internal, data-net]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/knowledge
+      SECURITY_LAYER_URL: http://governance:8000
+    depends_on: [governance, postgres]
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------
+  # Assembly
+  # ---------------------------------------------------------------------
+  assembly:
+    build:
+      context: .
+      dockerfile: services/assembly/Dockerfile
+    networks: [internal, data-net]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/assembly
+      SECURITY_LAYER_URL: http://governance:8000
+      PLATFORM_URL: http://platform-spine:8002
+      KNOWLEDGE_URL: http://knowledge:8003
+    depends_on: [governance, platform-spine, knowledge]
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------
+  # Execution — internal network only, never public. Real `git` binary
+  # baked into its image (Phase 6). Owns the sandbox volume every
+  # Phase 6/10/16/17/18 propose_* materialization and every Phase 17
+  # deterministic script actually runs against.
+  # ---------------------------------------------------------------------
+  execution:
+    build:
+      context: .
+      dockerfile: services/execution/Dockerfile
+    networks: [internal, data-net]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/execution
+      SECURITY_LAYER_URL: http://governance:8000
+      SANDBOX_ROOT: /sandbox
+      # Optional (Phase 11) — best-effort on_commit Code Analysis trigger;
+      # a real commit still succeeds if this is unreachable, never blocks.
+      CODE_ANALYSIS_URL: http://knowledge_pipelines:8009
+    volumes:
+      - sandbox-data:/sandbox
+    depends_on: [governance, postgres, knowledge_pipelines]
+    restart: unless-stopped
+
+  database:
+    build:
+      context: .
+      dockerfile: services/database/Dockerfile
+    networks: [internal, data-net]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/database_connector
+      SECURITY_LAYER_URL: http://governance:8000
+    depends_on: [governance, postgres]
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------
+  # Planning
+  # ---------------------------------------------------------------------
+  planning:
+    build:
+      context: .
+      dockerfile: services/planning/Dockerfile
+    networks: [internal, data-net]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/planning
+      SECURITY_LAYER_URL: http://governance:8000
+      AGENTS_URL: http://agents:8005
+      PLATFORM_URL: http://platform-spine:8002
+    depends_on: [governance, agents, platform-spine, postgres]
+    restart: unless-stopped
+
+  knowledge_pipelines:
+    build:
+      context: .
+      dockerfile: services/knowledge_pipelines/Dockerfile
+    networks: [internal, data-net]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/knowledge_pipelines
+      SECURITY_LAYER_URL: http://governance:8000
+      KNOWLEDGE_URL: http://knowledge:8003
+      DATABASE_CONNECTOR_URL: http://database:8007
+      ASSEMBLY_URL: http://assembly:8004
+      PLATFORM_URL: http://platform-spine:8002
+    depends_on: [governance, knowledge, database, assembly, platform-spine, postgres]
+    restart: unless-stopped
+
+  extensibility:
+    build:
+      context: .
+      dockerfile: services/extensibility/Dockerfile
+    networks: [internal, data-net]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/extensibility
+      SECURITY_LAYER_URL: http://governance:8000
+      ASSEMBLY_URL: http://assembly:8004
+      AGENTS_URL: http://agents:8005
+    depends_on: [governance, assembly, agents, postgres]
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------
+  # Reasoning Engine + all twenty-two agents. Only service on model-net.
+  # CALC_SCRIPTS_DIR/PROPOSAL_REPO_PATH are strings this service passes
+  # to `execution` over HTTP for it to run against — they must match
+  # EXECUTION's own filesystem layout, not this container's. execution's
+  # Dockerfile COPYs services/execution/ to /app, so its scripts really
+  # do live at /app/execution/shell_executor/scripts inside THAT
+  # container; PROPOSAL_REPO_PATH needs a real git working directory
+  # under execution's own /sandbox volume, which compose alone doesn't
+  # create — a one-time real `git clone` into that volume is a genuine
+  # deployment-time step, not something this file automates.
+  # ---------------------------------------------------------------------
+  agents:
+    build:
+      context: .
+      dockerfile: services/agents/Dockerfile
+    networks: [internal, model-net, data-net]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/agents
+      SECURITY_LAYER_URL: http://governance:8000
+      PLATFORM_URL: http://platform-spine:8002
+      KNOWLEDGE_URL: http://knowledge:8003
+      ASSEMBLY_URL: http://assembly:8004
+      OLLAMA_URL: http://ollama:11434
+      EXECUTION_URL: http://execution:8006
+      PROPOSAL_REPO_PATH: /sandbox/proposal-repo
+      DATABASE_CONNECTOR_URL: http://database:8007
+      CAPABILITY_REGISTRY_URL: http://planning:8008
+      KNOWLEDGE_PIPELINES_URL: http://knowledge_pipelines:8009
+      CALC_SCRIPTS_DIR: /app/execution/shell_executor/scripts
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN:-dev-admin-token}
+    depends_on: [governance, platform-spine, knowledge, assembly, execution, database, knowledge_pipelines, ollama, postgres]
+    restart: unless-stopped
+
+  observability:
+    build:
+      context: .
+      dockerfile: services/observability/Dockerfile
+    networks: [internal, data-net]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/observability
+      GOVERNANCE_URL: http://governance:8000
+      PLATFORM_URL: http://platform-spine:8002
+      KNOWLEDGE_URL: http://knowledge:8003
+      ASSEMBLY_URL: http://assembly:8004
+      AGENTS_URL: http://agents:8005
+      EXECUTION_URL: http://execution:8006
+      DATABASE_CONNECTOR_URL: http://database:8007
+      PLANNING_URL: http://planning:8008
+      KNOWLEDGE_PIPELINES_URL: http://knowledge_pipelines:8009
+      EXTENSIBILITY_URL: http://extensibility:8010
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN:-dev-admin-token}
+    depends_on:
+      - governance
+      - platform-spine
+      - knowledge
+      - assembly
+      - agents
+      - execution
+      - database
+      - planning
+      - knowledge_pipelines
+      - extensibility
+      - postgres
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------
+  # Local inference — model-net only, reached by `agents` alone.
+  # ---------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    networks: [model-net]
+    volumes:
+      - ollama-models:/root/.ollama
+    # GPU reservation is commented out by default — offline-first must
+    # not assume a GPU exists (master roadmap's own explicit note).
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: ["gpu"]
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------
+  # Data tier — one instance, multiple logical databases (see
+  # deploy/postgres-init/01-create-databases.sql). pgvector image, not a
+  # bare postgres one — Vector Search (Phase 3) needs the real extension.
+  # ---------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    networks: [internal, data-net]
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+    restart: unless-stopped
+
+networks:
+  public: {}
+  internal: {}
+  data-net: {}
+  model-net: {}
+
+volumes:
+  pg-data:
+  ollama-models:
+  sandbox-data:

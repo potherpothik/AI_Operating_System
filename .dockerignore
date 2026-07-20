@@ -1,0 +1,17 @@
+# Phase 19: keeps every service's Docker build context small and free of
+# local dev artifacts that have no business inside an image.
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.db
+.env
+*.egg-info/
+.git/
+.github/
+eliza-develop/
+node_modules/
+web/
+**/tests/
+docs/
+*.md

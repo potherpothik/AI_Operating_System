@@ -139,12 +139,16 @@ agents + Reasoning Engine, execution, database, planning, knowledge pipelines,
 extensibility/MCP, observability metrics/health, costing/accounting/inventory
 agents, manufacturing/sales/PM agents, code-review/reverse-engineering/
 architecture agents, calculation/cutlist-optimization/AutoCAD agents,
-python/documentation/security/research agents). See root
+python/documentation/security/research agents), plus real Phase 19
+deployment artifacts (`Dockerfile`s, `docker-compose.yml`) — written to
+the real interface but genuinely unbuilt/unverified against a live
+Docker daemon, which doesn't exist in this environment; a different
+honesty tier than the tested phases, named as such. See root
 [`README.md`](../README.md) status table for the authoritative phase →
 service map.
 
 **Designed, not built:**
-- Phase 19–21 — Deployment, backup/DR, consolidated reference
+- Phase 20–21 — Backup/DR, consolidated reference
   (see [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md))
 - **Phase 22** — External coding agents (OpenCode, Claude Code) via a
   governed Coding Agent Gateway
@@ -158,7 +162,8 @@ Built-phase design docs worth re-reading before extending code:
 [`phase-15-operations-agents.md`](phase-15-operations-agents.md),
 [`phase-16-code-quality-agents.md`](phase-16-code-quality-agents.md),
 [`phase-17-engineering-calculation-agents.md`](phase-17-engineering-calculation-agents.md),
-[`phase-18-cross-cutting-agents.md`](phase-18-cross-cutting-agents.md).
+[`phase-18-cross-cutting-agents.md`](phase-18-cross-cutting-agents.md),
+[`phase-19-deployment-docker.md`](phase-19-deployment-docker.md).
 
 ---
 

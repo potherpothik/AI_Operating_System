@@ -36,7 +36,8 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 | 16 | Code Review, Reverse Engineering, Architecture Agents | [`docs/phase-16-code-quality-agents.md`](docs/phase-16-code-quality-agents.md) | [`services/agents/`](services/agents/) — 69 tests (all three agents live in `services/agents/agents/{code_review_agent,reverse_engineering_agent,architecture_agent}/`; also extends `services/governance/` with an approval-review attachment mechanism) |
 | 17 | Calculation, Cutlist Optimization, AutoCAD Agents | [`docs/phase-17-engineering-calculation-agents.md`](docs/phase-17-engineering-calculation-agents.md) | [`services/agents/`](services/agents/) — 78 tests (all three agents live in `services/agents/agents/{calculation_agent,cutlist_optimization_agent,autocad_agent}/`; also adds real deterministic scripts under `services/execution/` and a formula-by-name gap-fill on `services/knowledge_pipelines/`) |
 | 18 | Python, Documentation, Security, Research Agents | [`docs/phase-18-cross-cutting-agents.md`](docs/phase-18-cross-cutting-agents.md) | [`services/agents/`](services/agents/) — 87 tests (all four agents live in `services/agents/agents/{python_agent,documentation_agent,security_agent,research_agent}/`; also adds a `correlation_id` filter to `services/governance/`'s audit query) |
-| 19–21 | Deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
+| 19 | Deployment Architecture, Docker Deployment | [`docs/phase-19-deployment-docker.md`](docs/phase-19-deployment-docker.md) | real `Dockerfile`s (all eleven services) + [`docker-compose.yml`](docker-compose.yml) — written to the real interface, unbuilt/unverified (no Docker daemon in this environment) |
+| 20–21 | Backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 | 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | not yet built |
 | 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/phase-24-control-ui.md`](docs/phase-24-control-ui.md) | not yet built |
 
@@ -155,6 +156,36 @@ All default to SQLite with zero setup. Point `DATABASE_URL` at Postgres
 for the real deployment target — each service's README has the exact
 connection string format and what's been verified against it (including
 `knowledge`'s use of real pgvector, not a stand-in).
+
+## Deploying with Docker Compose (Phase 19)
+
+```bash
+cp .env.example .env    # fill in real POSTGRES_PASSWORD / DEMO_ERP_DATABASE_URL / GATEWAY_TOKEN
+docker compose build
+docker compose up -d
+```
+
+Real, reviewed `Dockerfile`s for all eleven services plus a real
+`docker-compose.yml` — one Postgres instance with one logical database
+per service (`deploy/postgres-init/01-create-databases.sql`), the same
+`pgvector/pgvector:pg16` image `knowledge`'s real Vector Search needs,
+four networks matching Phase 6's own "no network by default" sandboxing
+principle applied at the deployment layer (`public`: Gateway only;
+`internal`: every service; `data-net`: Postgres; `model-net`: Ollama,
+reached only by `agents`). Design and full honesty notes:
+[`docs/phase-19-deployment-docker.md`](docs/phase-19-deployment-docker.md).
+
+**Read before relying on this**: no Docker daemon exists in this
+development environment (confirmed directly, the same constraint
+`DockerSandbox` has carried since Phase 6) — every file here is written
+to the real interface and cross-checked line-by-line against what each
+service's own README already documents needing, but genuinely unbuilt
+and unverified against a live `docker compose up`. `depends_on` alone
+orders container start, not readiness — no `healthcheck:` blocks exist
+yet, a real, named follow-up. `PROPOSAL_REPO_PATH`'s real git working
+directory isn't something Compose creates for you; a one-time real
+`git clone` into the `sandbox-data` volume is a genuine deployment-time
+step.
 
 ## Honesty notes worth reading before relying on this
 
@@ -374,6 +405,22 @@ connection string format and what's been verified against it (including
   noting plainly rather than manufacturing a bug to report for symmetry.
   Full detail in `services/agents/README.md` and
   `services/governance/README.md`.
+- **Phase 19 is a different kind of deliverable than every phase before
+  it — deployment infrastructure, not application code, and it says so
+  plainly rather than pretending otherwise.** Real `Dockerfile`s for all
+  eleven services and a real `docker-compose.yml`, adapted from the
+  master roadmap's own illustrative skeleton (which named containers at
+  a finer granularity than what actually got built — three separate
+  governance containers where the real build made one, for instance) to
+  the real, current module boundaries. Every environment variable in the
+  compose file was cross-checked directly against what each service's
+  own README already documents reading, not re-derived from memory. What
+  it genuinely is not: built or run against a live Docker daemon — none
+  exists in this environment, the same constraint `DockerSandbox` has
+  carried since Phase 6, now named for a whole phase instead of one
+  fallback class. Full detail, including a real, named gap
+  (`depends_on` without healthchecks doesn't wait for real readiness),
+  in `docs/phase-19-deployment-docker.md`.
 - **Phase 13's Health Monitor and Metrics Dashboard have no write path
   to anything** — every number is computed live from six small, real
   listing endpoints added to earlier services (none of which gained a
@@ -515,4 +562,12 @@ build the phase that unblocks what already exists before adding more
 surface area, and trust live testing over code review to find the gaps
 between files that individually look correct, including gaps in a
 mechanism you just wrote this same phase — is the intended way to
-keep extending this.
+keep extending this. Phase 19 breaks that pattern in one honest way
+worth naming: it touches no application code in any earlier service at
+all, and there was nothing to live-test it against, since no Docker
+daemon exists in this environment. What verification it does have is
+real — every compose env var cross-checked line-by-line against what
+each service's own README already documents needing — but it's
+structural cross-referencing, not the "ran it and watched it work" bar
+every phase before it cleared. Said plainly here rather than implied
+away by reusing the same confident language the tested phases earned.
