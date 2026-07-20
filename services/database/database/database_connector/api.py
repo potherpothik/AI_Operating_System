@@ -228,6 +228,27 @@ def migrate(req: MigrateRequest, db: Session = Depends(get_db)):
     return {"id": finalized.id, "status": "generated", "migration_ref": result["migration_ref"], "requires_approval": True}
 
 
+@router.get("/query-log")
+def query_log(capability: str = None, query_type: str = None, db: Session = Depends(get_db)):
+    """
+    Phase 13: Metrics Dashboard's tool-execution-volume-by-capability
+    category (data side) — coarse metadata only (capability, target_db,
+    query type, row count, timing), never the actual query text or row
+    content, so this stays unauthenticated the same way ERP Knowledge
+    Engine's GET /graph already is (Phase 9) — an aggregate-count view,
+    not a data-access path.
+    """
+    rows = store.list_query_log(db, capability=capability, query_type=query_type)
+    return [
+        {
+            "id": r.id, "task_id": r.task_id, "capability": r.capability, "target_db": r.target_db,
+            "query_type": r.query_type, "row_count": r.row_count, "duration_ms": r.duration_ms,
+            "ts": r.ts.isoformat(),
+        }
+        for r in rows
+    ]
+
+
 @router.get("/schema/{target}")
 def schema(target: str, capability: str, db: Session = Depends(get_db)):
     decision = clients.authorize(capability, "db.read", target)

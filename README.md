@@ -28,18 +28,16 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 | 10 | Django, DevOps, Docker, Testing Agents | [`docs/phase-10-django-devops-docker-testing-agents.md`](docs/phase-10-django-devops-docker-testing-agents.md) | [`services/agents/`](services/agents/) — 38 tests (all four agents live in `services/agents/agents/{django_agent,devops_agent,docker_agent,testing_agent}/`) |
 | 11 | Code Analysis Engine | [`docs/phase-11-code-analysis-engine.md`](docs/phase-11-code-analysis-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 48 tests (Code Analysis Engine itself lives in `services/knowledge_pipelines/knowledge_pipelines/code_analysis_engine/`) |
 | 12 | MCP Client, Plugin System | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/extensibility/`](services/extensibility/) — 25 tests |
-| 13 | Metrics Dashboard, Health Monitor | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
-| 14 | Costing, Accounting, Inventory Agents | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/agents/`](services/agents/) — 49 tests (all three agents live in `services/agents/agents/{costing_agent,accounting_agent,inventory_agent}/`) |
+| 13 | Metrics Dashboard, Health Monitor | [`docs/phase-13-metrics-health.md`](docs/phase-13-metrics-health.md) | [`services/observability/`](services/observability/) — 19 tests |
+| 14 | Costing, Accounting, Inventory Agents | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/agents/`](services/agents/) — 50 tests (all three agents live in `services/agents/agents/{costing_agent,accounting_agent,inventory_agent}/`) |
 | 15–21 | Operations/code-quality/engineering/cross-cutting agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 | 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | not yet built |
 
-Ten services are real, tested code today, now hosting thirteen phases'
-worth of agents and subsystems (Phases 1–11 plus 12 and 14 — Phase 13
-is next); everything past that is fully designed but not yet
-implemented. Phases 12–21 all live in one consolidated design doc rather
-than one doc per phase, per that doc's own stated scope. Vision and
-ElizaOS study notes:
-[`docs/architecture-vision.md`](docs/architecture-vision.md),
+Eleven services are real, tested code today, now hosting Phases 1–14
+(1–11 as their own dedicated design docs, 12–14 from the consolidated
+Phases 12–21 doc, per that doc's own stated scope); everything past that
+is fully designed but not yet implemented. Vision and ElizaOS study
+notes: [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md).
 
 ## Running what exists
@@ -61,7 +59,9 @@ Planner reasons over) — closing all three loops end to end.
 plugin's template), and `agents` (to trigger a hot capability reload
 after a plugin is approved) — the `agents` service itself needs to be
 told the same `PLUGIN_CAPABILITIES_DIR` for that reload to actually
-surface anything.
+surface anything. `observability` (Phase 13) calls every other service
+with a plain GET — never a write — to aggregate liveness and metrics;
+it's the one service every other service doesn't need to know exists.
 
 ```bash
 # terminal 1 — DEMO_ERP_DATABASE_URL is only needed once you're using Phase 7;
@@ -125,6 +125,17 @@ cd services/extensibility && pip install -r requirements.txt
 SECURITY_LAYER_URL=http://localhost:8000 ASSEMBLY_URL=http://localhost:8004 \
 AGENTS_URL=http://localhost:8005 PLUGIN_CAPABILITIES_DIR=/tmp/ai_os_plugins \
 uvicorn main:app --port 8010
+
+# terminal 11 — Phase 13: every URL below is optional in the sense that
+# an unreachable one just shows up as "down" or "partial" in the
+# response, never a crash; set all of them for a genuinely useful view
+cd services/observability && pip install -r requirements.txt
+GOVERNANCE_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 \
+KNOWLEDGE_URL=http://localhost:8003 ASSEMBLY_URL=http://localhost:8004 \
+AGENTS_URL=http://localhost:8005 EXECUTION_URL=http://localhost:8006 \
+DATABASE_CONNECTOR_URL=http://localhost:8007 PLANNING_URL=http://localhost:8008 \
+KNOWLEDGE_PIPELINES_URL=http://localhost:8009 EXTENSIBILITY_URL=http://localhost:8010 \
+uvicorn main:app --port 8011
 ```
 
 All default to SQLite with zero setup. Point `DATABASE_URL` at Postgres
@@ -268,6 +279,30 @@ connection string format and what's been verified against it (including
   lives in more than one file, and governance's own `roles:` policy
   being correct is necessary but not sufficient. Full detail in
   `services/agents/README.md` and `services/governance/README.md`.
+- **Phase 13's Health Monitor and Metrics Dashboard have no write path
+  to anything** — every number is computed live from six small, real
+  listing endpoints added to earlier services (none of which gained a
+  new write surface). Confirmed live at every layer: a dead peer service
+  never blinds the rest of an aggregate response, a stuck task is
+  flagged only once it genuinely exceeds a real, configurable time
+  threshold (never a stored "SLA flag" — Phase 2 never built one, so
+  this is computed from real timestamps instead of assuming a field that
+  doesn't exist), and every metrics category reflects genuine activity —
+  a real completed task's real latency, a real approval's real
+  time-to-decision, a real db query's real capability attribution. Two
+  real bugs caught along the way: `clients.get_tasks()` had no
+  Authorization header at all (Phase 2's Gateway requires one; the
+  failure was silently swallowed by the same broad exception handling
+  that keeps one dead dependency from blinding the rest of a response,
+  so it looked like "no tasks exist" rather than "this call was
+  rejected"), and a naive-vs-aware datetime comparison broke the first
+  time a peer service happened to be running on SQLite rather than
+  Postgres (SQLite drops timezone info on round-trip — the same class of
+  gap Phase 1's own Postgres honesty notes already name). `POST
+  /health/alert-config` persists an alerting *intent* only — no real
+  notification channel exists anywhere in this codebase yet, and that's
+  said plainly rather than implied to work. Full detail in
+  `services/observability/README.md`.
 - Every "what's a stub" note in each service's own README is there because
   it materially affects what you should and shouldn't trust yet — read
   those before deploying anything here for real.
@@ -323,7 +358,16 @@ Phase 9's existing formula registration) — but surfaced two real,
 independent permission-boundary gaps live testing alone could catch:
 `secrets_registry.yaml`'s allow-list and Shell Executor's allowlist
 files are both separate from governance's own `roles:` policy, and a
-new agent needs updating in all of them, not just one. That pattern —
+new agent needs updating in all of them, not just one. Phase 13
+needed one small, real listing endpoint on each of six earlier services
+(`governance`, `agents`, `knowledge`, `knowledge_pipelines`, `execution`,
+`database`) — every one of them had a write path and a single-record
+lookup already, but none had ever needed to *list* more than one record
+at a time until an aggregator showed up wanting to. Two more real bugs
+surfaced only by actually running the result against live services: a
+missing bearer token on a call to Phase 2's Gateway, and a naive/aware
+datetime comparison that only breaks against a SQLite-backed peer, not
+a Postgres one — both fixed and locked in as regressions. That pattern —
 build the phase that unblocks what already exists before adding more
 surface area, and trust live testing over code review to find the gaps
 between files that individually look correct — is the intended way to

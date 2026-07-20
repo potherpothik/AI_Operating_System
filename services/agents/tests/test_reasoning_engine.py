@@ -1,9 +1,13 @@
 import httpx
 import pytest
+from fastapi.testclient import TestClient
 
 from agents.db import SessionLocal
 from agents.reasoning_engine import loop, capability_registry, store
 from agents.odoo_agent import register as odoo_agent_register
+from main import app
+
+test_client = TestClient(app)
 
 # Explicit rather than relying on platform-spine's config default
 # (default_local_model documents the intended qwen-coder/deepseek-coder
@@ -177,3 +181,47 @@ def test_model_claiming_forbidden_action_is_denied_not_trusted(full_stack, monke
 
     assert execution.status == "refused"
     assert execution.result["denial_reason"]
+
+
+def test_list_executions_filters_by_status_and_capability(full_stack, monkeypatch):
+    """Phase 13: GET /reasoning/executions is the listing endpoint Metrics
+    Dashboard/Health Monitor need — no code before this phase ever listed
+    more than one execution at a time."""
+    _ensure_odoo_agent_ready(full_stack["governance"], full_stack["assembly"])
+    import json as _json
+
+    def fake_generate(model, prompt):
+        return _json.dumps({
+            "reasoning": "informational", "answer_or_proposal": "answer", "confidence": 0.9,
+            "provenance": [], "risk_classification": "informational", "delegate_to": None,
+            "action": "odoo.read_orm",
+        })
+
+    monkeypatch.setattr(loop, "generate", fake_generate)
+
+    db = SessionLocal()
+    exec1 = loop.execute(db, task_id="list-test-1", task_description="q1", agent_capability="odoo_agent", namespace="default", target_model=LOCAL_MODEL)
+    exec2 = loop.execute(db, task_id="list-test-2", task_description="q2", agent_capability="odoo_agent", namespace="default", target_model=LOCAL_MODEL)
+    exec1_id, exec1_status = exec1.id, exec1.status
+    exec2_id, exec2_status = exec2.id, exec2.status
+    db.close()
+
+    assert exec1_status == "completed"
+    assert exec2_status == "completed"
+
+    all_completed = store.list_executions(SessionLocal(), status="completed")
+    ids = {e.id for e in all_completed}
+    assert exec1_id in ids
+    assert exec2_id in ids
+
+    odoo_only = store.list_executions(SessionLocal(), agent_capability="odoo_agent")
+    assert all(e.agent_capability == "odoo_agent" for e in odoo_only)
+
+    # Real HTTP round trip through the actual route table too, not just
+    # the store function or a direct API-function call — a route-
+    # registration ordering mistake (a real bug caught this way in Phase
+    # 11: GET /context/model-ceiling silently shadowed by GET
+    # /context/{context_id}) would be invisible to either of those.
+    resp = test_client.get("/reasoning/executions", params={"agent_capability": "odoo_agent"})
+    assert resp.status_code == 200
+    assert any(e["id"] == exec1_id for e in resp.json())

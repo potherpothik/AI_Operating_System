@@ -56,3 +56,14 @@ def mark_killed(db: Session, sandbox_id: str) -> SandboxExecution | None:
 
 def get(db: Session, sandbox_id: str) -> SandboxExecution | None:
     return db.query(SandboxExecution).filter(SandboxExecution.id == sandbox_id).first()
+
+
+def list_executions(db: Session, requesting_capability: str = None, status: str = None) -> list[SandboxExecution]:
+    """Phase 13: Metrics Dashboard's tool-execution-volume-by-capability
+    category — no listing endpoint existed before this, only per-id status."""
+    query = db.query(SandboxExecution)
+    if requesting_capability:
+        query = query.filter(SandboxExecution.requesting_capability == requesting_capability)
+    if status:
+        query = query.filter(SandboxExecution.status == status)
+    return query.order_by(SandboxExecution.created_at.desc()).all()

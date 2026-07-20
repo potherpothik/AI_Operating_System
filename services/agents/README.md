@@ -130,7 +130,7 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live 8-service stack + live Ollama
 ```
 
-49 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+50 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a deliberately
 non-UTC session) and a real live Ollama model — not mocked, except for
 deliberately-stubbed tests (see below) used specifically where live-model
@@ -221,6 +221,14 @@ and one live-model smoke test each.
 
 ## What's real
 
+- **Phase 13 addition:** `GET /reasoning/executions` (optional
+  `status`/`agent_capability` filters) — no listing endpoint existed
+  before this, only single-execution lookup by id. Backs
+  Observability's reasoning-iterations-per-task metric and its
+  stuck-past-`max_iterations` gap check (a completed execution whose
+  `failure_reason` starts with `iteration_limit_exceeded` — Reasoning
+  Engine's loop is synchronous, so there's no separate "still running"
+  status to poll the way a background job would have).
 - **Reasoning Engine**: a real bounded loop — build context (Phase 4) →
   render prompt (Phase 4) → call Ollama → validate the response against
   the template's schema → route. Schema-invalid output gets one retry per

@@ -53,6 +53,22 @@ def test_execution_is_persisted_and_queryable(sandbox_root, governance_url):
     assert fetched.requesting_capability == "odoo_agent"
 
 
+def test_list_executions_filters_by_capability(sandbox_root, governance_url):
+    """Phase 13: GET /shell/executions is the listing endpoint Metrics
+    Dashboard's tool-execution-volume-by-capability category needs —
+    no code before this phase ever listed more than one execution."""
+    from execution.shell_executor import store
+    work_dir = sandbox_root / "task-list-1"
+    work_dir.mkdir()
+    db = SessionLocal()
+    run_sandboxed(db, "git", ["status"], str(work_dir), "odoo_agent", "reasoning_engine", task_id="task-list-1", mode="read_only")
+
+    odoo_only = store.list_executions(db, requesting_capability="odoo_agent")
+    db.close()
+    assert all(e.requesting_capability == "odoo_agent" for e in odoo_only)
+    assert len(odoo_only) >= 1
+
+
 def test_authorization_actually_hits_real_governance_not_a_stub(sandbox_root, governance_url):
     """
     Proves this isn't just checking the local allowlist — the governance

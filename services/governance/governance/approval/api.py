@@ -54,6 +54,37 @@ def pending(db: Session = Depends(get_db)):
     ]
 
 
+@router.get("")
+def list_approvals(status: str = None, db: Session = Depends(get_db)):
+    """
+    Phase 13: the general listing `/pending` never was — Metrics
+    Dashboard needs decided (approved/rejected/expired) requests too, to
+    compute time-to-decision (`decided_at - created_at`), not just the
+    still-open queue. Same lazy-expire-before-listing behavior as
+    `/pending` so a stale-past-TTL row never shows as `status=pending`
+    here either.
+    """
+    store.expire_stale(db)
+    query = db.query(ApprovalRequest)
+    if status:
+        query = query.filter(ApprovalRequest.status == status)
+    rows = query.order_by(ApprovalRequest.created_at.desc()).all()
+    return [
+        {
+            "id": r.id,
+            "action": r.action,
+            "status": r.status,
+            "requested_by": r.requested_by,
+            "risk_tier": r.risk_tier,
+            "created_at": r.created_at.isoformat(),
+            "expires_at": r.expires_at.isoformat() if r.expires_at else None,
+            "decided_by": r.decided_by,
+            "decided_at": r.decided_at.isoformat() if r.decided_at else None,
+        }
+        for r in rows
+    ]
+
+
 @router.get("/{request_id}")
 def get_request(request_id: str, db: Session = Depends(get_db)):
     store.expire_stale(db)

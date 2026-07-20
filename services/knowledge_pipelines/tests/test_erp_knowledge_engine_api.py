@@ -28,6 +28,20 @@ def test_synced_prose_is_genuinely_queryable_in_vector_search(governance_url, kn
     assert any("sale_order" in h["chunk"] for h in hits)
 
 
+def test_list_snapshots_shows_the_latest_row_per_target(governance_url, knowledge_url, database_url):
+    """Phase 13: GET /erp-knowledge/snapshots is the listing endpoint
+    Health Monitor's stale-ERP-knowledge check needs — discovering
+    staleness across every synced target, not just one already known."""
+    db = SessionLocal()
+    api.sync(api.SyncRequest(target_db="demo_erp", requested_by="human_admin"), db)
+    snapshots = api.list_snapshots(db)
+    db.close()
+
+    demo_erp_entries = [s for s in snapshots if s["target_db"] == "demo_erp"]
+    assert len(demo_erp_entries) == 1  # latest only, not every historical snapshot
+    assert demo_erp_entries[0]["status"] == "current"
+
+
 def test_graph_full_shows_real_foreign_key_relationship(governance_url, knowledge_url, database_url):
     db = SessionLocal()
     api.sync(api.SyncRequest(target_db="demo_erp", requested_by="human_admin"), db)

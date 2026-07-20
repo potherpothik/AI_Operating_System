@@ -21,6 +21,29 @@ def test_query_reads_real_seeded_rows(governance_url):
     assert "amount_total" in result["columns"]
 
 
+def test_query_log_lists_real_recorded_queries_filtered_by_capability(governance_url):
+    """Phase 13: GET /db/query-log is the listing endpoint Metrics
+    Dashboard's tool-execution-volume-by-capability category needs —
+    no listing endpoint existed before this, only the write path that
+    populates the table on every real query."""
+    db = SessionLocal()
+    api.query(
+        api.QueryRequest(
+            target_db="demo_erp", table="sale_order",
+            sql_template="SELECT id, name FROM sale_order WHERE partner_id = :partner_id ORDER BY id",
+            params={"partner_id": 1}, capability="database_agent", requesting_agent="reasoning_engine",
+        ),
+        db,
+    )
+    rows = api.query_log(capability="database_agent", db=db)
+    db.close()
+
+    assert len(rows) >= 1
+    assert all(r["capability"] == "database_agent" for r in rows)
+    assert rows[0]["target_db"] == "demo_erp"
+    assert rows[0]["query_type"] == "read"
+
+
 def test_query_redacts_confidential_columns_at_internal_ceiling(governance_url):
     db = SessionLocal()
     result = api.query(

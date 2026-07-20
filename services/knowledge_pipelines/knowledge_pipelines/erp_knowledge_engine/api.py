@@ -38,6 +38,21 @@ def annotate(req: AnnotateRequest, db: Session = Depends(get_db)):
     return annotations.annotate(db, req.model_name, req.field_name, req.business_meaning, req.annotated_by, req.classification)
 
 
+@router.get("/snapshots")
+def list_snapshots(db: Session = Depends(get_db)):
+    """
+    Phase 13: one row per `target_db` ever synced, whatever its latest
+    status is — Health Monitor's stale-ERP-knowledge gap check needs
+    this to discover staleness across every target, not just the one it
+    already knows to ask `GET /graph?target_db=...` about.
+    """
+    snapshots = store.list_latest_snapshots(db)
+    return [
+        {"id": s.id, "target_db": s.target_db, "status": s.status, "model_count": s.model_count, "synced_at": s.synced_at.isoformat()}
+        for s in snapshots
+    ]
+
+
 @router.get("/graph")
 def get_graph(target_db: str, table: Optional[str] = None, direction: str = "full", db: Session = Depends(get_db)):
     """direction: 'full' (whole graph), 'references' (what `table` points

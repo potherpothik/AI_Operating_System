@@ -18,9 +18,12 @@ uvicorn main:app --reload
 pytest tests/ -v
 ```
 
-11 tests, all passing: default-deny on unknown roles, allow/deny/require_approval
-routing, every decision logged, the audit hash chain validating correctly *and*
-correctly detecting a tampered row, and the full approval request → pending →
+41 tests, all passing (grown from the original 11 across every phase
+since — secrets resolution, environment verification, and the Phase 13
+general approval listing are the most recent additions): default-deny on
+unknown roles, allow/deny/require_approval routing, every decision
+logged, the audit hash chain validating correctly *and* correctly
+detecting a tampered row, and the full approval request → pending →
 decide lifecycle including rejection and expiry.
 
 ## Try it live
@@ -47,6 +50,12 @@ doc isn't implemented — it needs a real secrets backend (Vault or SOPS+age,
 per the Phase 2 config design) that doesn't exist yet. Policy is a single
 YAML file (`governance/security/policies/default.yaml`) with one sample role;
 real roles for every agent get added here as each agent is built.
+
+**Phase 13 addition:** `GET /approval` (bare, optional `status` filter) —
+the general listing `/pending` never was. Observability's Metrics
+Dashboard needs decided (approved/rejected/expired) requests too, to
+compute time-to-decision, not just the still-open queue. Same
+lazy-expire-before-listing behavior as `/pending`.
 
 ## Postgres (this is the tested, primary path — not SQLite)
 

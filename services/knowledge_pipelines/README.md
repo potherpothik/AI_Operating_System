@@ -58,7 +58,7 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live stack
 ```
 
-48 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+49 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a non-UTC
 session). Real parsing (a genuinely generated PDF via `reportlab`, a
 real `.docx` via `python-docx`, real markdown/YAML/JSON, and real Python
@@ -67,6 +67,11 @@ content — no mocks.
 
 ## What's real
 
+- **Phase 13 addition:** `GET /erp-knowledge/snapshots` — one row per
+  `target_db` ever synced, whatever its latest status. Observability's
+  Health Monitor stale-ERP-knowledge check needs this to discover
+  staleness across every synced target, not just one it already knows
+  to ask `GET /graph?target_db=...` about.
 - **All four document parsers are genuinely tested, not stubs.** PyPI
   access worked in this environment (unlike Phase 3's HuggingFace
   constraint), so `pdf.py` (pypdf) and `docx.py` (python-docx) are real,

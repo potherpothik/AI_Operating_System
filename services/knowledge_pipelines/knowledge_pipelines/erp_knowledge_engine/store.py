@@ -32,6 +32,25 @@ def mark_snapshot_stale(db: Session, target_db: str):
     db.commit()
 
 
+def list_latest_snapshots(db: Session) -> list[ErpSchemaSnapshot]:
+    """
+    Phase 13: Health Monitor's stale-ERP-knowledge check needs to see
+    every `target_db` that has ever been synced, not just one you
+    already know to ask `get_current_snapshot` about — the whole point
+    is discovering staleness you didn't already know to look for. One
+    row per target_db: its most recent snapshot, whatever status that
+    happens to be (a target with no successful sync since a failure has
+    no "current" row at all, only a "stale" one — that's still the
+    latest and still the answer this needs).
+    """
+    all_rows = db.query(ErpSchemaSnapshot).order_by(ErpSchemaSnapshot.synced_at.desc()).all()
+    latest_by_target = {}
+    for row in all_rows:
+        if row.target_db not in latest_by_target:
+            latest_by_target[row.target_db] = row
+    return list(latest_by_target.values())
+
+
 def add_annotation(db: Session, model_name: str, field_name: str, business_meaning: str, annotated_by: str, classification: str = "internal") -> ErpFieldAnnotation:
     row = ErpFieldAnnotation(
         model_name=model_name, field_name=field_name, business_meaning=business_meaning,

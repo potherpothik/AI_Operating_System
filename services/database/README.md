@@ -34,7 +34,7 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against real Postgres
 ```
 
-40 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+41 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a non-UTC
 session) and a real disposable target database (`demo_erp` — seeded
 `sale_order`/`res_partner` tables, never any service's own operational
@@ -66,6 +66,13 @@ database or anything resembling real production data).
 
 ## What's real
 
+- **Phase 13 addition:** `GET /db/query-log` (optional
+  `capability`/`query_type` filters) — coarse metadata only (capability,
+  target_db, query type, row count, timing), never the actual query text
+  or row content. Backs Observability's Metrics Dashboard
+  tool-execution-volume-by-capability category (data side); stays
+  unauthenticated the same way ERP Knowledge Engine's `GET /graph`
+  already is (Phase 9) — an aggregate-count view, not a data-access path.
 - **`GET /db/schema/{target}` now includes real foreign-key relationships**
   alongside column names (Phase 9 addition) — `sale_order.partner_id`
   correctly reports referencing `res_partner.id`, confirmed by

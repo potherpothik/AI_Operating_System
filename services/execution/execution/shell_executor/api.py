@@ -27,6 +27,7 @@ def execution_out(execution) -> dict:
     return {
         "sandbox_id": execution.id,
         "task_id": execution.task_id,
+        "requesting_capability": execution.requesting_capability,
         "status": execution.status,
         "exit_code": execution.exit_code,
         "stdout": execution.stdout,
@@ -49,6 +50,14 @@ def execute(req: ExecuteRequest, db: Session = Depends(get_db)):
     except Denied as e:
         raise HTTPException(status_code=403, detail=str(e))
     return execution_out(execution)
+
+
+@router.get("/executions")
+def list_executions(requesting_capability: str = None, status: str = None, db: Session = Depends(get_db)):
+    """Phase 13: Metrics Dashboard's tool-execution-volume-by-capability
+    category — no listing endpoint existed before this, only per-id status."""
+    executions = store.list_executions(db, requesting_capability=requesting_capability, status=status)
+    return [execution_out(e) for e in executions]
 
 
 @router.get("/{sandbox_id}/status")

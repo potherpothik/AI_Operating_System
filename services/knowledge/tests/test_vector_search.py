@@ -95,3 +95,12 @@ def test_stats_reports_counts_by_project():
     assert result["documents"] >= 1
     assert "proj-stats" in result["by_project"]
     db.close()
+
+
+def test_stats_reports_counts_by_classification():
+    """Phase 13: Metrics Dashboard's classification-distribution category."""
+    db = SessionLocal()
+    index.ingest(db, source="b", content="confidential content here", project_id="proj-stats-2", classification="confidential")
+    result = index.stats(db)
+    assert result["by_classification"].get("confidential", 0) >= 1
+    db.close()

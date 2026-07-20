@@ -56,6 +56,21 @@ def execute(req: ExecuteRequest, db: Session = Depends(get_db)):
     return _execution_out(execution)
 
 
+@router.get("/executions")
+def list_executions(status: str = None, agent_capability: str = None, db: Session = Depends(get_db)):
+    """
+    Phase 13: no listing endpoint existed before this — only
+    single-execution lookup by id. Metrics Dashboard needs iteration
+    counts across many executions; Health Monitor needs to find
+    executions genuinely stuck past their own `max_iterations` (status
+    still `awaiting_approval`/`in_progress`-shaped after using every
+    allotted turn is the honest signal — there's no separate "stuck"
+    status of its own).
+    """
+    executions = store.list_executions(db, status=status, agent_capability=agent_capability)
+    return [_execution_out(e) for e in executions]
+
+
 @router.get("/{execution_id}/trace")
 def trace(execution_id: str, db: Session = Depends(get_db)):
     execution = store.get_execution(db, execution_id)

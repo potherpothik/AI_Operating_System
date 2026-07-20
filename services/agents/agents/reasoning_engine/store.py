@@ -60,5 +60,14 @@ def get_execution(db: Session, execution_id: str) -> ReasoningExecution | None:
     return db.query(ReasoningExecution).filter(ReasoningExecution.id == execution_id).first()
 
 
+def list_executions(db: Session, status: str = None, agent_capability: str = None) -> list[ReasoningExecution]:
+    query = db.query(ReasoningExecution)
+    if status:
+        query = query.filter(ReasoningExecution.status == status)
+    if agent_capability:
+        query = query.filter(ReasoningExecution.agent_capability == agent_capability)
+    return query.order_by(ReasoningExecution.created_at.desc()).all()
+
+
 def get_steps(db: Session, execution_id: str) -> list[ReasoningStep]:
     return db.query(ReasoningStep).filter(ReasoningStep.execution_id == execution_id).order_by(ReasoningStep.iteration.asc()).all()

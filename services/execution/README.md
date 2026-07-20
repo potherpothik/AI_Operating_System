@@ -27,7 +27,7 @@ pytest tests/test_branch_policy.py tests/test_provenance.py tests/test_codeowner
 SECURITY_LAYER_URL=http://localhost:8000 pytest tests/ -v   # full suite, governance auto-started if PHASE1_PATH is set
 ```
 
-45 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+57 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns under a non-UTC session) and real git — `test_git_manager.py`
 runs branch/commit/diff/push/open_mr against a real, disposable bare
 repo created fresh per test run, never the actual project repo.
@@ -75,6 +75,10 @@ that, not a bare rlimit. Locked in as a permanent regression test
 
 ## What's real
 
+- **Phase 13 addition:** `GET /shell/executions` (optional
+  `requesting_capability`/`status` filters) — no listing endpoint
+  existed before this, only per-id status. Backs Observability's
+  Metrics Dashboard's tool-execution-volume-by-capability category.
 - **Default-deny command allowlisting per `agent_capability`**, loaded
   from `shell_executor/allowlists/*.yaml` — an unknown capability or an
   unlisted command pattern is rejected before Shell Executor ever tries

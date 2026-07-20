@@ -156,6 +156,15 @@ def stats(db: Session) -> dict:
     doc_count = db.query(Document).count()
     chunk_count = db.query(Chunk).count()
     by_project = {}
+    by_classification = {}
     for doc in db.query(Document).all():
         by_project[doc.project_id] = by_project.get(doc.project_id, 0) + 1
-    return {"documents": doc_count, "chunks": chunk_count, "by_project": by_project}
+        by_classification[doc.classification] = by_classification.get(doc.classification, 0) + 1
+    return {
+        "documents": doc_count, "chunks": chunk_count, "by_project": by_project,
+        # Phase 13: Metrics Dashboard's "classification distribution of
+        # served content" category — the one category with an actual
+        # classification dimension, so it's the one metrics category a
+        # viewer's clearance genuinely gates (see governance-first.mdc).
+        "by_classification": by_classification,
+    }

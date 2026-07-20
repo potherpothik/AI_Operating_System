@@ -22,7 +22,7 @@ pytest tests/ -q                                          # unit tests only
 PHASE1_PATH=/path/to/phase1-governance pytest tests/ -v    # full suite, incl. real approval flow
 ```
 
-22 tests. Confirmed live, not just under the test harness: real pgvector
+23 tests. Confirmed live, not just under the test harness: real pgvector
 similarity search returning the right document for a semantically related
 query, the classification heuristic catching an embedded `api_key:` pattern
 and correctly marking it confidential, and a `business_memory` write
@@ -81,6 +81,13 @@ here, and re-verified (17 tests still passing on both backends):
 
 If you already have Phase 1 deployed, pull the updated
 `governance/security/` and `governance/approval/api.py` files.
+
+## Phase 13 addition
+
+`GET /vector/stats` now also returns `by_classification` (alongside the
+existing `by_project`) — Observability's Metrics Dashboard classification-
+distribution category, the one category with an actual classification
+dimension on the underlying rows.
 
 ## What's a stub or simplified
 

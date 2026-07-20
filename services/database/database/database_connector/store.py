@@ -21,6 +21,18 @@ def log_query(db: Session, task_id: str, capability: str, target_db: str, query_
     return row
 
 
+def list_query_log(db: Session, capability: str = None, query_type: str = None) -> list[DbQueryLog]:
+    """Phase 13: Metrics Dashboard's tool-execution-volume-by-capability
+    category (data side) — no listing endpoint existed before this,
+    only the write path (log_query) that populates the table."""
+    query = db.query(DbQueryLog)
+    if capability:
+        query = query.filter(DbQueryLog.capability == capability)
+    if query_type:
+        query = query.filter(DbQueryLog.query_type == query_type)
+    return query.order_by(DbQueryLog.ts.desc()).all()
+
+
 def create_dry_run(db: Session, task_id: str, target_db: str, sql_template: str, params: dict,
                     estimated_rows_affected: int, columns_touched: list = None) -> DbDryRun:
     row = DbDryRun(
