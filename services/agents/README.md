@@ -1,4 +1,4 @@
-# Phase 5/7/8/10/14/15 — Reasoning Engine + twelve agents (working implementation)
+# Phase 5/7/8/10/14/15/16 — Reasoning Engine + fifteen agents (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
@@ -57,6 +57,30 @@ mechanism, and this service's "Real bugs found by live testing" section
 below for a genuine live bug that mechanism's own first end-to-end test
 run surfaced.
 
+Phase 16's three code-quality agents (Code Review, Reverse Engineering,
+Architecture) are the Coding Brain's first real batch — a deliberate
+pivot after five straight ERP-brain phases. Architecture Agent needed no
+new mechanism at all: Database Agent's own template has said `delegate_to
+"architecture_agent" if you recognize one` since Phase 7, written when
+Architecture Agent didn't exist yet, so building it now makes that
+delegation resolve to something real for the first time with zero
+changes to Database Agent's own template, and `architecture.propose_decision`
+reuses `execution_bridge.materialize_propose_change` unchanged. Reverse
+Engineering Agent's `propose_documentation_draft` reuses the same git
+bridge for its commit half, then chains into the one genuinely new
+bridge this phase needed (`reverse_eng_bridge.py`) to ingest that SAME
+just-committed file into Documentation Engine's already-existing `POST
+/docs/ingest` (Phase 9) — a confirmed-accurate reconstruction becomes
+real, independently-queryable documentation, not a second copy sitting
+in this service's own output table. Code Review Agent is the first agent
+whose own actions never require human approval at all (its output is
+advisory) but whose assessment can attach to ANOTHER agent's pending
+approval via a new governance mechanism
+(`services/governance/README.md`'s Phase 16 section) — `review_bridge.py`
+gives it two real tool calls (a real `git diff` via Git Manager, a real
+call-graph lookup via Code Analysis Engine) mirroring `database_bridge.py`'s
+exact shape.
+
 ## Run it
 
 ```bash
@@ -96,7 +120,8 @@ On startup this service auto-loads every `agents/<name>/capability.yaml`
 it finds (currently `odoo_agent`, `database_agent`, `planner`,
 `django_agent`, `devops_agent`, `docker_agent`, `testing_agent`,
 `costing_agent`, `accounting_agent`, `inventory_agent`,
-`manufacturing_agent`, `sales_agent`, and `project_management_agent` —
+`manufacturing_agent`, `sales_agent`, `project_management_agent`,
+`code_review_agent`, `reverse_engineering_agent`, and `architecture_agent` —
 plus any Phase 12 plugin capabilities under `PLUGIN_CAPABILITIES_DIR`,
 see `services/extensibility/README.md`) into its own DB, and best-effort
 attempts to register each agent's prompt template with Prompt Builder.
@@ -118,6 +143,9 @@ curl -X POST localhost:8005/inventory_agent/register
 curl -X POST localhost:8005/manufacturing_agent/register
 curl -X POST localhost:8005/sales_agent/register
 curl -X POST localhost:8005/project_management_agent/register
+curl -X POST localhost:8005/code_review_agent/register
+curl -X POST localhost:8005/reverse_engineering_agent/register
+curl -X POST localhost:8005/architecture_agent/register
 # find the approval_id from the response or GET /approval/pending on governance, then:
 curl -X POST localhost:8000/approval/<approval_id>/decide \
   -d '{"decided_by":"human_admin","approve":true}'
@@ -159,7 +187,7 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live 8-service stack + live Ollama
 ```
 
-61 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+69 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a deliberately
 non-UTC session) and a real live Ollama model — not mocked, except for
 deliberately-stubbed tests (see below) used specifically where live-model
@@ -189,6 +217,20 @@ document, Project Management Agent's `task.read` tool call against a
 real task created and transitioned through platform-spine's Gateway
 during the test itself plus `propose_milestone_update` materializing as
 a real git document, and one live-model smoke test each.
+`tests/test_phase16_agents.py` (Phase 16) covers all three code-quality
+agents: Code Review Agent's `review.check_callers` tool call verified
+against a real Code Analysis Engine scan of a real two-function repo
+(confirming the actual real caller name shows up in the model's
+next-turn prompt, not a placeholder), `review.fetch_diff` plus the new
+attach-review mechanism proven end to end (a real diff of a real
+committed branch, attached to a real OTHER pending approval, confirmed
+by fetching that approval back from governance directly and confirming
+its own pending status is untouched), Reverse Engineering Agent's
+`propose_documentation_draft` proven to both materialize as a real git
+document AND independently show up in Documentation Engine's own
+`GET /docs/sources` listing, Architecture Agent's `propose_decision`
+materializing as a real git document with zero chained step (unlike
+Reverse Engineering Agent), and one live-model smoke test each.
 
 ## Real bugs found by live testing, not the test suite
 
@@ -286,6 +328,27 @@ a real git document, and one live-model smoke test each.
   either, just never previously exercised against a confidential column).
   Fixed by having `loop.py` pass `cap_def.classification_ceiling` through
   to `database_bridge.handle_tool_call()`.
+- **Phase 16: `review.check_callers` originally surfaced raw internal
+  symbol ids instead of names — useless for a model, or a human reading
+  its final assessment, to reason about.** Code Analysis Engine's own
+  `GET /symbol/{ref}` (Phase 11) returns its `callers`/`callees` lists as
+  raw UUIDs, not qualified names — fine for that endpoint's original
+  callers (which already had the id from a prior graph query), wrong for
+  a model that only knows a human-readable name. Found live: the review
+  test's stubbed second turn asserted a real caller's qualified name
+  (`widgets.Widget.render`) would appear in the next prompt, and instead
+  found a bare UUID. Fixed by switching `review_bridge.py` to call
+  `GET /graph` instead, which already resolves every edge to real
+  qualified names — no change needed to Code Analysis Engine itself,
+  just which of its two existing endpoints the new caller actually
+  wanted.
+- **A second, separate bug the same feature surfaced**: `review.fetch_diff`
+  passing a bare branch name straight through to `git diff <branch>`
+  compares that branch's tip to the CURRENT working tree, not to
+  `main` — empty right after a clean checkout, since nothing's
+  uncommitted. Fixed by building `main...{target_branch}` automatically
+  in `review_bridge.py` rather than pushing git range syntax onto the
+  model, which had never needed to know it before.
 
 ## What's real
 
@@ -455,6 +518,34 @@ a real git document, and one live-model smoke test each.
   task, transitioning its status once for real, then asserting the
   agent's second-turn prompt contains the real `in_progress` status and
   the real transition detail text, not anything the model invented.
+- **Code Review Agent's two tool calls are genuine, not agent
+  self-reports**: `review.fetch_diff` runs a real `git diff` via Git
+  Manager against a real committed branch (confirmed by asserting the
+  actual changed filename shows up in the next prompt, not before);
+  `review.check_callers` looks up a real call graph produced by a real
+  Code Analysis Engine scan of a real two-function repo (confirmed the
+  real caller's qualified name — not a placeholder, not a guess —
+  appears in the next prompt).
+- **The attach-review mechanism closes end to end, confirmed live, not
+  just unit-tested in isolation**: a real OTHER agent's pending approval
+  (created exactly the way any propose_* action's `require_approval`
+  outcome would create one) gets a real review attached by Code Review
+  Agent's own completed execution, and that approval's own `pending`
+  status is confirmed unchanged by fetching it back from governance
+  independently — the review is additive context, never a vote,
+  confirmed by observation rather than by reading the code that says so.
+- **Reverse Engineering Agent's confirmed draft becomes real,
+  independently-queryable documentation, not just a git-committed
+  file** — confirmed live: after `resume()` materializes the git commit,
+  the SAME file gets ingested via Documentation Engine's real
+  `POST /docs/ingest`, and the resulting document shows up in that
+  service's own `GET /docs/sources` listing, verified independently
+  rather than by trusting Reasoning Engine's own report of what happened.
+- **Architecture Agent needed zero new code to become a real delegate
+  target** — confirmed live: `database_agent`'s own template already
+  said `delegate_to "architecture_agent" if you recognize one` since
+  Phase 7, unchanged this phase; building Architecture Agent is the only
+  change needed for that delegation to actually resolve to something.
 
 ## What's a stub or simplified
 
@@ -539,11 +630,28 @@ a real git document, and one live-model smoke test each.
   Phase 15 doc's own explicit out-of-scope note. Structurally ready to
   extend to more columns via the same registry file the moment a real
   schema has more of them.
+- **Code Review Agent is not automatically triggered by any other
+  agent's own propose/resume flow** — a deliberate Phase 16 scope
+  decision (the doc's own Section 0), not a placeholder for something
+  half-built. It's invoked directly (by a human, or a future
+  orchestration layer) against a specific branch and, optionally, an
+  existing pending approval to attach its assessment to. Wiring it into
+  every prior phase's own materialization path automatically is real,
+  separately-scoped future work.
+- **Reverse Engineering Agent's "confirmed accurate" step in "confirmed
+  drafts feed back as real documentation" is a human decision made at
+  approval time**, not a structural confidence check this system runs
+  itself — the agent's own prompt discipline (label everything as
+  inferred/reconstructed) plus the existing human-approval gate on
+  `propose_documentation_draft` are what stand between a plausible-
+  sounding guess and something Documentation Engine treats as real.
 
 ## Next
 
-Phase 16+: Code Review Agent, Reverse Engineering Agent, Architecture
-Agent — the natural first consumers of Phase 11's Code Analysis Engine,
-and the Coding Brain's remaining coverage alongside Phase 10's
-Django/DevOps/Docker/Testing agents. Cutlist Optimization Agent (Phase
-17) is Manufacturing Agent's already-named future delegate target.
+Phase 17: Engineering & Calculation Agents (`calculation_agent`,
+`cutlist_optimization_agent` — Manufacturing Agent's already-named future
+delegate target from Phase 15). Phase 18: Cross-Cutting Agents (Security
+Agent, Research Agent) — natural next consumers of this phase's new
+approval-review attachment mechanism. Phase 24 (Control UI) is also now
+designed (`docs/phase-24-control-ui.md`) and could be prioritized instead
+once operator-facing UI work is ready to start.

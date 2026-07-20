@@ -1,0 +1,28 @@
+agent_capability: reverse_engineering_agent
+commands:
+  # reverse_eng.propose_documentation_draft lands as a Git Manager MR (a
+  # proposed document, never a direct code change) — same read-only
+  # inspection + scoped mutating branch pattern as every other business/
+  # coding agent. The chained docs-ingest step (Phase 16) reads that same
+  # committed file over Documentation Engine's own HTTP API, not through
+  # Shell Executor.
+  - pattern: "git status*"
+    mode: read_only
+  - pattern: "git diff*"
+    mode: read_only
+  - pattern: "git log*"
+    mode: read_only
+  - pattern: "git show*"
+    mode: read_only
+  - pattern: "git rev-parse*"
+    mode: read_only
+  - pattern: "git branch*"
+    mode: read_only
+  - pattern: "git checkout -b reverse-engineering-agent/*"
+    mode: mutating
+  - pattern: "git add *"
+    mode: mutating
+  - pattern: "git commit *"
+    mode: mutating
+  - pattern: "git push origin reverse-engineering-agent/*"
+    mode: mutating

@@ -134,15 +134,17 @@ approval).
 
 ## 4. Domain roadmap
 
-**Built today:** Phases 1–15 (governance, platform spine, memory, assembly,
+**Built today:** Phases 1–16 (governance, platform spine, memory, assembly,
 agents + Reasoning Engine, execution, database, planning, knowledge pipelines,
 extensibility/MCP, observability metrics/health, costing/accounting/inventory
-agents, manufacturing/sales/PM agents). See root [`README.md`](../README.md)
-status table for the authoritative phase → service map.
+agents, manufacturing/sales/PM agents, code-review/reverse-engineering/
+architecture agents). See root [`README.md`](../README.md) status table for
+the authoritative phase → service map.
 
 **Designed, not built:**
-- Phase 16–18 — Code-quality / engineering / cross-cutting agents
-  (including `calculation_agent`, `cutlist_optimization_agent`)
+- Phase 17–18 — Engineering / cross-cutting agents
+  (including `calculation_agent`, `cutlist_optimization_agent`,
+  Security Agent, Research Agent)
   (see [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md))
 - Phase 19–21 — Deployment, backup/DR, consolidated reference
   (same consolidated doc)
@@ -155,7 +157,8 @@ status table for the authoritative phase → service map.
 
 Built-phase design docs worth re-reading before extending code:
 [`phase-13-metrics-health.md`](phase-13-metrics-health.md),
-[`phase-15-operations-agents.md`](phase-15-operations-agents.md).
+[`phase-15-operations-agents.md`](phase-15-operations-agents.md),
+[`phase-16-code-quality-agents.md`](phase-16-code-quality-agents.md).
 
 ---
 

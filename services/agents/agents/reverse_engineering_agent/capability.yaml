@@ -1,0 +1,11 @@
+capability: reverse_engineering_agent
+brain: coding
+allowed_actions:
+  - reverse_eng.explain_undocumented
+  - reverse_eng.propose_documentation_draft
+forbidden_actions:
+  - reverse_eng.modify_code_direct
+requires_approval:
+  - reverse_eng.propose_documentation_draft
+classification_ceiling: internal
+template_id: reverse_engineering_agent

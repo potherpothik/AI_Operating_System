@@ -677,6 +677,144 @@ roles:
       resource: "*"
       effect: allow
 
+  code_review_agent:
+    - action: "review.fetch_diff"
+      resource: "*"
+      effect: allow
+    - action: "review.check_callers"
+      resource: "*"
+      effect: allow
+    # Neither finalizing action requires its own human approval (Phase
+    # 16 doc: "its own output is advisory, feeding INTO approval rather
+    # than bypassing it") — the assessment attaches to ANOTHER agent's
+    # pending approval via the new attach_review mechanism, it's never
+    # itself a decision this policy layer needs to gate.
+    - action: "review.flag_concern"
+      resource: "*"
+      effect: allow
+    - action: "review.approve_recommendation"
+      resource: "*"
+      effect: allow
+    - action: "review.merge"
+      resource: "*"
+      effect: deny
+    - action: "review.override_human_approval"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    # review.fetch_diff calls Git Manager's real, read-only /git/diff
+    # (Phase 6) — shell.execute needed for the same reason every other
+    # git-touching role documents it: Git Manager's own call re-checks
+    # shell.execute for this SAME capability at the Shell Executor layer.
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+
+  reverse_engineering_agent:
+    - action: "reverse_eng.explain_undocumented"
+      resource: "*"
+      effect: allow
+    - action: "reverse_eng.propose_documentation_draft"
+      resource: "*"
+      effect: require_approval
+    - action: "reverse_eng.modify_code_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    # An approved propose_documentation_draft materializes via Git
+    # Manager first (same split as every other propose_* action), THEN
+    # chains into Documentation Engine's real POST /docs/ingest (Phase 9)
+    # — the first agent capability besides human_admin's wildcard to get
+    # this grant, since no agent needed to write real documentation
+    # before this phase.
+    - action: "docs.ingest"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
+  architecture_agent:
+    - action: "architecture.explain_existing"
+      resource: "*"
+      effect: allow
+    - action: "architecture.propose_decision"
+      resource: "*"
+      effect: require_approval
+    - action: "architecture.implement_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
   # Phase 11: the actor for Git Manager's own best-effort auto-trigger of
   # an incremental scan after a commit lands (execution/git_manager/api.py)
   # — a system action, not an agent capability, so it gets its own minimal

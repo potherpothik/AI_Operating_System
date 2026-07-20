@@ -18,13 +18,14 @@ uvicorn main:app --reload
 pytest tests/ -v
 ```
 
-41 tests, all passing (grown from the original 11 across every phase
-since — secrets resolution, environment verification, and the Phase 13
-general approval listing are the most recent additions): default-deny on
-unknown roles, allow/deny/require_approval routing, every decision
-logged, the audit hash chain validating correctly *and* correctly
-detecting a tampered row, and the full approval request → pending →
-decide lifecycle including rejection and expiry.
+46 tests, all passing (grown from the original 11 across every phase
+since — secrets resolution, environment verification, the Phase 13
+general approval listing, and Phase 16's approval-review attachment are
+the most recent additions): default-deny on unknown roles,
+allow/deny/require_approval routing, every decision logged, the audit
+hash chain validating correctly *and* correctly detecting a tampered
+row, and the full approval request → pending → decide lifecycle
+including rejection and expiry.
 
 ## Try it live
 
@@ -180,6 +181,40 @@ just this one.
   a reviewable git document (execution_bridge), never a direct ledger
   write, matching the Phase 14 doc's explicit conservatism for this one
   agent.
+
+## Phase 15 / Phase 16 additions
+
+- `manufacturing_agent` / `sales_agent` / `project_management_agent`
+  (Phase 15): new roles following the same pattern as every prior
+  batch. `sales_agent` is the first role to also need `db.read_pii:
+  allow` — a genuinely new action, the coarse first-layer gate for
+  Database Connector's own orthogonal PII dimension
+  (`services/database/README.md` has the full mechanism); the
+  target-specific fine-grained gate (which capability may see which
+  PII column) lives entirely in Database Connector's own
+  `pii_registry.yaml`, not here.
+- `code_review_agent` / `reverse_engineering_agent` / `architecture_agent`
+  (Phase 16): new roles. `code_review_agent` is the first role with NO
+  `require_approval` rule at all on any of its own actions — its
+  output is advisory, attached to ANOTHER agent's pending approval via
+  the new `POST /approval/{id}/attach_review` mechanism below, never a
+  decision of its own. `reverse_engineering_agent` is the first
+  capability besides `human_admin`'s wildcard to get `docs.ingest:
+  allow` — no agent needed to write real documentation before this
+  phase.
+- **`POST /approval/{request_id}/attach_review`** (Phase 16, new): a
+  second agent's structured input attached to another agent's pending
+  (or already-decided) approval — additional context for the human
+  approver, never a decision itself. Append-only (`ApprovalReview`
+  table); never touches the target approval's own `status`/`decided_by`.
+  `GET /approval/{request_id}` now returns a `reviews: []` array
+  alongside the approval itself. Fails with a clean 404 only if the
+  target approval doesn't exist at all — confirmed live end to end via
+  Code Review Agent's own reasoning-loop test: a real diff gets fetched,
+  a real assessment attaches to a real OTHER agent's pending approval,
+  and that approval's own pending status is confirmed unchanged by
+  fetching it back independently, not by trusting Reasoning Engine's
+  own report.
 
 ## Next
 

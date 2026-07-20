@@ -16,11 +16,14 @@ from agents.inventory_agent import register as inventory_agent_register
 from agents.manufacturing_agent import register as manufacturing_agent_register
 from agents.sales_agent import register as sales_agent_register
 from agents.project_management_agent import register as project_management_agent_register
+from agents.code_review_agent import register as code_review_agent_register
+from agents.reverse_engineering_agent import register as reverse_engineering_agent_register
+from agents.architecture_agent import register as architecture_agent_register
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="AI Orchestration Layer — Phase 5/7/8/10/14/15: Reasoning Engine + twelve agents",
+    title="AI Orchestration Layer — Phase 5/7/8/10/14/15/16: Reasoning Engine + fifteen agents",
     description="The shared execution loop every agent runs through, and the agents running on it.",
 )
 
@@ -47,6 +50,9 @@ def on_startup():
     manufacturing_agent_register.ensure_template_registered()
     sales_agent_register.ensure_template_registered()
     project_management_agent_register.ensure_template_registered()
+    code_review_agent_register.ensure_template_registered()
+    reverse_engineering_agent_register.ensure_template_registered()
+    architecture_agent_register.ensure_template_registered()
 
 
 @app.post("/capabilities/reload")
@@ -154,19 +160,35 @@ def register_project_management_agent_template():
     return project_management_agent_register.ensure_template_registered()
 
 
+@app.post("/code_review_agent/register")
+def register_code_review_agent_template():
+    return code_review_agent_register.ensure_template_registered()
+
+
+@app.post("/reverse_engineering_agent/register")
+def register_reverse_engineering_agent_template():
+    return reverse_engineering_agent_register.ensure_template_registered()
+
+
+@app.post("/architecture_agent/register")
+def register_architecture_agent_template():
+    return architecture_agent_register.ensure_template_registered()
+
+
 @app.get("/healthz")
 def healthz():
-    return {"status": "ok", "phase": 15}
+    return {"status": "ok", "phase": 16}
 
 
 @app.get("/")
 def root():
     return {
-        "status": "ok", "phase": 15,
+        "status": "ok", "phase": 16,
         "modules": [
             "reasoning_engine", "odoo_agent", "database_agent", "planner",
             "django_agent", "devops_agent", "docker_agent", "testing_agent",
             "costing_agent", "accounting_agent", "inventory_agent",
             "manufacturing_agent", "sales_agent", "project_management_agent",
+            "code_review_agent", "reverse_engineering_agent", "architecture_agent",
         ],
     }

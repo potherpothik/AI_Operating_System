@@ -75,6 +75,15 @@ that, not a bare rlimit. Locked in as a permanent regression test
 
 ## What's real
 
+- **Phase 16 addition:** `POST /git/diff` is genuinely driven by an
+  agent for the first time — Code Review Agent's `review.fetch_diff`
+  tool call (`services/agents/README.md`'s Phase 16 section). No code
+  changed here; the endpoint's existed, read-only and un-approval-gated,
+  since Phase 6. A real bug surfaced by that first live caller: a bare
+  branch name compares to the working tree, not `main` — fixed on the
+  caller's side (`review_bridge.py` builds `main...{branch}`), not here,
+  since `/git/diff` correctly runs whatever real `git diff` args it's
+  given.
 - **Phase 13 addition:** `GET /shell/executions` (optional
   `requesting_capability`/`status` filters) — no listing endpoint
   existed before this, only per-id status. Backs Observability's

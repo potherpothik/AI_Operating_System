@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
-from governance.models import ApprovalRequest
+from governance.models import ApprovalRequest, ApprovalReview
 
 
 def _now_matching(reference: datetime) -> datetime:
@@ -55,6 +55,24 @@ def decide(db: Session, request_id: str, decided_by: str, approve: bool, comment
     db.commit()
     db.refresh(req)
     return req
+
+
+def attach_review(db: Session, approval_id: str, reviewer_capability: str, verdict: str, reasoning: str) -> ApprovalReview | None:
+    """Phase 16: append-only, never checks or changes the approval's own
+    status/decision — a review is additional context for the human
+    approver, never a vote. Returns None if the approval doesn't exist."""
+    approval = db.query(ApprovalRequest).filter(ApprovalRequest.id == approval_id).first()
+    if not approval:
+        return None
+    review = ApprovalReview(approval_id=approval_id, reviewer_capability=reviewer_capability, verdict=verdict, reasoning=reasoning)
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    return review
+
+
+def list_reviews(db: Session, approval_id: str) -> list[ApprovalReview]:
+    return db.query(ApprovalReview).filter(ApprovalReview.approval_id == approval_id).order_by(ApprovalReview.created_at.asc()).all()
 
 
 def expire_stale(db: Session) -> int:

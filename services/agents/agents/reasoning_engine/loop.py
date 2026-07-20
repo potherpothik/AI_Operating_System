@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from agents import clients
-from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge
+from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge, review_bridge, reverse_eng_bridge
 from agents.reasoning_engine.ollama_adapter import generate, OllamaUnavailable
 from agents.reasoning_engine.models import ReasoningExecution
 
@@ -29,7 +29,19 @@ GIT_PROPOSE_ACTIONS = {
     "sales.propose_quote",
     "sales.propose_order_change",
     "pm.propose_milestone_update",
+    # Phase 16: both reuse the same git-proposal path unchanged too —
+    # architecture.propose_decision needs nothing further; reverse_eng's
+    # own draft gets a SECOND, chained step (REVERSE_ENG_PROPOSE_ACTIONS
+    # below) once the git half lands.
+    "reverse_eng.propose_documentation_draft",
+    "architecture.propose_decision",
 }
+
+# Phase 16: the one action whose git materialization needs a chained
+# follow-up — once the draft is a real committed file, reverse_eng_bridge
+# ingests that SAME file into Documentation Engine, closing the loop from
+# inference to record.
+REVERSE_ENG_PROPOSE_ACTIONS = {"reverse_eng.propose_documentation_draft"}
 
 # Both migration-shaped propose actions materialize via the same Database
 # Connector /db/migrate path (Phase 7) — database_bridge.materialize_propose_migration
@@ -204,6 +216,7 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
         has_fresh_query = bool((parsed.get("sql_template") or "").strip())
         has_fresh_shell_command = bool((parsed.get("shell_command") or "").strip())
         has_fresh_task_lookup = bool((parsed.get("target_task_id") or "").strip())
+        has_fresh_review_request = bool((parsed.get("target_repo") or "").strip())
 
         if action in database_bridge.TOOL_ACTIONS and has_fresh_query:
             tool_result = database_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id, requester_ceiling=cap_def.classification_ceiling)
@@ -239,6 +252,19 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
                 f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
                 f"Now produce your final structured response based on this — set action to {action} again but leave "
                 f"target_task_id empty since you already have the data, unless you genuinely need to look up a different task.]"
+            )
+            if iteration == max_iterations:
+                final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
+            continue
+
+        if action in review_bridge.TOOL_ACTIONS and has_fresh_review_request:
+            tool_result = review_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
+            store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, f"tool_call:{action}")
+            current_task_description = (
+                f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
+                f"Now produce your final structured response based on this — set action to {action} again but leave "
+                f"target_repo empty since you already have the result, unless you genuinely need to check something else, "
+                f"or set action to review.flag_concern/review.approve_recommendation to finalize.]"
             )
             if iteration == max_iterations:
                 final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
@@ -284,6 +310,18 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
             break
 
         # allow
+        if action in review_bridge.REVIEW_ATTACH_ACTIONS:
+            # Code Review Agent's own actions never require approval —
+            # attach synchronously here, no resume() step needed, since
+            # there's no approval gate on ITS output (Phase 16 doc,
+            # Section 1). materialize_attach_review only reads
+            # execution.result/.agent_capability/.id, so setting result
+            # in memory (no commit yet — the real finalize() call below
+            # does that, with review_execution already folded in) is
+            # sufficient.
+            execution.result = parsed
+            parsed = dict(parsed)
+            parsed["review_execution"] = review_bridge.materialize_attach_review(execution)
         store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, "completed")
         final_status, final_result = "completed", parsed
         break
@@ -315,6 +353,8 @@ def resume(db: Session, execution_id: str) -> ReasoningExecution | None:
         action = result.get("action")
         if action in GIT_PROPOSE_ACTIONS:
             result["git_execution"] = execution_bridge.materialize_propose_change(execution)
+            if action in REVERSE_ENG_PROPOSE_ACTIONS:
+                result["docs_execution"] = reverse_eng_bridge.materialize_propose_documentation(execution, result["git_execution"])
         elif action in DB_WRITE_PROPOSE_ACTIONS:
             result["db_execution"] = database_bridge.materialize_propose_write(execution)
         elif action in DB_MIGRATE_PROPOSE_ACTIONS:

@@ -98,3 +98,73 @@ def test_list_all_filters_by_status():
     rejected_only = client.get("/approval?status=rejected").json()
     assert any(r["id"] == req_id for r in rejected_only)
     assert all(r["status"] == "rejected" for r in rejected_only)
+
+
+# ---------------------------------------------------------------------------
+# Phase 16 — approval-review attachment: a second agent's advisory input,
+# additional context for the human approver, never a decision itself.
+# ---------------------------------------------------------------------------
+
+def test_attach_review_shows_up_on_get_request():
+    r = client.post("/approval/request", json={"action": "manufacturing.propose_schedule_change", "requested_by": "manufacturing_agent"})
+    req_id = r.json()["id"]
+
+    attach = client.post(
+        f"/approval/{req_id}/attach_review",
+        json={"reviewer_capability": "code_review_agent", "verdict": "recommend_approve", "reasoning": "No callers of the changed function found elsewhere."},
+    )
+    assert attach.json()["approval_id"] == req_id
+    assert attach.json()["verdict"] == "recommend_approve"
+
+    fetched = client.get(f"/approval/{req_id}")
+    reviews = fetched.json()["reviews"]
+    assert len(reviews) == 1
+    assert reviews[0]["reviewer_capability"] == "code_review_agent"
+    assert reviews[0]["reasoning"] == "No callers of the changed function found elsewhere."
+
+
+def test_attach_review_to_unknown_approval_returns_error():
+    r = client.post(
+        "/approval/nonexistent-id/attach_review",
+        json={"reviewer_capability": "code_review_agent", "verdict": "concern", "reasoning": "x"},
+    )
+    assert "error" in r.json()
+
+
+def test_attach_review_never_changes_the_approval_decision_itself():
+    """A review is additional context, never a vote — confirmed live:
+    attaching a 'concern' review does not move status off pending, and
+    a human's own decide() call afterward is completely unaffected by
+    what was attached."""
+    r = client.post("/approval/request", json={"action": "sales.propose_quote", "requested_by": "sales_agent"})
+    req_id = r.json()["id"]
+
+    client.post(f"/approval/{req_id}/attach_review", json={"reviewer_capability": "code_review_agent", "verdict": "concern", "reasoning": "risky"})
+    still_pending = client.get(f"/approval/{req_id}").json()
+    assert still_pending["status"] == "pending"
+    assert still_pending["decided_by"] is None
+
+    decide = client.post(f"/approval/{req_id}/decide", json={"decided_by": "human_admin", "approve": True})
+    assert decide.json()["status"] == "approved"
+
+    final = client.get(f"/approval/{req_id}").json()
+    assert final["status"] == "approved"
+    assert len(final["reviews"]) == 1  # the review survives the decision, unaltered
+
+
+def test_multiple_reviews_accumulate_oldest_first():
+    r = client.post("/approval/request", json={"action": "architecture.propose_decision", "requested_by": "architecture_agent"})
+    req_id = r.json()["id"]
+
+    client.post(f"/approval/{req_id}/attach_review", json={"reviewer_capability": "code_review_agent", "verdict": "concern", "reasoning": "first"})
+    client.post(f"/approval/{req_id}/attach_review", json={"reviewer_capability": "code_review_agent", "verdict": "recommend_approve", "reasoning": "second"})
+
+    reviews = client.get(f"/approval/{req_id}").json()["reviews"]
+    assert [r["reasoning"] for r in reviews] == ["first", "second"]
+
+
+def test_get_request_with_no_reviews_returns_empty_list_not_missing_key():
+    r = client.post("/approval/request", json={"action": "odoo.propose_change", "requested_by": "odoo_agent"})
+    req_id = r.json()["id"]
+    fetched = client.get(f"/approval/{req_id}").json()
+    assert fetched["reviews"] == []

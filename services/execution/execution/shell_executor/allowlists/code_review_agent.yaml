@@ -1,0 +1,17 @@
+agent_capability: code_review_agent
+commands:
+  # review.fetch_diff calls Git Manager's real, read-only git diff — this
+  # agent never commits anything itself, so no mutating pattern at all,
+  # unlike every other agent's allowlist here.
+  - pattern: "git status*"
+    mode: read_only
+  - pattern: "git diff*"
+    mode: read_only
+  - pattern: "git log*"
+    mode: read_only
+  - pattern: "git show*"
+    mode: read_only
+  - pattern: "git rev-parse*"
+    mode: read_only
+  - pattern: "git branch*"
+    mode: read_only

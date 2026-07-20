@@ -18,7 +18,7 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 
 | Phase | Subsystem | Design doc | Code |
 |---|---|---|---|
-| 1 | Security Layer, Audit Logger, Human Approval Layer | [`docs/phase-1-governance-layer.md`](docs/phase-1-governance-layer.md) | [`services/governance/`](services/governance/) — 17 tests |
+| 1 | Security Layer, Audit Logger, Human Approval Layer | [`docs/phase-1-governance-layer.md`](docs/phase-1-governance-layer.md) | [`services/governance/`](services/governance/) — 46 tests |
 | 2 | Configuration Manager, Gateway, Task Manager | [`docs/phase-2-gateway-task-manager-config.md`](docs/phase-2-gateway-task-manager-config.md) | [`services/platform-spine/`](services/platform-spine/) — 23 tests |
 | 3 | Memory Manager, Vector Search | [`docs/phase-3-memory-vector-search.md`](docs/phase-3-memory-vector-search.md) | [`services/knowledge/`](services/knowledge/) — 22 tests |
 | 4 | Context Builder, Prompt Builder | [`docs/phase-4-context-prompt-builder.md`](docs/phase-4-context-prompt-builder.md) | [`services/assembly/`](services/assembly/) — 26 tests |
@@ -33,18 +33,21 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 | 13 | Metrics Dashboard, Health Monitor | [`docs/phase-13-metrics-health.md`](docs/phase-13-metrics-health.md) | [`services/observability/`](services/observability/) — 19 tests |
 | 14 | Costing, Accounting, Inventory Agents | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/agents/`](services/agents/) — 50 tests (all three agents live in `services/agents/agents/{costing_agent,accounting_agent,inventory_agent}/`) |
 | 15 | Manufacturing, Sales, Project Management Agents | [`docs/phase-15-operations-agents.md`](docs/phase-15-operations-agents.md) | [`services/agents/`](services/agents/) — 61 tests (all three agents live in `services/agents/agents/{manufacturing_agent,sales_agent,project_management_agent}/`; also extends `services/database/` with a new PII classification dimension and `services/platform-spine/` with a task-events endpoint) |
-| 16–21 | Code-quality/engineering/cross-cutting agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
+| 16 | Code Review, Reverse Engineering, Architecture Agents | [`docs/phase-16-code-quality-agents.md`](docs/phase-16-code-quality-agents.md) | [`services/agents/`](services/agents/) — 69 tests (all three agents live in `services/agents/agents/{code_review_agent,reverse_engineering_agent,architecture_agent}/`; also extends `services/governance/` with an approval-review attachment mechanism) |
+| 17–21 | Engineering/cross-cutting agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 | 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | not yet built |
 | 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/phase-24-control-ui.md`](docs/phase-24-control-ui.md) | not yet built |
 
-Eleven services are real, tested code today, now hosting Phases 1–15
+Eleven services are real, tested code today, now hosting Phases 1–16
 (1–11 as their own dedicated design docs, 12–14 from the consolidated
-Phases 12–21 doc, 15 from its own dedicated design doc — written
-separately because its PII-scoping extension is a material change to
-Phase 7's Database Connector, not just agent configuration); everything
-past that is fully designed but not yet implemented. Vision and ElizaOS
-study notes: [`docs/architecture-vision.md`](docs/architecture-vision.md),
-[`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md).
+Phases 12–21 doc, 15 and 16 each from their own dedicated design doc —
+written separately because each phase's core mechanism (PII scoping;
+approval-review attachment) is a material change to an already-built
+service, not just agent configuration); everything past that is fully
+designed but not yet implemented. Vision and ElizaOS study notes:
+[`docs/architecture-vision.md`](docs/architecture-vision.md),
+[`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md). Doc
+index and mandatory read-before-code checklist: [`docs/README.md`](docs/README.md).
 
 ## Running what exists
 
@@ -304,6 +307,27 @@ connection string format and what's been verified against it (including
   no matter what the PII registry said. Fixed by making the two gates
   genuinely orthogonal — full detail, including the fix, in
   `services/agents/README.md` and `services/database/README.md`.
+- **Phase 16's three code-quality agents are the Coding Brain's first
+  real batch — a deliberate pivot after five straight ERP-brain phases.**
+  Architecture Agent needed zero new mechanism at all: `database_agent`'s
+  own template has said `delegate_to "architecture_agent" if you
+  recognize one` since Phase 7, written when Architecture Agent didn't
+  exist yet, so building it now makes that delegation resolve to
+  something real for the first time. Reverse Engineering Agent's
+  approved draft reuses the same git-proposal path for its commit half,
+  then chains into a new bridge that ingests that SAME file into
+  Documentation Engine's already-existing formula/doc registration path
+  — inference becomes record, no second write mechanism invented. Code
+  Review Agent needed one genuinely new governance mechanism: a second
+  agent's structured assessment attaching to ANOTHER agent's pending
+  approval as additive context, never a vote — its own two real tool
+  calls (a real `git diff`, a real call-graph lookup) surfaced two
+  live bugs in the same session: caller data came back as raw internal
+  ids instead of names (fixed by switching to the endpoint that already
+  resolves them), and a bare branch name diffed against the working tree
+  instead of `main` (fixed on the caller's side, not the read-only
+  endpoint itself). Full detail in `services/agents/README.md` and
+  `services/governance/README.md`.
 - **Phase 13's Health Monitor and Metrics Dashboard have no write path
   to anything** — every number is computed live from six small, real
   listing endpoints added to earlier services (none of which gained a
@@ -403,7 +427,20 @@ scoping (PII, orthogonal to public/internal/confidential) — and its own
 first live test caught a genuine design bug in that new mechanism
 itself: the PII gate initially sat *on top of* the ceiling gate instead
 of being truly independent, silently defeating the entire point for any
-capability deliberately kept at a low ceiling. That pattern —
+capability deliberately kept at a low ceiling. Phase 16 needed one
+genuinely new mechanism in `governance` (a second agent's structured
+review attaching to another agent's pending approval, append-only,
+never touching the approval's own decision) plus two of its own new
+tool calls in `agents` reusing entirely existing, already-built
+endpoints on two OTHER services (`execution`'s read-only `/git/diff`,
+`knowledge_pipelines`'s `/graph` and `/docs/ingest`) — zero code changes
+needed in either of those two services, both endpoints had simply never
+had a real caller before. Live testing caught two bugs in the new
+caller code itself, not in what it called: `/graph` resolves caller ids
+to real names while `/symbol/{ref}`'s own callers list doesn't, so the
+first version picked the wrong one of two existing endpoints; and a
+bare branch name diffs against the working tree, not `main`, unless the
+caller builds that comparison explicitly. That pattern —
 build the phase that unblocks what already exists before adding more
 surface area, and trust live testing over code review to find the gaps
 between files that individually look correct, including gaps in a

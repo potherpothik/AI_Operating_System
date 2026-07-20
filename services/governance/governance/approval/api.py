@@ -23,6 +23,13 @@ class ApprovalDecision(BaseModel):
     comment: str = ""
 
 
+class AttachReview(BaseModel):
+    reviewer_capability: str
+    verdict: str  # concern | recommend_approve
+    reasoning: str = ""
+    correlation_id: str = ""
+
+
 @router.post("/request")
 def request_approval(req: ApprovalCreate, db: Session = Depends(get_db)):
     r = store.create_request(db, req.action, req.requested_by, req.risk_tier, req.payload_ref)
@@ -91,6 +98,7 @@ def get_request(request_id: str, db: Session = Depends(get_db)):
     r = db.query(ApprovalRequest).filter(ApprovalRequest.id == request_id).first()
     if not r:
         return {"error": "not found"}
+    reviews = store.list_reviews(db, request_id)
     return {
         "id": r.id,
         "action": r.action,
@@ -100,7 +108,38 @@ def get_request(request_id: str, db: Session = Depends(get_db)):
         "decided_by": r.decided_by,
         "decided_at": r.decided_at.isoformat() if r.decided_at else None,
         "comment": r.comment,
+        # Phase 16: a second agent's advisory input, additional context
+        # for the human approver — never affects status/decided_by above.
+        "reviews": [
+            {
+                "id": rv.id, "reviewer_capability": rv.reviewer_capability,
+                "verdict": rv.verdict, "reasoning": rv.reasoning, "created_at": rv.created_at.isoformat(),
+            }
+            for rv in reviews
+        ],
     }
+
+
+@router.post("/{request_id}/attach_review")
+def attach_review(request_id: str, body: AttachReview, db: Session = Depends(get_db)):
+    """
+    Phase 16: Code Review Agent's own advisory assessment, attached to
+    ANOTHER agent's pending (or already-decided) approval — additional
+    context for the human approver, never a decision itself. Succeeds
+    regardless of the approval's current status (a review legitimately
+    can arrive after a decision was already made, as a record of what
+    was said); fails with a clean 404 only if the approval doesn't exist
+    at all.
+    """
+    review = store.attach_review(db, request_id, body.reviewer_capability, body.verdict, body.reasoning)
+    if not review:
+        return {"error": "not found"}
+    log_event(
+        db, actor_id=body.reviewer_capability, actor_type="agent",
+        action="approval.attach_review", resource=request_id,
+        decision=body.verdict, correlation_id=body.correlation_id or "",
+    )
+    return {"id": review.id, "approval_id": request_id, "verdict": review.verdict}
 
 
 @router.post("/{request_id}/decide")

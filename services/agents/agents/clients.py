@@ -240,6 +240,103 @@ def git_push(repo: str, agent_capability: str, task_id: str, requesting_agent: s
         return {"status": "failed", "result": {"reason": str(e)}}
 
 
+def git_diff(repo: str, agent_capability: str, task_id: str, requesting_agent: str, args: list = None, correlation_id: str = "") -> dict:
+    """
+    Phase 16: Code Review Agent's review.fetch_diff tool call — the same
+    real read-only path Git Manager already exposes (Phase 6), never
+    approval-gated (Phase 6 doc: "read-only diff, no approval needed").
+    """
+    try:
+        resp = httpx.post(
+            f"{EXECUTION_URL}/git/diff",
+            json={"repo": repo, "agent_capability": agent_capability, "task_id": task_id, "requesting_agent": requesting_agent, "args": args or [], "correlation_id": correlation_id},
+            timeout=15.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
+def code_analysis_get_symbol(repo: str, ref: str) -> dict:
+    """
+    Phase 16: Code Review Agent's review.check_callers tool call —
+    Code Analysis Engine's GET /symbol/{ref} (Phase 11) is unauthenticated,
+    same structural-tier posture as its /graph endpoint, so this is a
+    plain GET, no capability/authorize plumbing needed.
+    """
+    try:
+        resp = httpx.get(f"{KNOWLEDGE_PIPELINES_URL}/code-analysis/symbol/{ref}", params={"repo": repo}, timeout=15.0)
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
+def code_analysis_get_graph(repo: str) -> dict:
+    """
+    Phase 16: review.check_callers resolves caller/callee names via this
+    rather than GET /symbol/{ref} alone — that endpoint's own callers/
+    callees lists are raw internal symbol ids, not human-readable
+    qualified names, useless for a model (or a human reading its output)
+    to reason about. GET /graph (Phase 11) already resolves edges to
+    real qualified names.
+    """
+    try:
+        resp = httpx.get(f"{KNOWLEDGE_PIPELINES_URL}/code-analysis/graph", params={"repo": repo}, timeout=15.0)
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
+def attach_review(approval_id: str, reviewer_capability: str, verdict: str, reasoning: str, correlation_id: str = "") -> dict:
+    """Phase 16: Code Review Agent's own advisory assessment, attached to
+    another agent's pending approval — see governance/approval/api.py."""
+    try:
+        resp = httpx.post(
+            f"{SECURITY_LAYER_URL}/approval/{approval_id}/attach_review",
+            json={"reviewer_capability": reviewer_capability, "verdict": verdict, "reasoning": reasoning, "correlation_id": correlation_id},
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
+def docs_ingest(path_or_url: str, project_id: str, doc_type: str = None, explicit_classification: str = None, requested_by: str = "reverse_engineering_agent", correlation_id: str = "") -> dict:
+    """
+    Phase 16: Reverse Engineering Agent's confirmed draft closes the loop
+    from inference to record via Documentation Engine's already-existing
+    POST /docs/ingest (Phase 9) — no new write mechanism, the same path
+    a human-submitted document would use.
+    """
+    try:
+        resp = httpx.post(
+            f"{KNOWLEDGE_PIPELINES_URL}/docs/ingest",
+            json={
+                "path_or_url": path_or_url, "source_type": "file", "doc_type": doc_type, "project_id": project_id,
+                "explicit_classification": explicit_classification, "requested_by": requested_by, "correlation_id": correlation_id,
+            },
+            timeout=20.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
 def git_open_mr(repo: str, branch_name: str, agent_capability: str, task_id: str, requesting_agent: str,
                 proposal_text: str, risk_classification: str, files_changed: list = None, correlation_id: str = "") -> dict:
     try:

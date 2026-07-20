@@ -1,0 +1,26 @@
+agent_capability: architecture_agent
+commands:
+  # architecture.propose_decision lands as a Git Manager MR (a proposed
+  # document, never a direct implementation) — same read-only inspection
+  # + scoped mutating branch pattern as every other propose_*-capable
+  # agent in this system.
+  - pattern: "git status*"
+    mode: read_only
+  - pattern: "git diff*"
+    mode: read_only
+  - pattern: "git log*"
+    mode: read_only
+  - pattern: "git show*"
+    mode: read_only
+  - pattern: "git rev-parse*"
+    mode: read_only
+  - pattern: "git branch*"
+    mode: read_only
+  - pattern: "git checkout -b architecture-agent/*"
+    mode: mutating
+  - pattern: "git add *"
+    mode: mutating
+  - pattern: "git commit *"
+    mode: mutating
+  - pattern: "git push origin architecture-agent/*"
+    mode: mutating

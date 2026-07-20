@@ -67,6 +67,15 @@ content — no mocks.
 
 ## What's real
 
+- **Phase 16 addition:** `POST /docs/ingest` and `GET /code-analysis/graph`
+  are now genuinely driven by an agent for the first time — Reverse
+  Engineering Agent's approved `propose_documentation_draft` calls
+  `/docs/ingest` on the exact same file Git Manager just committed
+  (`services/agents/README.md`'s Phase 16 section), and Code Review
+  Agent's `review.check_callers` tool call reads `/graph` to resolve a
+  changed symbol's real callers. No code changed in this service for
+  either — both endpoints already existed since Phase 9/11, just never
+  had a real caller before.
 - **Phase 13 addition:** `GET /erp-knowledge/snapshots` — one row per
   `target_db` ever synced, whatever its latest status. Observability's
   Health Monitor stale-ERP-knowledge check needs this to discover

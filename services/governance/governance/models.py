@@ -52,6 +52,27 @@ class ApprovalRequest(Base):
     comment = Column(Text, default="")
 
 
+class ApprovalReview(Base):
+    """
+    Phase 16: a second agent's structured input attached to another
+    agent's pending approval — Code Review Agent's own advisory
+    assessment, additional context for the human approver, never a
+    decision itself. Append-only, same posture as AuditEvent above: a
+    review is never edited or deleted, only added. No real foreign-key
+    constraint to approval_request.id, same posture as every other
+    cross-table reference in this codebase.
+    """
+
+    __tablename__ = "approval_review"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    approval_id = Column(String, nullable=False)
+    reviewer_capability = Column(String, nullable=False)
+    verdict = Column(String, nullable=False)  # concern | recommend_approve
+    reasoning = Column(Text, default="")
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+
 class TestExecutionTarget(Base):
     """
     Phase 10: Testing Agent's environment-target verification record — a
