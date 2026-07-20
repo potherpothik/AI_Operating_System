@@ -13,11 +13,14 @@ from agents.testing_agent import register as testing_agent_register
 from agents.costing_agent import register as costing_agent_register
 from agents.accounting_agent import register as accounting_agent_register
 from agents.inventory_agent import register as inventory_agent_register
+from agents.manufacturing_agent import register as manufacturing_agent_register
+from agents.sales_agent import register as sales_agent_register
+from agents.project_management_agent import register as project_management_agent_register
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="AI Orchestration Layer — Phase 5/7/8/10/14: Reasoning Engine + nine agents",
+    title="AI Orchestration Layer — Phase 5/7/8/10/14/15: Reasoning Engine + twelve agents",
     description="The shared execution loop every agent runs through, and the agents running on it.",
 )
 
@@ -41,6 +44,9 @@ def on_startup():
     costing_agent_register.ensure_template_registered()
     accounting_agent_register.ensure_template_registered()
     inventory_agent_register.ensure_template_registered()
+    manufacturing_agent_register.ensure_template_registered()
+    sales_agent_register.ensure_template_registered()
+    project_management_agent_register.ensure_template_registered()
 
 
 @app.post("/capabilities/reload")
@@ -133,18 +139,34 @@ def register_inventory_agent_template():
     return inventory_agent_register.ensure_template_registered()
 
 
+@app.post("/manufacturing_agent/register")
+def register_manufacturing_agent_template():
+    return manufacturing_agent_register.ensure_template_registered()
+
+
+@app.post("/sales_agent/register")
+def register_sales_agent_template():
+    return sales_agent_register.ensure_template_registered()
+
+
+@app.post("/project_management_agent/register")
+def register_project_management_agent_template():
+    return project_management_agent_register.ensure_template_registered()
+
+
 @app.get("/healthz")
 def healthz():
-    return {"status": "ok", "phase": 14}
+    return {"status": "ok", "phase": 15}
 
 
 @app.get("/")
 def root():
     return {
-        "status": "ok", "phase": 14,
+        "status": "ok", "phase": 15,
         "modules": [
             "reasoning_engine", "odoo_agent", "database_agent", "planner",
             "django_agent", "devops_agent", "docker_agent", "testing_agent",
             "costing_agent", "accounting_agent", "inventory_agent",
+            "manufacturing_agent", "sales_agent", "project_management_agent",
         ],
     }

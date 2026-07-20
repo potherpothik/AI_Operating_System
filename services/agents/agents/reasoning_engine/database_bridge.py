@@ -23,18 +23,40 @@ def _parse_params(parsed: dict) -> tuple[dict, str | None]:
         return {}, f"params_json was not valid JSON ({e})"
 
 
-def handle_tool_call(parsed: dict, agent_capability: str, task_id: str, correlation_id: str = None) -> dict:
+def _parse_pii_fields(parsed: dict) -> tuple[list, str | None]:
+    """
+    Phase 15: an optional, additive field — only agents whose template
+    actually instructs the model to name specific PII fields (Sales
+    Agent) ever populate this; every other agent's db.read call leaves it
+    unset and behaves exactly as before ([] requested, nothing PII-tagged
+    included).
+    """
+    raw = parsed.get("pii_fields_requested_json") or "[]"
+    try:
+        fields = json.loads(raw)
+    except json.JSONDecodeError as e:
+        return [], f"pii_fields_requested_json was not valid JSON ({e})"
+    if not isinstance(fields, list):
+        return [], "pii_fields_requested_json must be a JSON array"
+    return fields, None
+
+
+def handle_tool_call(parsed: dict, agent_capability: str, task_id: str, correlation_id: str = None, requester_ceiling: str = "internal") -> dict:
     action = parsed.get("action")
     params, param_error = _parse_params(parsed)
     if param_error:
         return {"summary": param_error}
 
     if action == "db.read":
+        pii_fields, pii_error = _parse_pii_fields(parsed)
+        if pii_error:
+            return {"summary": pii_error}
         result = clients.db_query(
             target_db=parsed.get("target_db") or "", table=parsed.get("table") or "",
             sql_template=parsed.get("sql_template") or "", params=params,
             capability=agent_capability, requesting_agent="reasoning_engine", task_id=task_id,
-            correlation_id=correlation_id or "",
+            correlation_id=correlation_id or "", pii_fields_requested=pii_fields,
+            requester_ceiling=requester_ceiling,
         )
         if not result.get("ok"):
             return {"summary": f"read failed: {result.get('error')}"}

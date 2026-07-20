@@ -1,0 +1,28 @@
+agent_capability: manufacturing_agent
+commands:
+  # manufacturing.propose_schedule_change lands as a Git Manager MR (a
+  # proposed schedule change committed as a real reviewable document,
+  # never a direct schedule mutation) — same read-only inspection +
+  # scoped mutating branch pattern as accounting_agent/inventory_agent.
+  # manufacturing.flag_constraint's real reads go through Database
+  # Connector (db.read), not Shell Executor.
+  - pattern: "git status*"
+    mode: read_only
+  - pattern: "git diff*"
+    mode: read_only
+  - pattern: "git log*"
+    mode: read_only
+  - pattern: "git show*"
+    mode: read_only
+  - pattern: "git rev-parse*"
+    mode: read_only
+  - pattern: "git branch*"
+    mode: read_only
+  - pattern: "git checkout -b manufacturing-agent/*"
+    mode: mutating
+  - pattern: "git add *"
+    mode: mutating
+  - pattern: "git commit *"
+    mode: mutating
+  - pattern: "git push origin manufacturing-agent/*"
+    mode: mutating

@@ -17,12 +17,12 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 | Phase | Subsystem | Design doc | Code |
 |---|---|---|---|
 | 1 | Security Layer, Audit Logger, Human Approval Layer | [`docs/phase-1-governance-layer.md`](docs/phase-1-governance-layer.md) | [`services/governance/`](services/governance/) — 17 tests |
-| 2 | Configuration Manager, Gateway, Task Manager | [`docs/phase-2-gateway-task-manager-config.md`](docs/phase-2-gateway-task-manager-config.md) | [`services/platform-spine/`](services/platform-spine/) — 21 tests |
+| 2 | Configuration Manager, Gateway, Task Manager | [`docs/phase-2-gateway-task-manager-config.md`](docs/phase-2-gateway-task-manager-config.md) | [`services/platform-spine/`](services/platform-spine/) — 23 tests |
 | 3 | Memory Manager, Vector Search | [`docs/phase-3-memory-vector-search.md`](docs/phase-3-memory-vector-search.md) | [`services/knowledge/`](services/knowledge/) — 22 tests |
 | 4 | Context Builder, Prompt Builder | [`docs/phase-4-context-prompt-builder.md`](docs/phase-4-context-prompt-builder.md) | [`services/assembly/`](services/assembly/) — 26 tests |
 | 5 | Reasoning Engine, Odoo Agent | [`docs/phase-5-odoo-agent-reasoning-engine.md`](docs/phase-5-odoo-agent-reasoning-engine.md) | [`services/agents/`](services/agents/) — 27 tests |
 | 6 | Shell Executor, Git Manager | [`docs/phase-6-shell-git-manager.md`](docs/phase-6-shell-git-manager.md) | [`services/execution/`](services/execution/) — 45 tests |
-| 7 | Database Connector, Database Agent | [`docs/phase-7-database-connector-agent.md`](docs/phase-7-database-connector-agent.md) | [`services/database/`](services/database/) — 40 tests (Database Agent itself lives in `services/agents/agents/database_agent/`) |
+| 7 | Database Connector, Database Agent | [`docs/phase-7-database-connector-agent.md`](docs/phase-7-database-connector-agent.md) | [`services/database/`](services/database/) — 54 tests (Database Agent itself lives in `services/agents/agents/database_agent/`) |
 | 8 | Planner, Capability Registry | [`docs/phase-8-planner-capability-registry.md`](docs/phase-8-planner-capability-registry.md) | [`services/planning/`](services/planning/) — 27 tests (Planner itself lives in `services/agents/agents/planner/`) |
 | 9 | Documentation Engine, ERP Knowledge Engine | [`docs/phase-9-documentation-erp-knowledge-engine.md`](docs/phase-9-documentation-erp-knowledge-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 27 tests |
 | 10 | Django, DevOps, Docker, Testing Agents | [`docs/phase-10-django-devops-docker-testing-agents.md`](docs/phase-10-django-devops-docker-testing-agents.md) | [`services/agents/`](services/agents/) — 38 tests (all four agents live in `services/agents/agents/{django_agent,devops_agent,docker_agent,testing_agent}/`) |
@@ -30,14 +30,17 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 | 12 | MCP Client, Plugin System | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/extensibility/`](services/extensibility/) — 25 tests |
 | 13 | Metrics Dashboard, Health Monitor | [`docs/phase-13-metrics-health.md`](docs/phase-13-metrics-health.md) | [`services/observability/`](services/observability/) — 19 tests |
 | 14 | Costing, Accounting, Inventory Agents | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/agents/`](services/agents/) — 50 tests (all three agents live in `services/agents/agents/{costing_agent,accounting_agent,inventory_agent}/`) |
-| 15–21 | Operations/code-quality/engineering/cross-cutting agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
+| 15 | Manufacturing, Sales, Project Management Agents | [`docs/phase-15-operations-agents.md`](docs/phase-15-operations-agents.md) | [`services/agents/`](services/agents/) — 61 tests (all three agents live in `services/agents/agents/{manufacturing_agent,sales_agent,project_management_agent}/`; also extends `services/database/` with a new PII classification dimension and `services/platform-spine/` with a task-events endpoint) |
+| 16–21 | Code-quality/engineering/cross-cutting agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 | 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | not yet built |
 
-Eleven services are real, tested code today, now hosting Phases 1–14
+Eleven services are real, tested code today, now hosting Phases 1–15
 (1–11 as their own dedicated design docs, 12–14 from the consolidated
-Phases 12–21 doc, per that doc's own stated scope); everything past that
-is fully designed but not yet implemented. Vision and ElizaOS study
-notes: [`docs/architecture-vision.md`](docs/architecture-vision.md),
+Phases 12–21 doc, 15 from its own dedicated design doc — written
+separately because its PII-scoping extension is a material change to
+Phase 7's Database Connector, not just agent configuration); everything
+past that is fully designed but not yet implemented. Vision and ElizaOS
+study notes: [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md).
 
 ## Running what exists
@@ -279,6 +282,25 @@ connection string format and what's been verified against it (including
   lives in more than one file, and governance's own `roles:` policy
   being correct is necessary but not sufficient. Full detail in
   `services/agents/README.md` and `services/governance/README.md`.
+- **Phase 15's three operations agents pushed bridge reuse to its
+  limit — all four `propose_*` actions across all three agents reuse
+  `execution_bridge.materialize_propose_change()` completely
+  unchanged**, and Manufacturing Agent's `flag_constraint` reuses the
+  exact `db.read` tool call every prior data-reading agent already
+  uses. The one genuinely new mechanism (`task_bridge.py`, for Project
+  Management Agent's `task.read`) closes a real gap in Phase 2:
+  `task_manager/store.py`'s `task_events()` had existed since that
+  phase but was never reachable over HTTP until this phase added it.
+  Sales Agent's `explain_status` is the first capability in this system
+  to need a PII dimension genuinely separate from
+  public/internal/confidential — and its own first live test caught a
+  real design bug: the initial PII gate was layered *on top of* the
+  classification ceiling rather than being truly independent, which
+  meant Sales Agent (deliberately kept at a low `internal` ceiling)
+  could never see an explicitly-authorized, explicitly-requested field
+  no matter what the PII registry said. Fixed by making the two gates
+  genuinely orthogonal — full detail, including the fix, in
+  `services/agents/README.md` and `services/database/README.md`.
 - **Phase 13's Health Monitor and Metrics Dashboard have no write path
   to anything** — every number is computed live from six small, real
   listing endpoints added to earlier services (none of which gained a
@@ -367,8 +389,20 @@ at a time until an aggregator showed up wanting to. Two more real bugs
 surfaced only by actually running the result against live services: a
 missing bearer token on a call to Phase 2's Gateway, and a naive/aware
 datetime comparison that only breaks against a SQLite-backed peer, not
-a Postgres one — both fixed and locked in as regressions. That pattern —
+a Postgres one — both fixed and locked in as regressions. Phase 15
+needed one small, genuinely new endpoint on `platform-spine`
+(`GET /api/v1/tasks/{task_id}/events`, exposing Task Manager's own
+`task_events()` — real since Phase 2, never reachable over HTTP until
+Project Management Agent's `task.read` tool call needed the real
+transition history, not just the current-status snapshot) plus a real,
+independent second dimension on `database`'s existing classification
+scoping (PII, orthogonal to public/internal/confidential) — and its own
+first live test caught a genuine design bug in that new mechanism
+itself: the PII gate initially sat *on top of* the ceiling gate instead
+of being truly independent, silently defeating the entire point for any
+capability deliberately kept at a low ceiling. That pattern —
 build the phase that unblocks what already exists before adding more
 surface area, and trust live testing over code review to find the gaps
-between files that individually look correct — is the intended way to
+between files that individually look correct, including gaps in a
+mechanism you just wrote this same phase — is the intended way to
 keep extending this.

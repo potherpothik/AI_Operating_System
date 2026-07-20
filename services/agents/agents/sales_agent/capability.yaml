@@ -1,0 +1,14 @@
+capability: sales_agent
+brain: erp
+allowed_actions:
+  - sales.explain_status
+  - sales.propose_quote
+  - sales.propose_order_change
+forbidden_actions:
+  - sales.execute_order_direct
+  - sales.access_full_customer_pii_unscoped
+requires_approval:
+  - sales.propose_quote
+  - sales.propose_order_change
+classification_ceiling: internal
+template_id: sales_agent

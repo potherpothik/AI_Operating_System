@@ -160,6 +160,42 @@ def create_delegate_task(title: str, description: str, correlation_id: str = "")
         return {"id": None, "error": str(e)}
 
 
+def get_task(target_task_id: str, correlation_id: str = "") -> dict:
+    """
+    Phase 15: task_bridge.py's task.read tool call — the real current
+    snapshot of a Task Manager (Phase 2) task, over the same
+    GATEWAY_TOKEN bearer-auth path create_delegate_task already uses.
+    """
+    try:
+        resp = httpx.get(
+            f"{PLATFORM_URL}/api/v1/tasks/{target_task_id}",
+            headers={"Authorization": f"Bearer {GATEWAY_TOKEN}"},
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, "task": resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
+def get_task_events(target_task_id: str, correlation_id: str = "") -> dict:
+    """Phase 15: the real, ordered state-transition history behind get_task's snapshot — GET /api/v1/tasks/{id}/events, new this phase."""
+    try:
+        resp = httpx.get(
+            f"{PLATFORM_URL}/api/v1/tasks/{target_task_id}/events",
+            headers={"Authorization": f"Bearer {GATEWAY_TOKEN}"},
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, "events": resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
 def git_branch(repo: str, agent_capability: str, task_id: str, requesting_agent: str, correlation_id: str = "") -> dict:
     try:
         resp = httpx.post(
@@ -223,7 +259,8 @@ def git_open_mr(repo: str, branch_name: str, agent_capability: str, task_id: str
 
 
 def db_query(target_db: str, table: str, sql_template: str, params: dict, capability: str, requesting_agent: str,
-             task_id: str = None, requester_ceiling: str = "internal", correlation_id: str = "") -> dict:
+             task_id: str = None, requester_ceiling: str = "internal", correlation_id: str = "",
+             pii_fields_requested: list = None) -> dict:
     try:
         resp = httpx.post(
             f"{DATABASE_CONNECTOR_URL}/db/query",
@@ -231,6 +268,7 @@ def db_query(target_db: str, table: str, sql_template: str, params: dict, capabi
                 "target_db": target_db, "table": table, "sql_template": sql_template, "params": params,
                 "capability": capability, "requesting_agent": requesting_agent, "task_id": task_id,
                 "requester_ceiling": requester_ceiling, "correlation_id": correlation_id,
+                "pii_fields_requested": pii_fields_requested or [],
             },
             timeout=20.0,
         )

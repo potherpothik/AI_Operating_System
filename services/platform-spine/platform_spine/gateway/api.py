@@ -96,6 +96,34 @@ def update_task_status(
     return _task_out(task)
 
 
+@router.get("/tasks/{task_id}/events")
+def get_task_events(task_id: str, db: Session = Depends(get_db), actor: str = Depends(resolve_actor)):
+    """
+    Phase 15: Project Management Agent's task.read tool call needs the
+    full state-transition history, not just the current snapshot
+    GET /tasks/{task_id} already returns — task_events() has existed in
+    task_manager/store.py since Phase 2 but was never exposed over HTTP
+    until now, since nothing needed it before.
+    """
+    check_rate_limit(actor)
+    task = store.get_task(db, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="task not found")
+    events = store.task_events(db, task_id)
+    return [
+        {
+            "id": e.id,
+            "task_id": e.task_id,
+            "from_status": e.from_status,
+            "to_status": e.to_status,
+            "actor": e.actor,
+            "detail": e.detail,
+            "ts": e.ts.isoformat(),
+        }
+        for e in events
+    ]
+
+
 @router.get("/tasks/{task_id}/stream")
 async def stream_task_status(task_id: str, actor: str = Depends(resolve_actor)):
     """

@@ -1,24 +1,26 @@
-# Phase 5/7/8/10/14 — Reasoning Engine + nine agents (working implementation)
+# Phase 5/7/8/10/14/15 — Reasoning Engine + twelve agents (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
 Odoo Agent (Phase 5), Database Agent (Phase 7), Planner (Phase 8), Django
-Agent, DevOps Agent, Docker Agent, Testing Agent (Phase 10), and now
-Costing Agent, Accounting Agent, and Inventory Agent (Phase 14) all run
-on it — each a thin capability declaration (`capability.yaml`) plus a
-prompt template (`template.md`), not a bespoke service of its own.
-Database Agent also needed Reasoning Engine to gain a small,
-explicitly-scoped tool-call mechanism (`database_bridge.py`) for its
-mandatory dry-run-before-write pattern — the first time this loop calls
-back out mid-reasoning rather than just parsing one response and
-routing. Planner needed a fail-closed precondition (no model call at all
-if Capability Registry is unreachable) and a code-level override on two
-of the shared schema's fields (`delegate_to`, `risk_classification`)
-whose generic meaning turned out not to apply to a capability whose job
-is deciding how work is routed, not doing the work itself. Phase 10's
-four agents needed no new infrastructure at all — `execution_bridge.py`
-and `database_bridge.py` were already generic enough to reuse unchanged
-for their `propose_*` actions, and the only genuinely new mechanism
+Agent, DevOps Agent, Docker Agent, Testing Agent (Phase 10), Costing
+Agent, Accounting Agent, Inventory Agent (Phase 14), and now
+Manufacturing Agent, Sales Agent, and Project Management Agent (Phase
+15) all run on it — each a thin capability declaration
+(`capability.yaml`) plus a prompt template (`template.md`), not a
+bespoke service of its own. Database Agent also needed Reasoning Engine
+to gain a small, explicitly-scoped tool-call mechanism
+(`database_bridge.py`) for its mandatory dry-run-before-write pattern —
+the first time this loop calls back out mid-reasoning rather than just
+parsing one response and routing. Planner needed a fail-closed
+precondition (no model call at all if Capability Registry is
+unreachable) and a code-level override on two of the shared schema's
+fields (`delegate_to`, `risk_classification`) whose generic meaning
+turned out not to apply to a capability whose job is deciding how work
+is routed, not doing the work itself. Phase 10's four agents needed no
+new infrastructure at all — `execution_bridge.py` and
+`database_bridge.py` were already generic enough to reuse unchanged for
+their `propose_*` actions, and the only genuinely new mechanism
 (`shell_bridge.py`) is a small tool-call extension of the same pattern
 `database_bridge.py` established, for Docker Agent's read-only
 `docker.inspect` and Testing Agent's `testing.run_suite`. Phase 14's
@@ -31,6 +33,29 @@ one genuinely new bridge this batch needed (`erp_bridge.py`, for Costing
 Agent's `propose_formula_change`) is a thin ~15-line wrapper around ERP
 Knowledge Engine's already-existing, already-approval-gated formula
 registration (Phase 9) — no new write mechanism invented for it.
+
+Phase 15's three agents push reuse further still: all four of the
+batch's `propose_*` actions (`manufacturing.propose_schedule_change`,
+`sales.propose_quote`, `sales.propose_order_change`,
+`pm.propose_milestone_update`) reuse
+`execution_bridge.materialize_propose_change` completely unchanged —
+zero new materialization code for any of them. The one genuinely new
+tool-call bridge (`task_bridge.py`, for Project Management Agent's
+`task.read`) mirrors `database_bridge.py`/`shell_bridge.py`'s exact
+shape: a non-terminal action that fetches Task Manager's real task
+snapshot *and* its real, ordered transition history (a genuine gap this
+phase closed — `platform_spine/task_manager/store.py`'s `task_events()`
+had existed since Phase 2 but was never reachable over HTTP until this
+phase added `GET /api/v1/tasks/{task_id}/events`) and feeds it back into
+context. Sales Agent's `explain_status` is the first tool call to use a
+genuinely new dimension on Database Connector (Phase 7) itself: customer
+PII (`res_partner.email`) is now excludable independently of
+`classification_ceiling`, never inferred or defaulted to "all," always
+named explicitly per task via a new `pii_fields_requested_json` field —
+see `services/database/README.md`'s own Phase 15 section for the
+mechanism, and this service's "Real bugs found by live testing" section
+below for a genuine live bug that mechanism's own first end-to-end test
+run surfaced.
 
 ## Run it
 
@@ -70,9 +95,10 @@ uvicorn main:app --port 8005
 On startup this service auto-loads every `agents/<name>/capability.yaml`
 it finds (currently `odoo_agent`, `database_agent`, `planner`,
 `django_agent`, `devops_agent`, `docker_agent`, `testing_agent`,
-`costing_agent`, `accounting_agent`, and `inventory_agent` — plus any
-Phase 12 plugin capabilities under `PLUGIN_CAPABILITIES_DIR`, see
-`services/extensibility/README.md`) into its own DB, and best-effort
+`costing_agent`, `accounting_agent`, `inventory_agent`,
+`manufacturing_agent`, `sales_agent`, and `project_management_agent` —
+plus any Phase 12 plugin capabilities under `PLUGIN_CAPABILITIES_DIR`,
+see `services/extensibility/README.md`) into its own DB, and best-effort
 attempts to register each agent's prompt template with Prompt Builder.
 Template registration is approval-gated through governance (same as
 every other template) — a human still has to approve it once via
@@ -89,6 +115,9 @@ curl -X POST localhost:8005/testing_agent/register
 curl -X POST localhost:8005/costing_agent/register
 curl -X POST localhost:8005/accounting_agent/register
 curl -X POST localhost:8005/inventory_agent/register
+curl -X POST localhost:8005/manufacturing_agent/register
+curl -X POST localhost:8005/sales_agent/register
+curl -X POST localhost:8005/project_management_agent/register
 # find the approval_id from the response or GET /approval/pending on governance, then:
 curl -X POST localhost:8000/approval/<approval_id>/decide \
   -d '{"decided_by":"human_admin","approve":true}'
@@ -130,7 +159,7 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live 8-service stack + live Ollama
 ```
 
-50 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+61 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a deliberately
 non-UTC session) and a real live Ollama model — not mocked, except for
 deliberately-stubbed tests (see below) used specifically where live-model
@@ -149,7 +178,17 @@ Engine itself got back), Accounting Agent's `db.read` tool call plus its
 unconditional-approval `propose_entry` materializing as a real git
 document, Inventory Agent's real dry-run-then-write round trip against
 the same disposable `demo_erp` target Database Agent's own tests use,
-and one live-model smoke test each.
+and one live-model smoke test each. `tests/test_phase15_agents.py`
+(Phase 15) covers all three operations agents: Manufacturing Agent's
+`flag_constraint` tool call plus its `propose_schedule_change`
+materializing as a real git document, Sales Agent's `explain_status`
+proven both ways (no PII field named → never sees `email`; explicitly
+named and authorized → the real seeded value shows up in the model's
+next-turn prompt) plus `propose_quote` materializing as a real git
+document, Project Management Agent's `task.read` tool call against a
+real task created and transitioned through platform-spine's Gateway
+during the test itself plus `propose_milestone_update` materializing as
+a real git document, and one live-model smoke test each.
 
 ## Real bugs found by live testing, not the test suite
 
@@ -218,6 +257,35 @@ and one live-model smoke test each.
   service to surface, and both are now locked in as regression tests
   (`services/governance/tests/test_secrets.py`,
   `services/execution/tests/test_allowlist.py`).
+
+- **Phase 15: the PII gate's first version was layered on top of the
+  classification ceiling instead of being genuinely independent from
+  it — found by Sales Agent's own reasoning-loop test, not by reading
+  the code.** `filter_columns` (ceiling) ran first, then
+  `filter_pii_columns` ran as an *additional* restriction on whatever
+  survived. That seemed right in isolation, but broke the actual design
+  goal the moment it was exercised live: Sales Agent is deliberately kept
+  at `classification_ceiling: internal` (it has no business seeing
+  confidential data in general), so even an explicitly-authorized,
+  explicitly-requested `email` field never got past the ceiling gate
+  before the PII gate ever ran — `test_sales_explain_status_with_explicit_pii_request_gets_real_email`
+  asserted a real email address would appear in the model's next-turn
+  prompt and it never did. Fixed in `services/database/database/database_connector/scoping.py`:
+  `filter_columns` now skips PII-tagged columns entirely (they're simply
+  not a point on the public/internal/confidential scale), and
+  `filter_pii_columns` is the sole, independent decision-maker for them —
+  a genuinely separate dimension, not a stricter tier layered on the
+  first one. Locked in as `test_pii_gate_is_independent_of_ceiling_not_layered_on_top_of_it`
+  in `services/database/tests/test_scoping.py`.
+- **A second, separate live bug the same test surfaced**: `database_bridge.py`'s
+  `db.read` tool call never forwarded the calling agent's own declared
+  `classification_ceiling` to Database Connector — every agent's tool-call
+  reads silently ran at the hardcoded default (`internal`), regardless of
+  what `capability.yaml` actually declared (Accounting Agent's
+  `confidential` ceiling was never actually reaching Database Connector
+  either, just never previously exercised against a confidential column).
+  Fixed by having `loop.py` pass `cap_def.classification_ceiling` through
+  to `database_bridge.handle_tool_call()`.
 
 ## What's real
 
@@ -359,6 +427,35 @@ and one live-model smoke test each.
   code exercising it, not new code written to make this particular
   question work.
 
+- **All four of Phase 15's `propose_*` actions materialize as real git
+  documents, confirmed live** — `manufacturing.propose_schedule_change`,
+  `sales.propose_quote`, `sales.propose_order_change`, and
+  `pm.propose_milestone_update` each reuse
+  `execution_bridge.materialize_propose_change()` completely unchanged;
+  each is confirmed with a real branch/commit/push landing in a
+  disposable repo, verified by reading `git show` directly rather than
+  trusting the returned status.
+- **`manufacturing.flag_constraint`'s real stock/capacity check is a
+  genuine tool call**, not a guess dressed up as one — the exact same
+  `db.read` mechanism Database Agent/Accounting Agent/Inventory Agent
+  already use, confirmed live against real seeded `demo_erp` data.
+- **Sales Agent's PII-scoped `sales.explain_status` is real, live,
+  minimum-necessary-by-default behavior, confirmed both directions**:
+  a task that doesn't name a PII field never sees `email` even though
+  Sales Agent is fully authorized in principle
+  (`test_sales_explain_status_without_pii_request_never_sees_email`), and
+  a task that genuinely needs it and names it explicitly gets the real
+  seeded value back (`test_sales_explain_status_with_explicit_pii_request_gets_real_email`)
+  — confirmed by asserting the real email address is present in the
+  model's second-turn prompt, not just that the API call succeeded.
+- **Project Management Agent's `task.read` tool call is real, not a
+  self-report**: `task_bridge.py` calls platform-spine's Gateway over
+  real HTTP for both the task snapshot and (Phase 15's own gap-fill)
+  its real ordered event history — confirmed live by creating a real
+  task, transitioning its status once for real, then asserting the
+  agent's second-turn prompt contains the real `in_progress` status and
+  the real transition detail text, not anything the model invented.
+
 ## What's a stub or simplified
 
 - **`needs_agent(X)` delegation reuses Task Manager's existing
@@ -424,18 +521,29 @@ and one live-model smoke test each.
   none of them have a dedicated formula- or ledger-specific retrieval
   mechanism beyond what Context Builder already assembles generically
   for every agent.
-- **Sales, Manufacturing, and Project Management Agents (Phase 15) are
-  not built this phase** — Phase 14 covers only the financial/inventory
-  batch the doc groups together for a tighter delegate-boundary review
-  (costing feeds sales quoting, inventory feeds manufacturing); the
-  operations batch is deferred to its own pass.
+- **Manufacturing/Sales/PM Agent's `explain`/`flag`-style actions reason
+  over whatever's already in retrieved context or a real tool-call
+  result this turn** — same posture as Phase 14's business agents, no
+  dedicated workflow- or milestone-specific retrieval mechanism beyond
+  what Context Builder already assembles generically for every agent.
+- **Project Management Agent's ERP-project-status half is
+  documentation-only** — no live Odoo project-management module exists
+  in this environment (`demo_erp`'s minimal seeded schema has no project
+  table), so `pm.explain_status` for a customer-facing project draws on
+  whatever ERP Knowledge Engine (Phase 9) has ingested, never a live
+  query. Its task-history half (`task.read`) IS a real, live query —
+  see "What's real" below.
+- **The PII registry (`pii_registry.yaml`) is scoped to exactly the one
+  PII-shaped column that exists in this environment's minimal seeded
+  schema** (`res_partner.email`) — not a general PII taxonomy, per the
+  Phase 15 doc's own explicit out-of-scope note. Structurally ready to
+  extend to more columns via the same registry file the moment a real
+  schema has more of them.
 
 ## Next
 
-Phase 13: Metrics Dashboard, Health Monitor — read-only aggregation,
-now that Phase 10/14's agent roster gives it real usage variety to
-dashboard. Phase 15: the operations agents (Manufacturing, Sales,
-Project Management) — the natural continuation of Phase 14's business
-batch, including Sales Agent's PII-aware classification dimension, the
-first agent in this system needing a legal category beyond
-internal/confidential.
+Phase 16+: Code Review Agent, Reverse Engineering Agent, Architecture
+Agent — the natural first consumers of Phase 11's Code Analysis Engine,
+and the Coding Brain's remaining coverage alongside Phase 10's
+Django/DevOps/Docker/Testing agents. Cutlist Optimization Agent (Phase
+17) is Manufacturing Agent's already-named future delegate target.

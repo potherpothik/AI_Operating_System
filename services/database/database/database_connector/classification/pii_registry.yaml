@@ -1,0 +1,13 @@
+# Phase 15 — PII dimension registry, orthogonal to classification/*.yaml's
+# public/internal/confidential ceiling. A PII-tagged column is excluded by
+# default regardless of requester_ceiling — only visible to a capability
+# on this target's authorized_capabilities list, and only when the
+# specific field is explicitly named in a request's pii_fields_requested
+# (never inferred, never "all"). Illustrative, not exhaustive: scoped to
+# the one PII-shaped column that actually exists in this environment's
+# seeded demo_erp schema (res_partner.email).
+demo_erp:
+  pii_columns:
+    res_partner: [email]
+  authorized_capabilities:
+    - sales_agent

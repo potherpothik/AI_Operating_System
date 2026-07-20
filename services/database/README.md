@@ -1,11 +1,21 @@
-# Phase 7 — Database Connector & Database Agent (working implementation)
+# Phase 7/15 — Database Connector & Database Agent (working implementation)
 
 Real, tested code. The most operationally sensitive phase built so far —
 the first time the system gets a path, however gated, to mutate the
 actual data an ERP runs on. `database_agent`'s capability declaration and
 prompt template live in `services/agents/agents/database_agent/`, the
 same pattern as Odoo Agent: agents are configuration over the shared
-Reasoning Engine, not separate services.
+Reasoning Engine, not separate services. Phase 15 added a second,
+genuinely independent classification dimension alongside the
+public/internal/confidential ceiling below: PII. `res_partner.email` is
+tagged in a new `classification/pii_registry.yaml` registry, and is
+excludable regardless of a capability's `classification_ceiling` —
+included only when the requesting capability is on that registry's
+target-specific allow-list *and* the field is explicitly named per query
+via a new `pii_fields_requested` field on `/db/query`. See
+`services/agents/README.md`'s Phase 15 section for how Sales Agent
+actually drives this end to end, including a real bug this mechanism's
+first live test caught (below).
 
 ## Run it
 
@@ -34,13 +44,13 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against real Postgres
 ```
 
-41 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+54 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a non-UTC
 session) and a real disposable target database (`demo_erp` — seeded
 `sale_order`/`res_partner` tables, never any service's own operational
 database or anything resembling real production data).
 
-## Two real bugs found by live testing, not the test suite
+## Three real bugs found by live testing, not the test suite
 
 1. **A raw database error used to crash the endpoint instead of failing
    cleanly.** The first version of `/db/dry_run` and `/db/query` only
@@ -63,9 +73,39 @@ database or anything resembling real production data).
    `answer_or_proposal` triggered the retry path mid-flow). Fixed in
    `services/agents/agents/reasoning_engine/loop.py`, locked in as a
    permanent regression test in `services/agents/tests/test_database_agent.py`.
+3. **Phase 15: the PII gate was initially layered ON TOP of the
+   classification ceiling, not genuinely independent from it** — this
+   seemed right by inspection (both are "extra restrictions on a
+   column") but broke the actual design goal the moment it was exercised
+   live. Sales Agent is deliberately kept at `classification_ceiling:
+   internal` — it has no business seeing confidential data in general —
+   so even an explicitly-authorized, explicitly-requested `email` field
+   never got past the ceiling gate before the PII gate ever ran. Caught
+   by `services/agents/tests/test_phase15_agents.py`'s
+   `test_sales_explain_status_with_explicit_pii_request_gets_real_email`
+   asserting a real email address would appear in the model's next-turn
+   prompt — it never did. Fixed by making `filter_columns` skip
+   PII-tagged columns entirely (not a point on the ceiling scale at all)
+   and `filter_pii_columns` the sole, independent decision-maker for
+   them — a genuinely separate dimension, not a stricter tier stacked on
+   the first one. Locked in as
+   `test_pii_gate_is_independent_of_ceiling_not_layered_on_top_of_it` in
+   `tests/test_scoping.py`.
 
 ## What's real
 
+- **Phase 15: PII is a genuinely orthogonal dimension, not a fourth
+  tier** — `filter_columns` (the public/internal/confidential ceiling)
+  skips PII-tagged columns entirely; `filter_pii_columns` is the sole
+  decision-maker for them, keyed on a target-specific
+  `authorized_capabilities` allow-list plus an explicit, per-query
+  `pii_fields_requested` list — never inferred, never "all". Confirmed
+  live both directions: a request that doesn't name `email` never gets
+  it back even at a `confidential` ceiling; an authorized, explicit
+  request gets the real seeded value back even at Sales Agent's
+  deliberately-low `internal` ceiling. An unauthorized capability naming
+  a PII field gets a real `403`, not a silent redaction — confirmed
+  live with `database_agent` (not on the registry's allow-list).
 - **Phase 13 addition:** `GET /db/query-log` (optional
   `capability`/`query_type` filters) — coarse metadata only (capability,
   target_db, query type, row count, timing), never the actual query text

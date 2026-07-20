@@ -1,0 +1,27 @@
+agent_capability: project_management_agent
+commands:
+  # pm.propose_milestone_update lands as a Git Manager MR (a proposed
+  # document, never a direct milestone/project mutation) — same
+  # read-only inspection + scoped mutating branch pattern as the other
+  # business agents. This agent's real reads (task.read, Phase 15) go
+  # over HTTP to platform-spine's Gateway, not through Shell Executor.
+  - pattern: "git status*"
+    mode: read_only
+  - pattern: "git diff*"
+    mode: read_only
+  - pattern: "git log*"
+    mode: read_only
+  - pattern: "git show*"
+    mode: read_only
+  - pattern: "git rev-parse*"
+    mode: read_only
+  - pattern: "git branch*"
+    mode: read_only
+  - pattern: "git checkout -b project-management-agent/*"
+    mode: mutating
+  - pattern: "git add *"
+    mode: mutating
+  - pattern: "git commit *"
+    mode: mutating
+  - pattern: "git push origin project-management-agent/*"
+    mode: mutating

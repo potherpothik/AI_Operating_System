@@ -515,6 +515,168 @@ roles:
       resource: "*"
       effect: allow
 
+  manufacturing_agent:
+    - action: "manufacturing.explain_workflow"
+      resource: "*"
+      effect: allow
+    - action: "manufacturing.flag_constraint"
+      resource: "*"
+      effect: allow
+    - action: "manufacturing.propose_schedule_change"
+      resource: "*"
+      effect: require_approval
+    - action: "manufacturing.execute_schedule_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    # manufacturing.flag_constraint's real stock/capacity check needs
+    # db.read (same tool-call shape database_agent's own role already
+    # established); propose_schedule_change materializes via Git Manager,
+    # same split as odoo_agent/accounting_agent above — shell.execute
+    # needed because Git Manager's branch/commit/push re-check it for
+    # this SAME capability.
+    - action: "db.read"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
+  sales_agent:
+    - action: "sales.explain_status"
+      resource: "*"
+      effect: allow
+    - action: "sales.propose_quote"
+      resource: "*"
+      effect: require_approval
+    - action: "sales.propose_order_change"
+      resource: "*"
+      effect: require_approval
+    - action: "sales.execute_order_direct"
+      resource: "*"
+      effect: deny
+    - action: "sales.access_full_customer_pii_unscoped"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    - action: "db.read"
+      resource: "*"
+      effect: allow
+    # Phase 15: PII is an orthogonal dimension to db.read itself (see
+    # Database Connector's scoping.py) — this role check is the first,
+    # coarse gate ("is sales_agent allowed to request PII fields at all"),
+    # separate from and in addition to the target-specific
+    # authorized_capabilities allow-list Database Connector's own
+    # pii_registry.yaml enforces per column.
+    - action: "db.read_pii"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
+  project_management_agent:
+    - action: "pm.explain_status"
+      resource: "*"
+      effect: allow
+    - action: "pm.flag_at_risk"
+      resource: "*"
+      effect: allow
+    - action: "pm.propose_milestone_update"
+      resource: "*"
+      effect: require_approval
+    - action: "pm.close_project_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    # pm.propose_milestone_update materializes via Git Manager, same
+    # split as every other propose_* action in this file — its
+    # task.read tool call itself goes straight to platform-spine's
+    # Gateway over HTTP (Phase 15's task_bridge.py), not through this
+    # policy layer at all, the same bypass-by-design every other
+    # tool-call action already uses.
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
   # Phase 11: the actor for Git Manager's own best-effort auto-trigger of
   # an incremental scan after a commit lands (execution/git_manager/api.py)
   # — a system action, not an agent capability, so it gets its own minimal

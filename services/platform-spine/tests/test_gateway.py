@@ -59,6 +59,29 @@ def test_update_status_endpoint_enforces_state_machine(security_layer_url):
     assert bad.status_code == 400
 
 
+def test_get_task_events_reflects_real_transition_history(security_layer_url):
+    # Phase 15: task_events() existed in task_manager/store.py since
+    # Phase 2 but was never reachable over HTTP until this endpoint —
+    # confirm it reports the real, ordered transition history, not just
+    # the creation event.
+    created = client.post("/api/v1/tasks", json={"title": "t"}, headers=AUTH_ODOO).json()
+    task_id = created["id"]
+    client.post(f"/api/v1/tasks/{task_id}/status", json={"status": "in_progress", "detail": "picked up"}, headers=AUTH_ODOO)
+
+    r = client.get(f"/api/v1/tasks/{task_id}/events", headers=AUTH_ODOO)
+    assert r.status_code == 200
+    events = r.json()
+    assert len(events) == 2
+    assert events[0]["from_status"] is None and events[0]["to_status"] == "queued"
+    assert events[1]["from_status"] == "queued" and events[1]["to_status"] == "in_progress"
+    assert events[1]["detail"] == "picked up"
+
+
+def test_get_events_for_unknown_task_returns_404(security_layer_url):
+    r = client.get("/api/v1/tasks/nonexistent-id/events", headers=AUTH_ODOO)
+    assert r.status_code == 404
+
+
 def test_healthz():
     r = client.get("/healthz")
     assert r.json()["status"] == "ok"

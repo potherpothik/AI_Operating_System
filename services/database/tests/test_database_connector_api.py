@@ -62,7 +62,16 @@ def test_query_redacts_confidential_columns_at_internal_ceiling(governance_url):
     assert result["rows"][0]["name"] == "Acme Manufacturing"
 
 
-def test_query_includes_confidential_columns_at_confidential_ceiling(governance_url):
+def test_confidential_ceiling_alone_no_longer_reveals_the_pii_tagged_column(governance_url):
+    """
+    Pre-Phase-15 behavior: a confidential ceiling alone was sufficient to
+    see res_partner.email, since it was just the top of the single
+    classification scale. Phase 15 makes PII a second, orthogonal
+    dimension (scoping.filter_pii_columns) — email is BOTH
+    confidential-tier AND PII-tagged, so clearing the ceiling is no
+    longer enough on its own; see test_query_pii_field_requested_by_authorized_capability_includes_real_value
+    below for what actually is required.
+    """
     db = SessionLocal()
     result = api.query(
         api.QueryRequest(
@@ -74,7 +83,8 @@ def test_query_includes_confidential_columns_at_confidential_ceiling(governance_
         db,
     )
     db.close()
-    assert result["rows"][0]["email"] == "ops@acme.example"
+    assert "email" not in result["rows"][0]
+    assert "email" in result["redacted_columns"]
 
 
 def test_query_rejects_write_statement():
@@ -261,6 +271,88 @@ def test_migrate_generates_a_real_file_when_configured(governance_url, tmp_path,
     assert result["requires_approval"] is True
     import pathlib
     assert pathlib.Path(result["migration_ref"]).exists()
+
+
+# ---------------------------------------------------------------------------
+# Phase 15 — PII dimension, orthogonal to the classification ceiling above.
+# ---------------------------------------------------------------------------
+
+def test_query_pii_field_silently_excluded_when_not_requested(governance_url):
+    """Even a capability with no PII involvement at all gets the normal,
+    silent exclusion (same as any other denied column) when it doesn't
+    ask for a PII field — no 403, this isn't a failure, just the
+    ceiling-style default."""
+    db = SessionLocal()
+    result = api.query(
+        api.QueryRequest(
+            target_db="demo_erp", table="res_partner",
+            sql_template="SELECT id, name, email FROM res_partner WHERE id = :id",
+            params={"id": 1}, capability="sales_agent", requesting_agent="reasoning_engine",
+            requester_ceiling="confidential",
+        ),
+        db,
+    )
+    db.close()
+    assert "email" not in result["columns"]
+    assert "email" in result["redacted_columns"]
+
+
+def test_query_pii_field_requested_by_unregistered_capability_is_refused(governance_url):
+    """database_agent isn't on demo_erp's PII authorized_capabilities list
+    (only sales_agent is, per pii_registry.yaml) — requesting a PII field
+    anyway is a real 403, not a silent redaction."""
+    db = SessionLocal()
+    with pytest.raises(HTTPException) as exc_info:
+        api.query(
+            api.QueryRequest(
+                target_db="demo_erp", table="res_partner",
+                sql_template="SELECT id, name, email FROM res_partner WHERE id = :id",
+                params={"id": 1}, capability="database_agent", requesting_agent="reasoning_engine",
+                requester_ceiling="confidential", pii_fields_requested=["email"],
+            ),
+            db,
+        )
+    db.close()
+    assert exc_info.value.status_code == 403
+
+
+def test_query_pii_field_requested_by_authorized_capability_includes_real_value(governance_url):
+    """sales_agent IS on the registry's allow-list and governance's role
+    grants db.read_pii — explicitly naming the field is the only way to
+    actually get it back, confirmed against the real seeded value."""
+    db = SessionLocal()
+    result = api.query(
+        api.QueryRequest(
+            target_db="demo_erp", table="res_partner",
+            sql_template="SELECT id, name, email FROM res_partner WHERE id = :id",
+            params={"id": 1}, capability="sales_agent", requesting_agent="reasoning_engine",
+            requester_ceiling="confidential", pii_fields_requested=["email"],
+        ),
+        db,
+    )
+    db.close()
+    assert "email" in result["columns"]
+    assert result["rows"][0]["email"] == "ops@acme.example"
+
+
+def test_query_pii_field_still_excluded_at_confidential_ceiling_when_not_named(governance_url):
+    """The whole point of the second, orthogonal gate: even sales_agent,
+    even at a confidential ceiling, doesn't get email back unless this
+    SPECIFIC request named it — clearing the ceiling isn't enough on its
+    own."""
+    db = SessionLocal()
+    result = api.query(
+        api.QueryRequest(
+            target_db="demo_erp", table="res_partner",
+            sql_template="SELECT id, name, email FROM res_partner WHERE id = :id",
+            params={"id": 1}, capability="sales_agent", requesting_agent="reasoning_engine",
+            requester_ceiling="confidential", pii_fields_requested=[],
+        ),
+        db,
+    )
+    db.close()
+    assert "email" not in result["columns"]
+    assert "email" in result["redacted_columns"]
 
 
 def test_schema_introspection_returns_real_tables(governance_url):

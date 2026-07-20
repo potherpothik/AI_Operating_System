@@ -1,0 +1,12 @@
+capability: project_management_agent
+brain: erp
+allowed_actions:
+  - pm.explain_status
+  - pm.propose_milestone_update
+  - pm.flag_at_risk
+forbidden_actions:
+  - pm.close_project_direct
+requires_approval:
+  - pm.propose_milestone_update
+classification_ceiling: internal
+template_id: project_management_agent

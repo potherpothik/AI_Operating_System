@@ -28,6 +28,7 @@ class QueryRequest(BaseModel):
     requester_ceiling: str = "internal"
     row_limit: int = DEFAULT_ROW_LIMIT
     correlation_id: str = None
+    pii_fields_requested: list[str] = []
 
 
 @router.post("/query")
@@ -36,6 +37,20 @@ def query(req: QueryRequest, db: Session = Depends(get_db)):
     if decision["decision"] != "allow":
         clients.audit_log(req.capability, "db.read", req.target_db, decision="deny", reason=decision.get("reason", ""), correlation_id=req.correlation_id or "")
         raise HTTPException(status_code=403, detail=decision.get("reason", "denied"))
+
+    # Phase 15: PII is an orthogonal dimension to the classification
+    # ceiling above — a request naming specific PII fields needs its own,
+    # distinct authorization (registry allow-list + governance role),
+    # checked up front. Unauthorized PII access is a 403, not a silent
+    # redaction — the caller needs to know its request was refused.
+    if req.pii_fields_requested:
+        if not scoping.capability_authorized_for_pii(req.target_db, req.capability):
+            clients.audit_log(req.capability, "db.read_pii", req.target_db, decision="deny", reason="capability not on this target's PII authorized_capabilities list", correlation_id=req.correlation_id or "")
+            raise HTTPException(status_code=403, detail=f"{req.capability!r} is not authorized to request PII fields on {req.target_db!r}")
+        pii_decision = clients.authorize(req.capability, "db.read_pii", req.target_db, correlation_id=req.correlation_id or "")
+        if pii_decision["decision"] != "allow":
+            clients.audit_log(req.capability, "db.read_pii", req.target_db, decision="deny", reason=pii_decision.get("reason", ""), correlation_id=req.correlation_id or "")
+            raise HTTPException(status_code=403, detail=pii_decision.get("reason", "denied"))
 
     try:
         query_type = query_builder.classify(req.sql_template)
@@ -68,11 +83,27 @@ def query(req: QueryRequest, db: Session = Depends(get_db)):
     truncated = len(rows) > req.row_limit
     rows = rows[: req.row_limit]
 
-    allowed_columns, denied_columns = scoping.filter_columns(req.target_db, req.table, columns, req.requester_ceiling)
+    # Two independent gates, not one layered on the other (Phase 15 doc,
+    # Section 3) — filter_columns no longer even considers PII-tagged
+    # columns, and filter_pii_columns only ever considers PII-tagged
+    # ones, so every result column is decided by exactly one of the two.
+    ceiling_allowed, ceiling_denied = scoping.filter_columns(req.target_db, req.table, columns, req.requester_ceiling)
+    pii_allowed, pii_denied = scoping.filter_pii_columns(req.target_db, req.table, columns, req.pii_fields_requested)
+    allowed_columns = ceiling_allowed + pii_allowed
+    denied_columns = ceiling_denied + pii_denied
     redacted_rows = [{k: v for k, v in row.items() if k in allowed_columns} for row in rows]
 
     store.log_query(db, req.task_id, req.capability, req.target_db, "read", req.sql_template, len(redacted_rows), duration_ms)
     clients.audit_log(req.capability, "db.read", f"{req.target_db}.{req.table}", decision="completed", reason=f"rows={len(redacted_rows)}", correlation_id=req.correlation_id or "")
+
+    if req.pii_fields_requested:
+        # A distinct audit line for "who accessed PII, when, which fields"
+        # beyond the base db.read decision above — even when every
+        # requested field ended up excluded (e.g. not actually PII-tagged
+        # on this table), the fact PII access was requested is worth its
+        # own record.
+        included_pii = [c for c in req.pii_fields_requested if c in allowed_columns]
+        clients.audit_log(req.capability, "db.read_pii", f"{req.target_db}.{req.table}", decision="completed", reason=f"fields={included_pii}", correlation_id=req.correlation_id or "")
 
     return {"rows": redacted_rows, "row_count": len(redacted_rows), "columns": allowed_columns, "redacted_columns": denied_columns, "truncated": truncated}
 

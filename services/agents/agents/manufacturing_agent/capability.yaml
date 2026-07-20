@@ -1,0 +1,12 @@
+capability: manufacturing_agent
+brain: erp
+allowed_actions:
+  - manufacturing.explain_workflow
+  - manufacturing.propose_schedule_change
+  - manufacturing.flag_constraint
+forbidden_actions:
+  - manufacturing.execute_schedule_direct
+requires_approval:
+  - manufacturing.propose_schedule_change
+classification_ceiling: internal
+template_id: manufacturing_agent

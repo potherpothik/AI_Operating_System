@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from agents import clients
-from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge
+from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge
 from agents.reasoning_engine.ollama_adapter import generate, OllamaUnavailable
 from agents.reasoning_engine.models import ReasoningExecution
 
@@ -21,6 +21,14 @@ GIT_PROPOSE_ACTIONS = {
     "docker.propose_compose_change",
     "testing.propose_new_test",
     "accounting.propose_entry",
+    # Phase 15: all four of this batch's propose actions reuse
+    # execution_bridge.materialize_propose_change() completely
+    # unchanged — every one of them is a plain-language proposal
+    # document, the same shape odoo.propose_change already established.
+    "manufacturing.propose_schedule_change",
+    "sales.propose_quote",
+    "sales.propose_order_change",
+    "pm.propose_milestone_update",
 }
 
 # Both migration-shaped propose actions materialize via the same Database
@@ -195,9 +203,10 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
         action = parsed.get("action")
         has_fresh_query = bool((parsed.get("sql_template") or "").strip())
         has_fresh_shell_command = bool((parsed.get("shell_command") or "").strip())
+        has_fresh_task_lookup = bool((parsed.get("target_task_id") or "").strip())
 
         if action in database_bridge.TOOL_ACTIONS and has_fresh_query:
-            tool_result = database_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
+            tool_result = database_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id, requester_ceiling=cap_def.classification_ceiling)
             store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, f"tool_call:{action}")
             if action == "db.dry_run" and tool_result.get("dry_run_id"):
                 last_dry_run_id = tool_result["dry_run_id"]
@@ -218,6 +227,18 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
                 f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
                 f"Now produce your final structured response based on this — set action to {action} again but leave "
                 f"shell_command empty since you already have the result, unless you genuinely need to run something else.]"
+            )
+            if iteration == max_iterations:
+                final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
+            continue
+
+        if action in task_bridge.TOOL_ACTIONS and has_fresh_task_lookup:
+            tool_result = task_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
+            store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, f"tool_call:{action}")
+            current_task_description = (
+                f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
+                f"Now produce your final structured response based on this — set action to {action} again but leave "
+                f"target_task_id empty since you already have the data, unless you genuinely need to look up a different task.]"
             )
             if iteration == max_iterations:
                 final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"

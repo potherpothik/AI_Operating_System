@@ -37,11 +37,20 @@ that need it skip cleanly rather than failing confusingly — everything else
 still runs. With it set, conftest.py starts a real Phase 1 instance for the
 test session and tears it down afterward.
 
-21 tests total: layered config resolution and security-tagged override
+23 tests total: layered config resolution and security-tagged override
 gating, the task state machine's valid and invalid transitions, enqueue/
 dequeue/list behavior, and Gateway's auth, rate limiting, and end-to-end task
 creation — the last of which makes a real network call to Phase 1, not a
 mock.
+
+**Phase 15 addition:** `GET /api/v1/tasks/{task_id}/events` — the real,
+ordered state-transition history behind a task's current snapshot.
+`task_manager/store.py`'s `task_events()` has existed since this phase
+was first built but was never reachable over HTTP until Project
+Management Agent's `task.read` tool call
+(`services/agents/agents/reasoning_engine/task_bridge.py`) needed it —
+nothing before that needed more than the current-status snapshot
+`GET /api/v1/tasks/{task_id}` already provides.
 
 ## Verified live, not just under the test harness
 
