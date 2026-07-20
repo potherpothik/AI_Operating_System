@@ -37,7 +37,8 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 | 17 | Calculation, Cutlist Optimization, AutoCAD Agents | [`docs/phase-17-engineering-calculation-agents.md`](docs/phase-17-engineering-calculation-agents.md) | [`services/agents/`](services/agents/) — 78 tests (all three agents live in `services/agents/agents/{calculation_agent,cutlist_optimization_agent,autocad_agent}/`; also adds real deterministic scripts under `services/execution/` and a formula-by-name gap-fill on `services/knowledge_pipelines/`) |
 | 18 | Python, Documentation, Security, Research Agents | [`docs/phase-18-cross-cutting-agents.md`](docs/phase-18-cross-cutting-agents.md) | [`services/agents/`](services/agents/) — 87 tests (all four agents live in `services/agents/agents/{python_agent,documentation_agent,security_agent,research_agent}/`; also adds a `correlation_id` filter to `services/governance/`'s audit query) |
 | 19 | Deployment Architecture, Docker Deployment | [`docs/phase-19-deployment-docker.md`](docs/phase-19-deployment-docker.md) | real `Dockerfile`s (all eleven services) + [`docker-compose.yml`](docker-compose.yml) — written to the real interface, unbuilt/unverified (no Docker daemon in this environment) |
-| 20–21 | Backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
+| 20 | Backup Strategy, Disaster Recovery | [`docs/phase-20-backup-disaster-recovery.md`](docs/phase-20-backup-disaster-recovery.md) | [`deploy/backup.sh`](deploy/backup.sh), [`deploy/restore.sh`](deploy/restore.sh) — real, live restore drill run against a disposable database; result in [`services/governance/README.md`](services/governance/README.md#phase-20-addition--real-restore-drill-result) |
+| 21 | Consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 | 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | not yet built |
 | 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/phase-24-control-ui.md`](docs/phase-24-control-ui.md) | not yet built |
 
@@ -48,8 +49,13 @@ written separately because each phase's core mechanism (PII scoping;
 approval-review attachment; real sandboxed deterministic execution; a
 real audit-trail tool call) is a
 material change to an already-built service, not just agent
-configuration); everything past that is fully
-designed but not yet implemented. Vision and ElizaOS study notes:
+configuration). Phase 19 adds real deployment artifacts written to the
+interface but unverified (no Docker daemon here). Phase 20 adds two real
+shell scripts, live-drilled against this environment's own Postgres
+instance — a genuinely different, stronger honesty tier than Phase 19,
+since `pg_dump`/`pg_restore` are actually available here. Everything past
+Phase 20 is fully designed but not yet implemented. Vision and ElizaOS
+study notes:
 [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md). Doc
 index and mandatory read-before-code checklist: [`docs/README.md`](docs/README.md).
@@ -421,6 +427,22 @@ step.
   fallback class. Full detail, including a real, named gap
   (`depends_on` without healthchecks doesn't wait for real readiness),
   in `docs/phase-19-deployment-docker.md`.
+- **Phase 20 is the opposite honesty case from Phase 19 — genuinely
+  live-drilled, not just written to spec** — `pg_dump`/`pg_restore`/
+  `psql` are real, available tools in this environment (unlike a Docker
+  daemon), so the restore drill actually ran: real audit events generated
+  through a real governance instance, a real `pg_dump`, a real
+  `DROP DATABASE`/`CREATE DATABASE` destroying all of it, a real
+  `pg_restore`, and a real `GET /audit/verify` afterward. The result —
+  `{"valid":true,"events_checked":5}`, identical to the pre-destruction
+  baseline — is the actual output of that one run, not a predicted one.
+  Scoped deliberately to `governance`'s own database, the one service
+  whose post-restore correctness has a cheap, structural check (the hash
+  chain); the other ten logical databases are backed up by the same
+  script but not independently drill-verified this phase, named as an
+  explicit, un-covered gap rather than silently assumed fine. Full detail
+  in `docs/phase-20-backup-disaster-recovery.md` and
+  `services/governance/README.md`.
 - **Phase 13's Health Monitor and Metrics Dashboard have no write path
   to anything** — every number is computed live from six small, real
   listing endpoints added to earlier services (none of which gained a

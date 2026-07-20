@@ -55,7 +55,8 @@ is what we actually implement; the technical reference is external study materia
 | `services/agents/agents/{calculation,cutlist_optimization,autocad}_agent/` (+ Phase 6/9 extensions) | 17 | [`phase-17-engineering-calculation-agents.md`](phase-17-engineering-calculation-agents.md) | yes |
 | `services/agents/agents/{python,documentation,security,research}_agent/` (+ Phase 1 extension) | 18 | [`phase-18-cross-cutting-agents.md`](phase-18-cross-cutting-agents.md) | yes |
 | repo root (`Dockerfile`s, `docker-compose.yml`) | 19 | [`phase-19-deployment-docker.md`](phase-19-deployment-docker.md) | yes (unbuilt/unverified — no Docker daemon in this environment) |
-| backup/DR, consolidated reference | 20–21 | [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md) | no |
+| `deploy/backup.sh`, `deploy/restore.sh` | 20 | [`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md) | yes (real, live restore drill run) |
+| consolidated reference | 21 | [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md) | no |
 | Coding Agent Gateway | 22 | [`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md) | no |
 | Model Router (seed) | 23 | (see [`architecture-vision.md`](architecture-vision.md) §3) | no |
 | `services/control-ui/` + `web/` (planned) | 24 | [`phase-24-control-ui.md`](phase-24-control-ui.md) | no |

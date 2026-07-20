@@ -143,12 +143,17 @@ python/documentation/security/research agents), plus real Phase 19
 deployment artifacts (`Dockerfile`s, `docker-compose.yml`) — written to
 the real interface but genuinely unbuilt/unverified against a live
 Docker daemon, which doesn't exist in this environment; a different
-honesty tier than the tested phases, named as such. See root
+honesty tier than the tested phases, named as such. Phase 20's backup/
+restore scripts (`deploy/backup.sh`, `deploy/restore.sh`) are a third
+honesty tier of their own: real, live-drilled against this environment's
+own Postgres instance (`pg_dump`/`pg_restore` ARE available here, unlike
+a Docker daemon) — see [`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md)
+Section 3 for the real drill result. See root
 [`README.md`](../README.md) status table for the authoritative phase →
 service map.
 
 **Designed, not built:**
-- Phase 20–21 — Backup/DR, consolidated reference
+- Phase 21 — consolidated reference
   (see [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md))
 - **Phase 22** — External coding agents (OpenCode, Claude Code) via a
   governed Coding Agent Gateway
@@ -163,7 +168,8 @@ Built-phase design docs worth re-reading before extending code:
 [`phase-16-code-quality-agents.md`](phase-16-code-quality-agents.md),
 [`phase-17-engineering-calculation-agents.md`](phase-17-engineering-calculation-agents.md),
 [`phase-18-cross-cutting-agents.md`](phase-18-cross-cutting-agents.md),
-[`phase-19-deployment-docker.md`](phase-19-deployment-docker.md).
+[`phase-19-deployment-docker.md`](phase-19-deployment-docker.md),
+[`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md).
 
 ---
 

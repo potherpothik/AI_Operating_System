@@ -231,6 +231,36 @@ just this one.
   querying by a real correlation_id returns exactly the matching events,
   nothing else.
 
+## Phase 20 addition — real restore-drill result
+
+`deploy/backup.sh` / `deploy/restore.sh` (Phase 20, `docs/phase-20-backup-
+disaster-recovery.md`) were exercised live against this environment's own
+Postgres instance, not just written and described. The exact sequence run
+once, using a disposable `governance_dr_drill` database:
+
+1. Started governance against a fresh `governance_dr_drill` database.
+2. Generated 5 real audit events via `POST /security/authorize`.
+3. Baseline `GET /audit/verify` → `{"valid":true,"events_checked":5}`.
+4. `pg_dump -Fc` (via `backup.sh`) → real 6352-byte dump file.
+5. `DROP DATABASE governance_dr_drill; CREATE DATABASE governance_dr_drill;`
+   — a real, deliberate destruction of all 5 rows.
+6. `pg_restore --clean --if-exists --no-owner` (via `restore.sh`) from the
+   dump into the now-empty database.
+7. Restarted governance against the restored database and called
+   `GET /audit/verify` again.
+
+**Real result, not asserted:** step 7 returned
+`{"valid":true,"events_checked":5}` — the same result as the pre-destruction
+baseline. All 5 rows and the hash chain linking them survived the full
+backup → destroy → restore cycle intact; `pg_restore` did not silently drop
+the tail of the chain or corrupt the hash linkage. Confirmed independently
+with `SELECT count(*) FROM audit_event` (`5`) before restarting the service,
+not just by trusting the API response.
+
+The disposable database was dropped again after this drill — it was never
+depended on by any other phase's tests or live services, and nothing else
+in this repo points at `governance_dr_drill`.
+
 ## Next
 
 This is one piece of Phase 1's design; Phase 2 (Gateway, Task Manager,
