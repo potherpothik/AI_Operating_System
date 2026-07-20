@@ -1,0 +1,32 @@
+---
+description: Mandatory doc-reading order before implementing or materially changing subsystems
+globs:
+alwaysApply: true
+---
+
+# Documentation Reading Protocol
+
+Before implementing or materially changing any subsystem, read the relevant
+design docs — do not rely on memory or generic patterns alone.
+
+## Read order
+
+1. **Root [`README.md`](../../README.md) status table** — phase number, built vs designed, service path.
+2. **[`docs/README.md`](../../docs/README.md)** — service → phase doc map and task-specific mandatory reads.
+3. **Phase design doc(s)** — `docs/phase-N-<name>.md` (or `docs/phases-12-21-remaining-subsystems.md` for consolidated phases) for **every service you touch**, including built phases you extend via gap-fill.
+4. **Service README(s)** — `services/<name>/README.md` for run/test instructions and Honesty notes.
+5. **[`docs/architecture-vision.md`](../../docs/architecture-vision.md)** — when work is cross-cutting, a new phase, or affects brain/routing/kernel map.
+6. **[`docs/elizaos-borrowed-ideas.md`](../../docs/elizaos-borrowed-ideas.md)** — when borrowing ElizaOS patterns (plugins §1, agents §2, memory §3, tools §4, runtime §5, bus §6, UI §7). Skip for routine single-service bugfixes with no pattern borrow.
+7. **[`docs/eliza-develop-technical-reference.md`](../../docs/eliza-develop-technical-reference.md)** — optional deep-dive on the external elizaOS framework only (e.g. Phase 22/24 comparative design). **Never** treat it as this repo's source of truth.
+
+## Built phases
+
+When code already exists under `services/`, **re-read** that phase's design doc
+before changing behavior. If APIs, gap-fill, or scope changed, **update the phase
+doc first** (see `docs-and-honesty.mdc`) — do not only document changes in a new phase.
+
+## Hard rules
+
+- **Never** import or depend on `eliza-develop/` in runtime code (gitignored study checkout).
+- **Never** skip governance docs when adding mutating endpoints — read Phase 1 and `governance-first.mdc`.
+- New subsystems: follow `add-new-service` or `add-agent-capability` skills after reading context.

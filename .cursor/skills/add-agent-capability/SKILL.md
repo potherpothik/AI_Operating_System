@@ -21,6 +21,7 @@ Most remaining domain work (Phases 15–18, Phase 22 gateway capability) is
 Copy this checklist and work through it in order:
 
 ```
+- [ ] 0. Read context (docs/README.md, phase docs for built deps, service READMEs)
 - [ ] 1. Confirm design doc / capability block exists in docs/
 - [ ] 2. Create services/agents/agents/<name>/ with capability.yaml + template.md
 - [ ] 3. Add governance policy rules and reload
@@ -28,6 +29,14 @@ Copy this checklist and work through it in order:
 - [ ] 5. Write or extend tests
 - [ ] 6. Honesty notes + root README status if needed
 ```
+
+### 0. Read context
+
+Follow `.cursor/rules/docs-reading-protocol.mdc` and [`docs/README.md`](../../../docs/README.md):
+
+- Phase doc for the **new capability** (consolidated or dedicated)
+- Phase docs for **built services** the capability will call (governance Phase 1, execution Phase 6, database Phase 7, etc.)
+- [`docs/architecture-vision.md`](../../../docs/architecture-vision.md) for brain/routing context
 
 ### 1. Confirm design coverage
 
@@ -106,5 +115,8 @@ Reasoning Engine — do not rely on prompt wording alone for
 ## Related
 
 - New FastAPI service instead? → `add-new-service` skill.
-- Vision / brain map → `docs/architecture-vision.md`.
-- External OpenCode / Claude Code wrapper → `docs/phase-22-external-coding-agents.md`.
+- Doc index + read order → [`docs/README.md`](../../../docs/README.md).
+- Vision / brain map → [`docs/architecture-vision.md`](../../../docs/architecture-vision.md).
+- ElizaOS borrowed patterns → [`docs/elizaos-borrowed-ideas.md`](../../../docs/elizaos-borrowed-ideas.md).
+- External OpenCode / Claude Code wrapper → [`docs/phase-22-external-coding-agents.md`](../../../docs/phase-22-external-coding-agents.md).
+- Control UI (not an agent capability) → [`docs/phase-24-control-ui.md`](../../../docs/phase-24-control-ui.md) + `add-new-service`.

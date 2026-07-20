@@ -138,6 +138,47 @@ only for embeddings / background work.
 
 ---
 
+## 7. Web UI / control plane
+
+**What ElizaOS does:** a four-layer frontend — `packages/app` (Vite shell),
+`packages/ui` (React components), `packages/app-core` (boot + API client),
+`packages/agent/api` (HTTP + WebSocket on default port 2138). Plugins declare
+`views` with `bundlePath`; the server serves `/api/views/<id>/bundle.js`.
+Widget slots (`chat-sidebar`, `home`, `nav-page`, …) let plugins contribute
+dashboard tiles without hardcoding pages in the shell. Dev mode proxies `/api`
+and `/ws` from Vite to the agent. Swarm inline chat renders
+`SwarmActivityEnvelope` events (message, tool, plan, lifecycle) over WebSocket
+for multi-agent step trees. Mobile/desktop use Capacitor/Electrobun with null
+stubs for desktop-only plugins.
+
+**Borrow into this repo:**
+- Mirror the **layering**: `web/shell` + `web/ui` + `web/client` + existing
+  FastAPI microservices, with a thin **`services/control-ui/` BFF** for
+  aggregation and governed write proxy — not a second orchestrator.
+- **Dev proxy**: Vite → Gateway (`/api/v1`) + BFF (`/ui`) + observability
+  peers; single operator port in local dev.
+- **Widget slots** for Phase 13 ops (metrics, health), approval inbox, and
+  task status — implements the frontend Phase 13 explicitly deferred.
+- **Capability-declared views**: extend Phase 12 extensibility with optional
+  `view_manifest` + bundle hosting at `/ui/views/{id}/bundle.js` (catalog
+  discovery separate from runtime registration, same rule as plugins).
+- **Conversation scoping** instead of World/Room/Entity in v1:
+  `conversation_id` on Gateway tasks groups chat turns; optional later link to
+  Memory Manager `MESSAGE` rows (sections 2–3).
+- **Streaming**: reuse Gateway `GET /api/v1/tasks/{id}/stream` (SSE) for live
+  task status; Phase 22 adds coding-session step events to the same timeline
+  (SwarmActivity-shaped, validated at BFF boundary).
+- **Governance-first chat**: the composer submits **`POST /api/v1/tasks`**, not
+  direct `/reasoning/execute`. Approvals are a first-class inbox surface
+  (`approval.decide` always authorize-gated). This is the critical divergence
+  from elizaOS AgentRuntime chat.
+
+**Agents implementing Phase 24 must read this section** before writing Control UI code.
+
+Full design: [`phase-24-control-ui.md`](phase-24-control-ui.md).
+
+---
+
 ## Cross-cutting mapping
 
 | ElizaOS | AI Operating System |
@@ -148,8 +189,12 @@ only for embeddings / background work.
 | `composeState` | Context Builder composition API |
 | `useModel` / ModelType | Future Model Router (Phase 23) over Ollama |
 | Memory scopes + FACTS/RECENT | Memory + vector service (`services/knowledge/`) |
-| World/Room/Entity | Future multi-agent / multi-channel session model |
+| World/Room/Entity | `conversation_id` on tasks (Phase 24); later Memory scopes |
 | `EventType` + messageService | Optional internal bus + turn orchestrator (not built) |
+| Web shell / ui / app-core | `web/shell`, `web/ui`, `web/client`, `services/control-ui/` |
+| Plugin `views` + bundles | Extensibility view manifests + `/ui/views/*` hosting |
+| Widget slots | Control UI widget registry (chat-sidebar, ops-home, …) |
+| SwarmActivity inline trace | Phase 22 coding-session events on task SSE / BFF stream |
 
 ---
 
@@ -160,12 +205,16 @@ only for embeddings / background work.
 - Adopting ElizaOS's plugin loader or plugin marketplace.
 - Replacing governance with ElizaOS tool policy — Security Layer remains
   the PDP.
+- `@elizaos/app`, `@elizaos/ui`, monolithic agent server on one port, or
+  chat that executes actions without Security Layer + approval.
+- Capacitor / Electrobun / mobile null-stub pattern (web-only v1).
 
 ---
 
 ## Next
 
-When implementing Phase 22 (external coding agents) or Phase 23 (Model
-Router), re-read sections 4–5. When adding multi-agent session scoping to
-Memory, re-read sections 2–3. Do not pull `eliza-develop/` into the
-runtime path.
+When implementing **Phase 24 (Control UI)**, re-read section 7 and
+[`phase-24-control-ui.md`](phase-24-control-ui.md). When implementing Phase 22
+(external coding agents) or Phase 23 (Model Router), re-read sections 4–5.
+When adding multi-agent session scoping to Memory, re-read sections 2–3. Do
+not pull `eliza-develop/` into the runtime path.

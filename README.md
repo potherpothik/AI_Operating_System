@@ -9,6 +9,8 @@ touches anything real.
 Designed and built one subsystem at a time — see [`docs/`](docs/) for the
 full phase-by-phase architecture (why each decision was made, alternatives
 considered, trade-offs, security implications) before diving into code.
+**AI agents:** start with [`docs/README.md`](docs/README.md) for the doc index
+and mandatory read-before-code checklist.
 Long-term picture (ERP Brain + Coding Brain on one kernel, Model Router
 gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/architecture-vision.md).
 
@@ -33,6 +35,7 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 | 15 | Manufacturing, Sales, Project Management Agents | [`docs/phase-15-operations-agents.md`](docs/phase-15-operations-agents.md) | [`services/agents/`](services/agents/) — 61 tests (all three agents live in `services/agents/agents/{manufacturing_agent,sales_agent,project_management_agent}/`; also extends `services/database/` with a new PII classification dimension and `services/platform-spine/` with a task-events endpoint) |
 | 16–21 | Code-quality/engineering/cross-cutting agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 | 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | not yet built |
+| 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/phase-24-control-ui.md`](docs/phase-24-control-ui.md) | not yet built |
 
 Eleven services are real, tested code today, now hosting Phases 1–15
 (1–11 as their own dedicated design docs, 12–14 from the consolidated

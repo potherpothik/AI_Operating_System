@@ -16,6 +16,7 @@ description: >-
 Copy this checklist and work through it in order:
 
 ```
+- [ ] 0. Read context (docs/README.md, phase docs, service READMEs)
 - [ ] 1. Write the design doc in docs/
 - [ ] 2. Scaffold services/<name>/
 - [ ] 3. Wire governance
@@ -23,6 +24,18 @@ Copy this checklist and work through it in order:
 - [ ] 5. Write the service README with Honesty notes
 - [ ] 6. Update the root README status table
 ```
+
+### 0. Read context (before any design or code)
+
+Follow `.cursor/rules/docs-reading-protocol.mdc`:
+
+- Root [`README.md`](../../../README.md) status table and [`docs/README.md`](../../../docs/README.md) service → phase map
+- Phase design doc(s) for **every service you touch or depend on**, including built phases you gap-fill (e.g. Phase 24 → read [`phase-2-gateway-task-manager-config.md`](../../../docs/phase-2-gateway-task-manager-config.md), [`phase-13-metrics-health.md`](../../../docs/phase-13-metrics-health.md), [`phase-12`](../../../docs/phases-12-21-remaining-subsystems.md) extensibility sections)
+- [`docs/architecture-vision.md`](../../../docs/architecture-vision.md) for cross-cutting or new-phase work
+- [`docs/elizaos-borrowed-ideas.md`](../../../docs/elizaos-borrowed-ideas.md) when borrowing ElizaOS patterns (map section to task)
+- Optional: [`docs/eliza-develop-technical-reference.md`](../../../docs/eliza-develop-technical-reference.md) for external framework detail only
+
+**Phase 24 (Control UI):** mandatory reads — [`phase-24-control-ui.md`](../../../docs/phase-24-control-ui.md), elizaos-borrowed §7, optional eliza technical reference §10 (Web UI).
 
 ### 1. Write the design doc in `docs/`
 

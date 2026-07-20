@@ -21,7 +21,8 @@ The AI must eventually understand:
 |---|---|---|
 | Odoo | ERP | Built (Phase 5) |
 | Accounting / costing / inventory | ERP | Built (Phase 14) |
-| Manufacturing / sales / project management | ERP | Designed (Phase 15) |
+| Manufacturing / sales / project management | ERP | Built (Phase 15) |
+| Operator control plane (chat, approvals, ops UI) | Shared | Designed (Phase 24) |
 | Engineering calculations | ERP | Designed (Phase 17 `calculation_agent`) |
 | Glass / fabrication / cutlist optimization | ERP | Designed (Phase 17 `cutlist_optimization_agent`) |
 | Business workflows | ERP | Partial (ERP Knowledge Engine, Phase 9) |
@@ -82,6 +83,8 @@ Vision names → what actually exists (or is still a gap):
 | ERP Knowledge | Built | Phase 9 → `services/knowledge_pipelines/` |
 | Git Manager | Built | Phase 6 → `services/execution/` |
 | MCP Manager | Built (as MCP Client / Plugin System) | Phase 12 → `services/extensibility/` |
+| Metrics / Health (JSON APIs) | Built | Phase 13 → `services/observability/` |
+| Control UI (Web Shell) | **Designed** | Phase 24 — not yet built |
 | Tool Router | Partial | Reasoning Engine routes `tool_call_request` (Phase 5); not a standalone module |
 | Model Router | **Gap** | Ollama adapter + config overrides today; Phase 23 design seed below |
 
@@ -131,21 +134,28 @@ approval).
 
 ## 4. Domain roadmap
 
-**Built today:** Phases 1–12 and 14 (governance, platform spine, memory,
-assembly, agents + Reasoning Engine, execution, database, planning,
-knowledge pipelines, extensibility/MCP, costing/accounting/inventory).
+**Built today:** Phases 1–15 (governance, platform spine, memory, assembly,
+agents + Reasoning Engine, execution, database, planning, knowledge pipelines,
+extensibility/MCP, observability metrics/health, costing/accounting/inventory
+agents, manufacturing/sales/PM agents). See root [`README.md`](../README.md)
+status table for the authoritative phase → service map.
 
 **Designed, not built:**
-- Phase 13 — Metrics Dashboard, Health Monitor
-- Phase 15 — Manufacturing / sales / PM agents
 - Phase 16–18 — Code-quality / engineering / cross-cutting agents
   (including `calculation_agent`, `cutlist_optimization_agent`)
-- Phase 19–21 — Deployment, backup/DR, consolidated reference
   (see [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md))
+- Phase 19–21 — Deployment, backup/DR, consolidated reference
+  (same consolidated doc)
 - **Phase 22** — External coding agents (OpenCode, Claude Code) via a
   governed Coding Agent Gateway
   ([`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md))
+- **Phase 24** — Control UI (Web Shell: chat, approvals, ops, capability views)
+  ([`phase-24-control-ui.md`](phase-24-control-ui.md))
 - **Phase 23** — Model Router (seed only; full phase doc when ready)
+
+Built-phase design docs worth re-reading before extending code:
+[`phase-13-metrics-health.md`](phase-13-metrics-health.md),
+[`phase-15-operations-agents.md`](phase-15-operations-agents.md).
 
 ---
 
@@ -153,10 +163,13 @@ knowledge pipelines, extensibility/MCP, costing/accounting/inventory).
 
 Architectural ideas from studying ElizaOS (plugin contract, providers vs
 actions, scoped memory, `composeState` / `useModel`, World/Room/Entity,
-typed event bus) are recorded in
-[`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md). The reference
-checkout under `eliza-develop/` is local study material and is gitignored —
-it is not a dependency of this Python orchestration layer.
+typed event bus, Web UI layering) are recorded in
+[`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md) — **what we
+actually adopt**. Optional deep-dive on the external framework itself:
+[`eliza-develop-technical-reference.md`](eliza-develop-technical-reference.md)
+(study only; never a runtime dependency). The reference checkout under
+`eliza-develop/` is local study material and is gitignored — it is not
+imported by this Python orchestration layer.
 
 ---
 
@@ -164,17 +177,24 @@ it is not a dependency of this Python orchestration layer.
 
 - New **service / subsystem** → follow the `add-new-service` skill;
   design doc in `docs/` first.
-- New **agent capability** (most of Phases 15–18) → follow the
+- New **agent capability** (Phases 16–18) → follow the
   `add-agent-capability` skill; declare `brain: erp | coding`; no new
   FastAPI service.
 - External coding CLIs → Phase 22 design; treat as untrusted tools under
   the same authorize → sandbox → propose → approve → merge gate.
+- **Control UI** → Phase 24 design; follow `add-new-service` for the BFF
+  (`services/control-ui/`) plus `web/` shell; governance-first chat
+  (tasks through Gateway, not direct agent execution).
+
+Before any implementation, follow the doc-reading protocol in
+[`docs/README.md`](README.md) and `.cursor/rules/docs-reading-protocol.mdc`.
 
 ---
 
 ## Next
 
-Implement remaining designed agents (Phases 15–18) as config over the
-shared Reasoning Engine; then Phase 22 (Coding Agent Gateway); then a full
+Implement remaining designed agents (Phases 16–18) as config over the
+shared Reasoning Engine; then Phase 22 (Coding Agent Gateway) and/or
+Phase 24 (Control UI) when operator-facing UI is prioritized; then a full
 Phase 23 Model Router doc when multi-model routing becomes a real
 bottleneck rather than a config override.
