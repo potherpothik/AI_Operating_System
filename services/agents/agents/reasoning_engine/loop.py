@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from agents import clients
-from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge, review_bridge, reverse_eng_bridge, calc_bridge, cutlist_bridge, autocad_bridge
+from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge, review_bridge, reverse_eng_bridge, calc_bridge, cutlist_bridge, autocad_bridge, security_bridge
 from agents.reasoning_engine.ollama_adapter import generate, OllamaUnavailable
 from agents.reasoning_engine.models import ReasoningExecution
 
@@ -39,13 +39,24 @@ GIT_PROPOSE_ACTIONS = {
     # git-proposal path unchanged too — a plain-language document for a
     # human to review, same as every other propose_* action.
     "autocad.propose_annotation",
+    # Phase 18: Python Agent's propose_change, Documentation Agent's
+    # propose_new_doc, and Research Agent's propose_external_lookup all
+    # reuse the same git-proposal path unchanged too. docs.propose_new_doc
+    # gets a SECOND, chained step (REVERSE_ENG_PROPOSE_ACTIONS below),
+    # same as reverse_eng's own draft — an approved new doc becomes real
+    # Documentation Engine content, not just a committed file.
+    "python.propose_change",
+    "docs.propose_new_doc",
+    "research.propose_external_lookup",
 }
 
 # Phase 16: the one action whose git materialization needs a chained
 # follow-up — once the draft is a real committed file, reverse_eng_bridge
 # ingests that SAME file into Documentation Engine, closing the loop from
-# inference to record.
-REVERSE_ENG_PROPOSE_ACTIONS = {"reverse_eng.propose_documentation_draft"}
+# inference to record. Phase 18: Documentation Agent's own propose_new_doc
+# reuses this exact bridge unchanged for a second agent — proof it was
+# built generically the first time.
+REVERSE_ENG_PROPOSE_ACTIONS = {"reverse_eng.propose_documentation_draft", "docs.propose_new_doc"}
 
 # Both migration-shaped propose actions materialize via the same Database
 # Connector /db/migrate path (Phase 7) — database_bridge.materialize_propose_migration
@@ -224,6 +235,11 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
         has_fresh_formula_request = bool((parsed.get("formula_name") or "").strip())
         has_fresh_cutlist_request = bool((parsed.get("stock_length") or "").strip())
         has_fresh_dxf_request = bool((parsed.get("dxf_path") or "").strip())
+        has_fresh_audit_query = bool(
+            (parsed.get("audit_correlation_id") or "").strip()
+            or (parsed.get("audit_actor_id") or "").strip()
+            or (parsed.get("audit_action") or "").strip()
+        )
 
         if action in database_bridge.TOOL_ACTIONS and has_fresh_query:
             tool_result = database_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id, requester_ceiling=cap_def.classification_ceiling)
@@ -311,6 +327,19 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
                 f"Now produce your final structured response based on this real parsed structure — set action to "
                 f"{action} again but leave dxf_path empty since you already have the real result, unless you genuinely "
                 f"need to parse a different file.]"
+            )
+            if iteration == max_iterations:
+                final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
+            continue
+
+        if action in security_bridge.TOOL_ACTIONS and has_fresh_audit_query:
+            tool_result = security_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
+            store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, f"tool_call:{action}")
+            current_task_description = (
+                f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
+                f"Now produce your final structured response based on this real audit trail — set action to {action} "
+                f"again but leave audit_correlation_id/audit_actor_id/audit_action all empty since you already have "
+                f"the real result, unless you genuinely need a different query.]"
             )
             if iteration == max_iterations:
                 final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"

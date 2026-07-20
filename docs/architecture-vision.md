@@ -134,20 +134,18 @@ approval).
 
 ## 4. Domain roadmap
 
-**Built today:** Phases 1–17 (governance, platform spine, memory, assembly,
+**Built today:** Phases 1–18 (governance, platform spine, memory, assembly,
 agents + Reasoning Engine, execution, database, planning, knowledge pipelines,
 extensibility/MCP, observability metrics/health, costing/accounting/inventory
 agents, manufacturing/sales/PM agents, code-review/reverse-engineering/
-architecture agents, calculation/cutlist-optimization/AutoCAD agents). See
-root [`README.md`](../README.md) status table for the authoritative phase →
+architecture agents, calculation/cutlist-optimization/AutoCAD agents,
+python/documentation/security/research agents). See root
+[`README.md`](../README.md) status table for the authoritative phase →
 service map.
 
 **Designed, not built:**
-- Phase 18 — Cross-cutting agents
-  (Python Agent, Documentation Agent, Security Agent, Research Agent)
-  (see [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md))
 - Phase 19–21 — Deployment, backup/DR, consolidated reference
-  (same consolidated doc)
+  (see [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md))
 - **Phase 22** — External coding agents (OpenCode, Claude Code) via a
   governed Coding Agent Gateway
   ([`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md))
@@ -159,7 +157,8 @@ Built-phase design docs worth re-reading before extending code:
 [`phase-13-metrics-health.md`](phase-13-metrics-health.md),
 [`phase-15-operations-agents.md`](phase-15-operations-agents.md),
 [`phase-16-code-quality-agents.md`](phase-16-code-quality-agents.md),
-[`phase-17-engineering-calculation-agents.md`](phase-17-engineering-calculation-agents.md).
+[`phase-17-engineering-calculation-agents.md`](phase-17-engineering-calculation-agents.md),
+[`phase-18-cross-cutting-agents.md`](phase-18-cross-cutting-agents.md).
 
 ---
 

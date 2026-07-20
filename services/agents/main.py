@@ -22,11 +22,15 @@ from agents.architecture_agent import register as architecture_agent_register
 from agents.calculation_agent import register as calculation_agent_register
 from agents.cutlist_optimization_agent import register as cutlist_optimization_agent_register
 from agents.autocad_agent import register as autocad_agent_register
+from agents.python_agent import register as python_agent_register
+from agents.documentation_agent import register as documentation_agent_register
+from agents.security_agent import register as security_agent_register
+from agents.research_agent import register as research_agent_register
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="AI Orchestration Layer — Phase 5/7/8/10/14/15/16/17: Reasoning Engine + eighteen agents",
+    title="AI Orchestration Layer — Phase 5/7/8/10/14/15/16/17/18: Reasoning Engine + twenty-two agents",
     description="The shared execution loop every agent runs through, and the agents running on it.",
 )
 
@@ -59,6 +63,10 @@ def on_startup():
     calculation_agent_register.ensure_template_registered()
     cutlist_optimization_agent_register.ensure_template_registered()
     autocad_agent_register.ensure_template_registered()
+    python_agent_register.ensure_template_registered()
+    documentation_agent_register.ensure_template_registered()
+    security_agent_register.ensure_template_registered()
+    research_agent_register.ensure_template_registered()
 
 
 @app.post("/capabilities/reload")
@@ -196,15 +204,35 @@ def register_autocad_agent_template():
     return autocad_agent_register.ensure_template_registered()
 
 
+@app.post("/python_agent/register")
+def register_python_agent_template():
+    return python_agent_register.ensure_template_registered()
+
+
+@app.post("/documentation_agent/register")
+def register_documentation_agent_template():
+    return documentation_agent_register.ensure_template_registered()
+
+
+@app.post("/security_agent/register")
+def register_security_agent_template():
+    return security_agent_register.ensure_template_registered()
+
+
+@app.post("/research_agent/register")
+def register_research_agent_template():
+    return research_agent_register.ensure_template_registered()
+
+
 @app.get("/healthz")
 def healthz():
-    return {"status": "ok", "phase": 17}
+    return {"status": "ok", "phase": 18}
 
 
 @app.get("/")
 def root():
     return {
-        "status": "ok", "phase": 17,
+        "status": "ok", "phase": 18,
         "modules": [
             "reasoning_engine", "odoo_agent", "database_agent", "planner",
             "django_agent", "devops_agent", "docker_agent", "testing_agent",
@@ -212,5 +240,6 @@ def root():
             "manufacturing_agent", "sales_agent", "project_management_agent",
             "code_review_agent", "reverse_engineering_agent", "architecture_agent",
             "calculation_agent", "cutlist_optimization_agent", "autocad_agent",
+            "python_agent", "documentation_agent", "security_agent", "research_agent",
         ],
     }

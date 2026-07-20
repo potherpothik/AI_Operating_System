@@ -1,0 +1,11 @@
+capability: documentation_agent
+brain: coding
+allowed_actions:
+  - docs.answer_from_existing
+  - docs.propose_new_doc
+forbidden_actions:
+  - docs.publish_direct
+requires_approval:
+  - docs.propose_new_doc
+classification_ceiling: internal
+template_id: documentation_agent

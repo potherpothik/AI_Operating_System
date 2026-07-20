@@ -11,7 +11,7 @@ description: >-
 
 # Add an Agent Capability
 
-Most remaining domain work (Phase 18, Phase 22 gateway capability) is
+Most remaining domain work (e.g. Phase 22 gateway capability) is
 **config**, not a new microservice. Use this skill instead of
 `add-new-service` when the deliverable is an agent under
 `services/agents/agents/`.

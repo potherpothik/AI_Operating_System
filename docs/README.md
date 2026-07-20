@@ -15,7 +15,7 @@ reading order.
 | Doc | When to read |
 |---|---|
 | [`architecture-vision.md`](architecture-vision.md) | New phase, brain/routing work, kernel map, roadmap |
-| [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md) | Phases 12, 14, 16–21 (consolidated designs) |
+| [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md) | Phases 12, 19–21 (consolidated designs); original design blocks for 14–18 also still live here, but each of those now has its own dedicated, built-phase doc — read the dedicated doc first |
 
 ---
 
@@ -53,7 +53,7 @@ is what we actually implement; the technical reference is external study materia
 | `services/agents/agents/{manufacturing,sales,project_management}_agent/` (+ Phase 7/2 extensions) | 15 | [`phase-15-operations-agents.md`](phase-15-operations-agents.md) | yes |
 | `services/agents/agents/{code_review,reverse_engineering,architecture}_agent/` (+ Phase 1 extension) | 16 | [`phase-16-code-quality-agents.md`](phase-16-code-quality-agents.md) | yes |
 | `services/agents/agents/{calculation,cutlist_optimization,autocad}_agent/` (+ Phase 6/9 extensions) | 17 | [`phase-17-engineering-calculation-agents.md`](phase-17-engineering-calculation-agents.md) | yes |
-| `services/agents/agents/` (18 agents) | 18 | [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md) | no |
+| `services/agents/agents/{python,documentation,security,research}_agent/` (+ Phase 1 extension) | 18 | [`phase-18-cross-cutting-agents.md`](phase-18-cross-cutting-agents.md) | yes |
 | deploy / cross-cutting | 19–21 | [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md) | no |
 | Coding Agent Gateway | 22 | [`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md) | no |
 | Model Router (seed) | 23 | (see [`architecture-vision.md`](architecture-vision.md) §3) | no |

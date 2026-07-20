@@ -930,6 +930,173 @@ roles:
       resource: "*"
       effect: allow
 
+  python_agent:
+    - action: "python.explain_code"
+      resource: "*"
+      effect: allow
+    # python.propose_script is a suggestion in the response text itself,
+    # not a materializing action — no approval, no git.* needed for it
+    # specifically (Phase 18 doc, Section 1: distinct from propose_change).
+    - action: "python.propose_script"
+      resource: "*"
+      effect: allow
+    - action: "python.propose_change"
+      resource: "*"
+      effect: require_approval
+    - action: "python.execute_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
+  documentation_agent:
+    - action: "docs.answer_from_existing"
+      resource: "*"
+      effect: allow
+    - action: "docs.propose_new_doc"
+      resource: "*"
+      effect: require_approval
+    - action: "docs.publish_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    # An approved docs.propose_new_doc chains into the same real
+    # POST /docs/ingest reverse_engineering_agent already uses (Phase 16)
+    # — same grant, reused for a second agent.
+    - action: "docs.ingest"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
+  security_agent:
+    - action: "security.review_change"
+      resource: "*"
+      effect: allow
+    - action: "security.explain_risk"
+      resource: "*"
+      effect: allow
+    # A pure HTTP read against governance's own /audit/query — never
+    # routes through Shell Executor, so no shell.execute/git.* needed
+    # anywhere in this role at all, unlike every propose_*-capable agent.
+    - action: "security.audit_query"
+      resource: "*"
+      effect: allow
+    - action: "security.modify_policy_direct"
+      resource: "*"
+      effect: deny
+    - action: "security.grant_permission"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+
+  research_agent:
+    - action: "research.synthesize_internal"
+      resource: "*"
+      effect: allow
+    - action: "research.propose_external_lookup"
+      resource: "*"
+      effect: require_approval
+    - action: "research.access_external_direct"
+      resource: "*"
+      effect: deny
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp.invoke"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
   git_manager:
     - action: "code_analysis.scan"
       resource: "*"

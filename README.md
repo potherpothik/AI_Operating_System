@@ -18,7 +18,7 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 
 | Phase | Subsystem | Design doc | Code |
 |---|---|---|---|
-| 1 | Security Layer, Audit Logger, Human Approval Layer | [`docs/phase-1-governance-layer.md`](docs/phase-1-governance-layer.md) | [`services/governance/`](services/governance/) — 46 tests |
+| 1 | Security Layer, Audit Logger, Human Approval Layer | [`docs/phase-1-governance-layer.md`](docs/phase-1-governance-layer.md) | [`services/governance/`](services/governance/) — 47 tests |
 | 2 | Configuration Manager, Gateway, Task Manager | [`docs/phase-2-gateway-task-manager-config.md`](docs/phase-2-gateway-task-manager-config.md) | [`services/platform-spine/`](services/platform-spine/) — 23 tests |
 | 3 | Memory Manager, Vector Search | [`docs/phase-3-memory-vector-search.md`](docs/phase-3-memory-vector-search.md) | [`services/knowledge/`](services/knowledge/) — 22 tests |
 | 4 | Context Builder, Prompt Builder | [`docs/phase-4-context-prompt-builder.md`](docs/phase-4-context-prompt-builder.md) | [`services/assembly/`](services/assembly/) — 26 tests |
@@ -35,15 +35,17 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 | 15 | Manufacturing, Sales, Project Management Agents | [`docs/phase-15-operations-agents.md`](docs/phase-15-operations-agents.md) | [`services/agents/`](services/agents/) — 61 tests (all three agents live in `services/agents/agents/{manufacturing_agent,sales_agent,project_management_agent}/`; also extends `services/database/` with a new PII classification dimension and `services/platform-spine/` with a task-events endpoint) |
 | 16 | Code Review, Reverse Engineering, Architecture Agents | [`docs/phase-16-code-quality-agents.md`](docs/phase-16-code-quality-agents.md) | [`services/agents/`](services/agents/) — 69 tests (all three agents live in `services/agents/agents/{code_review_agent,reverse_engineering_agent,architecture_agent}/`; also extends `services/governance/` with an approval-review attachment mechanism) |
 | 17 | Calculation, Cutlist Optimization, AutoCAD Agents | [`docs/phase-17-engineering-calculation-agents.md`](docs/phase-17-engineering-calculation-agents.md) | [`services/agents/`](services/agents/) — 78 tests (all three agents live in `services/agents/agents/{calculation_agent,cutlist_optimization_agent,autocad_agent}/`; also adds real deterministic scripts under `services/execution/` and a formula-by-name gap-fill on `services/knowledge_pipelines/`) |
-| 18–21 | Cross-cutting agents, deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
+| 18 | Python, Documentation, Security, Research Agents | [`docs/phase-18-cross-cutting-agents.md`](docs/phase-18-cross-cutting-agents.md) | [`services/agents/`](services/agents/) — 87 tests (all four agents live in `services/agents/agents/{python_agent,documentation_agent,security_agent,research_agent}/`; also adds a `correlation_id` filter to `services/governance/`'s audit query) |
+| 19–21 | Deployment, backup/DR, consolidated reference | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | not yet built |
 | 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | not yet built |
 | 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/phase-24-control-ui.md`](docs/phase-24-control-ui.md) | not yet built |
 
-Eleven services are real, tested code today, now hosting Phases 1–17
+Eleven services are real, tested code today, now hosting Phases 1–18
 (1–11 as their own dedicated design docs, 12–14 from the consolidated
-Phases 12–21 doc, 15/16/17 each from their own dedicated design doc —
+Phases 12–21 doc, 15/16/17/18 each from their own dedicated design doc —
 written separately because each phase's core mechanism (PII scoping;
-approval-review attachment; real sandboxed deterministic execution) is a
+approval-review attachment; real sandboxed deterministic execution; a
+real audit-trail tool call) is a
 material change to an already-built service, not just agent
 configuration); everything past that is fully
 designed but not yet implemented. Vision and ElizaOS study notes:
@@ -353,6 +355,25 @@ connection string format and what's been verified against it (including
   function had existed since Phase 14, just never reachable over HTTP.
   Full detail in `services/agents/README.md`, `services/execution/README.md`,
   and `services/knowledge_pipelines/README.md`.
+- **Phase 18's four cross-cutting agents were mostly config, exactly as
+  `CLAUDE.md` predicted before any of them were built** — Python Agent
+  and Research Agent needed zero new mechanism at all, and Documentation
+  Agent's `docs.propose_new_doc` reuses Phase 16's `reverse_eng_bridge.py`
+  chained docs-ingest step completely unchanged for a SECOND agent, the
+  first live confirmation that bridge generalizes past the one agent it
+  was written for. Security Agent needed the one genuinely new piece: a
+  real, non-terminal `security.audit_query` tool call against
+  governance's actual Audit Logger (Phase 1) — confirmed live with two
+  real audit events under a known `correlation_id`, both showing up
+  verbatim in the model's next-turn prompt. That tool call surfaced one
+  small, real gap: `GET /audit/query` only ever supported `actor_id`/
+  `action` filters, never `correlation_id` — the standard way this
+  system already threads a task's related events together — closed with
+  one new optional filter on the existing endpoint. The first phase
+  since Phase 12 where every test passed on its first live run, worth
+  noting plainly rather than manufacturing a bug to report for symmetry.
+  Full detail in `services/agents/README.md` and
+  `services/governance/README.md`.
 - **Phase 13's Health Monitor and Metrics Dashboard have no write path
   to anything** — every number is computed live from six small, real
   listing endpoints added to earlier services (none of which gained a
@@ -480,7 +501,16 @@ collided with Prompt Builder's own `str.format()`-based rendering,
 breaking every single render for that agent, not just the one
 demonstrating a formula — invisible from reading the template file
 alone, since nothing about a plain-language example looks like code.
-That pattern —
+Phase 18 needed one small, real gap-fill in `governance`
+(`correlation_id` on `GET /audit/query` — the standard way this system
+already threads a task's related events together, reachable as a filter
+for the first time only once Security Agent's own real tool call needed
+a complete trail for one specific task) plus one confirmation that an
+earlier phase's own bridge (`reverse_eng_bridge.py`, Phase 16) was
+built generically enough to reuse for a second, unrelated agent
+(Documentation Agent) with zero code changes — the strongest evidence
+yet that the reuse-first discipline this project has followed since
+Phase 10 keeps paying off. That pattern —
 build the phase that unblocks what already exists before adding more
 surface area, and trust live testing over code review to find the gaps
 between files that individually look correct, including gaps in a

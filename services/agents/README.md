@@ -1,4 +1,4 @@
-# Phase 5/7/8/10/14/15/16/17 — Reasoning Engine + eighteen agents (working implementation)
+# Phase 5/7/8/10/14/15/16/17/18 — Reasoning Engine + twenty-two agents (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
@@ -103,6 +103,25 @@ closes it. AutoCAD Agent's `propose_annotation` reuses
 `execution_bridge.materialize_propose_change` unchanged, same as every
 other `propose_*` action.
 
+Phase 18's four agents (Python, Documentation, Security, Research) are
+mostly config, exactly as `CLAUDE.md` predicted before any of them were
+built. Python Agent needed nothing new — its own template actively
+checks whether a request is really Odoo- or Django-specific and
+delegates rather than defaulting to a generic answer. Documentation
+Agent's `docs.propose_new_doc` reuses Phase 16's `reverse_eng_bridge.py`
+chained docs-ingest step completely unchanged for a second agent — the
+first real confirmation that bridge generalizes past the one agent it
+was written for. Research Agent's `propose_external_lookup` materializes
+as a plain reviewable document, honestly never an actual fetch — this
+system has no external web-access tool anywhere in its history, by
+design. Security Agent needed the one genuinely new piece:
+`security_bridge.py` gives it a real, non-terminal `security.audit_query`
+tool call against governance's actual Audit Logger (Phase 1), which
+surfaced one small, real gap — `GET /audit/query` only ever supported
+`actor_id`/`action` filters, no `correlation_id`, the standard way this
+system already threads one task's related events together. Closed with
+one new optional filter on the existing endpoint.
+
 ## Run it
 
 ```bash
@@ -156,7 +175,8 @@ it finds (currently `odoo_agent`, `database_agent`, `planner`,
 `costing_agent`, `accounting_agent`, `inventory_agent`,
 `manufacturing_agent`, `sales_agent`, `project_management_agent`,
 `code_review_agent`, `reverse_engineering_agent`, `architecture_agent`,
-`calculation_agent`, `cutlist_optimization_agent`, and `autocad_agent` —
+`calculation_agent`, `cutlist_optimization_agent`, `autocad_agent`,
+`python_agent`, `documentation_agent`, `security_agent`, and `research_agent` —
 plus any Phase 12 plugin capabilities under `PLUGIN_CAPABILITIES_DIR`,
 see `services/extensibility/README.md`) into its own DB, and best-effort
 attempts to register each agent's prompt template with Prompt Builder.
@@ -184,6 +204,10 @@ curl -X POST localhost:8005/architecture_agent/register
 curl -X POST localhost:8005/calculation_agent/register
 curl -X POST localhost:8005/cutlist_optimization_agent/register
 curl -X POST localhost:8005/autocad_agent/register
+curl -X POST localhost:8005/python_agent/register
+curl -X POST localhost:8005/documentation_agent/register
+curl -X POST localhost:8005/security_agent/register
+curl -X POST localhost:8005/research_agent/register
 # find the approval_id from the response or GET /approval/pending on governance, then:
 curl -X POST localhost:8000/approval/<approval_id>/decide \
   -d '{"decided_by":"human_admin","approve":true}'
@@ -225,7 +249,7 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live 8-service stack + live Ollama
 ```
 
-78 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+87 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a deliberately
 non-UTC session) and a real live Ollama model — not mocked, except for
 deliberately-stubbed tests (see below) used specifically where live-model
@@ -284,6 +308,20 @@ approval. AutoCAD Agent's `explain_drawing` verified against a real
 generated DXF file (real layers, real text, real geometric extents all
 showing up in the next prompt) plus `propose_annotation` materializing
 as a real git document, and one live-model smoke test each.
+`tests/test_phase18_agents.py` (Phase 18) covers all four cross-cutting
+agents: Python Agent's `propose_change` materializing as a real git
+document, Documentation Agent's `propose_new_doc` proven to both
+materialize AND independently show up in Documentation Engine's own
+`GET /docs/sources` listing — the same chained-ingest proof Phase 16's
+own test used, now for a second agent reusing the identical bridge
+unchanged. Security Agent's `audit_query` verified against a real audit
+trail written the same way any other service already writes into it
+(two real events under a known `correlation_id`, both actions genuinely
+present in the model's next-turn prompt). Research Agent's
+`propose_external_lookup` confirmed to require approval unconditionally
+— it fires even at a self-assessed `risk_classification="low"`, matching
+the doc's own "external access is opt-in, never default" framing — and
+materializes as a real git document. One live-model smoke test each.
 
 ## Real bugs found by live testing, not the test suite
 
@@ -647,6 +685,31 @@ as a real git document, and one live-model smoke test each.
   confirmed live end to end: registering a real formula through the
   existing approval-gated path, then resolving it by name through the
   new endpoint, gets back the exact real `formula_ref` just registered.
+- **Phase 18's `security.audit_query` is a genuine tool call, not a
+  self-report**: confirmed live — two real audit events were written the
+  same way any other service already writes into governance's audit
+  trail (a known `correlation_id`, `POST /audit/log`), and both real
+  action names are confirmed present in the model's next-turn prompt,
+  not paraphrased or guessed at. The `correlation_id` filter it needed
+  (governance's real gap-fill) is confirmed live too: querying by that
+  exact id returns precisely the two matching events, nothing else.
+- **Documentation Agent's `docs.propose_new_doc` proves Phase 16's
+  chained-ingest bridge generalizes, not just reuses**: confirmed live
+  with a SECOND, independent agent's own approval flow driving
+  `reverse_eng_bridge.materialize_propose_documentation()` completely
+  unchanged — the resulting document is independently verified via
+  Documentation Engine's own `GET /docs/sources` listing, the exact same
+  proof Phase 16's own test used.
+- **Research Agent's approval requirement is genuinely unconditional,
+  not risk-dependent** — confirmed live: `research.propose_external_lookup`
+  routes to `awaiting_approval` even when the model self-assesses
+  `risk_classification="low"`, the one case in this system where a
+  low-risk self-assessment doesn't matter at all, matching the doc's own
+  explicit framing that external access is opt-in, never default.
+- **Phase 18 shipped with zero real bugs found by live testing** — the
+  first phase since Phase 12 where every test passed on its first live
+  run against the running stack, worth stating plainly rather than
+  padding this section for symmetry with every other phase's write-up.
 
 ## What's a stub or simplified
 
@@ -764,14 +827,28 @@ as a real git document, and one live-model smoke test each.
   simplification (there's no existing signal this system could check
   that distinction against), documented explicitly rather than silently
   narrowed.
+- **Security Agent's `security.audit_query` has no real classification-
+  scoped visibility** — the master roadmap's own framing ("audit access
+  is itself classification-scoped, no blanket visibility") isn't fully
+  realized this phase. `AuditEvent` (Phase 1) has no classification
+  field at all today; this agent's real query returns exactly what
+  governance's existing, unauthenticated `GET /audit/query` already
+  returns to any caller. Named explicitly as a real, unresolved gap
+  (Phase 18 doc, Section 0's trade-off), not silently narrowed or faked
+  with cosmetic filtering.
+- **Research Agent's `propose_external_lookup` never actually looks
+  anything up** — by explicit, honest design, not a placeholder for
+  something half-built. This system has no external web-access tool
+  anywhere in its history (offline-first, `docs/architecture-vision.md`);
+  an approved proposal is a real, reviewable document describing what to
+  look up and why, for a human to go do manually.
 
 ## Next
 
-Phase 18: Cross-Cutting Agents (Python Agent, Documentation Agent,
-Security Agent, Research Agent) — Documentation Agent explicitly names
-Reverse Engineering Agent (Phase 16) as its own delegate target when
-nothing is written down at all, and Security Agent is a natural next
-consumer of Phase 16's approval-review attachment mechanism. Phase 24
-(Control UI) is also now designed (`docs/phase-24-control-ui.md`) and
-could be prioritized instead once operator-facing UI work is ready to
+Phase 19–21: Deployment Architecture, Backup Strategy/Disaster Recovery,
+and a consolidated reference doc — infrastructure and operational
+concerns rather than new agent capabilities, now that every agent batch
+through Phase 18 is built. Phase 22 (Coding Agent Gateway) and Phase 24
+(Control UI, `docs/phase-24-control-ui.md`) remain available to
+prioritize instead once external-tool or operator-UI work is ready to
 start.

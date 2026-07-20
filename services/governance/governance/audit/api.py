@@ -44,12 +44,22 @@ def log(req: LogRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/query")
-def query(actor_id: Optional[str] = None, action: Optional[str] = None, db: Session = Depends(get_db)):
+def query(actor_id: Optional[str] = None, action: Optional[str] = None, correlation_id: Optional[str] = None, db: Session = Depends(get_db)):
+    """
+    Phase 18: correlation_id is a real gap-fill — the standard way this
+    system already threads a single task's related events together
+    (every audit_log() caller since Phase 1 has passed one), but this
+    query endpoint only ever supported actor_id/action filters until
+    Security Agent's security.audit_query needed to pull a real, complete
+    trail for one specific task rather than filtering by who or what.
+    """
     q = db.query(AuditEvent)
     if actor_id:
         q = q.filter(AuditEvent.actor_id == actor_id)
     if action:
         q = q.filter(AuditEvent.action == action)
+    if correlation_id:
+        q = q.filter(AuditEvent.correlation_id == correlation_id)
     rows = q.order_by(AuditEvent.ts.desc()).limit(200).all()
     return [
         {

@@ -58,6 +58,31 @@ def test_external_service_can_log_into_the_same_chain():
     assert client.get("/audit/verify").json()["valid"] is True
 
 
+def test_query_filters_by_correlation_id():
+    """Phase 18: the real gap-fill Security Agent's audit_query tool
+    call needs — correlation_id is the standard way this system already
+    threads a single task's related events together."""
+    import uuid
+    corr_id = str(uuid.uuid4())
+    client.post(
+        "/audit/log",
+        json={"actor_id": "manufacturing_agent", "actor_type": "agent", "action": "manufacturing.propose_schedule_change", "resource": "task-corr-1", "correlation_id": corr_id},
+    )
+    client.post(
+        "/audit/log",
+        json={"actor_id": "manufacturing_agent", "actor_type": "agent", "action": "reasoning.allow", "resource": "task-corr-1", "correlation_id": corr_id},
+    )
+    # a real, different correlation_id that must NOT show up
+    client.post(
+        "/audit/log",
+        json={"actor_id": "manufacturing_agent", "actor_type": "agent", "action": "reasoning.allow", "resource": "task-other", "correlation_id": str(uuid.uuid4())},
+    )
+
+    events = client.get("/audit/query", params={"correlation_id": corr_id}).json()
+    assert len(events) == 2
+    assert all(e["correlation_id"] == corr_id for e in events)
+
+
 def test_stored_timestamp_survives_round_trip_as_the_same_utc_instant():
     """
     Regression test for a real bug: with a plain (non-timezone-aware)

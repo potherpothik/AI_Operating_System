@@ -18,10 +18,11 @@ uvicorn main:app --reload
 pytest tests/ -v
 ```
 
-46 tests, all passing (grown from the original 11 across every phase
+47 tests, all passing (grown from the original 11 across every phase
 since — secrets resolution, environment verification, the Phase 13
-general approval listing, and Phase 16's approval-review attachment are
-the most recent additions): default-deny on unknown roles,
+general approval listing, Phase 16's approval-review attachment, and
+Phase 18's `correlation_id` audit filter are the most recent additions):
+default-deny on unknown roles,
 allow/deny/require_approval routing, every decision logged, the audit
 hash chain validating correctly *and* correctly detecting a tampered
 row, and the full approval request → pending → decide lifecycle
@@ -182,7 +183,7 @@ just this one.
   write, matching the Phase 14 doc's explicit conservatism for this one
   agent.
 
-## Phase 15 / Phase 16 additions
+## Phase 15 / Phase 16 / Phase 18 additions
 
 - `manufacturing_agent` / `sales_agent` / `project_management_agent`
   (Phase 15): new roles following the same pattern as every prior
@@ -215,6 +216,20 @@ just this one.
   and that approval's own pending status is confirmed unchanged by
   fetching it back independently, not by trusting Reasoning Engine's
   own report.
+- `python_agent` / `documentation_agent` / `security_agent` / `research_agent`
+  (Phase 18): new roles. `security_agent` is the second role (after
+  Phase 16's `code_review_agent`) with no `require_approval` rule
+  anywhere in it — purely advisory, same posture. `documentation_agent`
+  gets `docs.ingest: allow` too, the same grant `reverse_engineering_agent`
+  already has, since an approved `docs.propose_new_doc` chains into the
+  same real ingest step for a second agent.
+- **`GET /audit/query` gained a `correlation_id` filter** (Phase 18,
+  new) — the standard way this system already threads a single task's
+  related events together, but this endpoint only ever supported
+  `actor_id`/`action` until Security Agent's `security.audit_query`
+  needed a real, complete trail for one specific task. Confirmed live:
+  querying by a real correlation_id returns exactly the matching events,
+  nothing else.
 
 ## Next
 

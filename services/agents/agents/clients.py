@@ -129,6 +129,23 @@ def audit_log(actor_id: str, action: str, resource: str, decision: str = "record
         return False
 
 
+def audit_query(actor_id: str = None, action: str = None, correlation_id: str = None) -> dict:
+    """
+    Phase 18: Security Agent's security.audit_query tool call — a real
+    query against governance's actual audit trail (Phase 1), never a
+    model's guess about what "probably" happened.
+    """
+    try:
+        params = {k: v for k, v in {"actor_id": actor_id, "action": action, "correlation_id": correlation_id}.items() if v}
+        resp = httpx.get(f"{SECURITY_LAYER_URL}/audit/query", params=params, timeout=10.0)
+        resp.raise_for_status()
+        return {"ok": True, "events": resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
 def get_reasoning_engine_config() -> dict:
     try:
         resp = httpx.get(f"{PLATFORM_URL}/config/reasoning_engine", timeout=10.0)

@@ -35,7 +35,8 @@ then service scaffold, governance wiring, tests, and an honest README.
 
 ## Adding a new agent capability
 
-Most Phase 18 work is config, not a new FastAPI service. Follow the
+A future agent-capability batch (e.g. Phase 22's coding-gateway capability) is
+config, not a new FastAPI service. Follow the
 `add-agent-capability` skill (`.cursor/skills/add-agent-capability/SKILL.md`,
 also at `.claude/skills/add-agent-capability/SKILL.md`): `capability.yaml` +
 `template.md` with `brain: erp | coding`, governance policy rules, Capability
