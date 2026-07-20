@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from agents import clients
-from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge, review_bridge, reverse_eng_bridge, calc_bridge, cutlist_bridge, autocad_bridge, security_bridge
+from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge, review_bridge, reverse_eng_bridge, calc_bridge, cutlist_bridge, autocad_bridge, security_bridge, coding_gateway_bridge
 from agents.reasoning_engine.ollama_adapter import generate, OllamaUnavailable
 from agents.reasoning_engine.models import ReasoningExecution
 
@@ -76,6 +76,13 @@ DB_WRITE_PROPOSE_ACTIONS = {"db.propose_write", "inventory.propose_adjustment", 
 # existing business-memory registration (Phase 9), not a new write
 # mechanism invented for this agent.
 ERP_FORMULA_PROPOSE_ACTIONS = {"costing.propose_formula_change"}
+
+# Phase 22: the one action whose materialization is a real external CLI
+# invocation (Claude Code or OpenCode) rather than a text-file commit —
+# coding_gateway_bridge.materialize_propose_run enforces its own
+# sandbox-backend safety gate before touching anything (see that
+# module's own docstring).
+CODING_GATEWAY_PROPOSE_ACTIONS = {"coding_gateway.propose_run"}
 
 
 class UnknownCapability(Exception):
@@ -436,6 +443,8 @@ def resume(db: Session, execution_id: str) -> ReasoningExecution | None:
             result["db_execution"] = database_bridge.materialize_propose_migration(execution)
         elif action in ERP_FORMULA_PROPOSE_ACTIONS:
             result["erp_execution"] = erp_bridge.materialize_propose_formula_change(execution)
+        elif action in CODING_GATEWAY_PROPOSE_ACTIONS:
+            result["coding_gateway_execution"] = coding_gateway_bridge.materialize_propose_run(execution)
         return store.finalize(
             db, execution, "completed", execution.iterations_used, result=result,
             approval_id=execution.approval_id,

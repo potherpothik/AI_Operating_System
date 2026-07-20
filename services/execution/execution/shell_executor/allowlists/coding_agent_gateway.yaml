@@ -1,0 +1,39 @@
+agent_capability: coding_agent_gateway
+commands:
+  # coding_gateway.propose_run's real probe step (Phase 22) — a harmless
+  # version check that also reveals which sandbox backend served it, the
+  # structural signal coding_gateway_bridge.py uses to decide whether a
+  # live agentic session is safe to run at all.
+  - pattern: "claude --version"
+    mode: read_only
+  - pattern: "opencode --version"
+    mode: read_only
+  # The real headless invocation shape, reachable only after the probe
+  # above confirms backend=docker — never reached in this environment
+  # (no Docker daemon), but the pattern is real, not a placeholder.
+  - pattern: "claude -p * --output-format json"
+    mode: mutating
+  - pattern: "opencode run *"
+    mode: mutating
+  # Same read-only inspection + scoped branch/commit/push pattern every
+  # other propose_* agent's git actions already use (odoo_agent, testing_agent).
+  - pattern: "git status*"
+    mode: read_only
+  - pattern: "git diff*"
+    mode: read_only
+  - pattern: "git log*"
+    mode: read_only
+  - pattern: "git show*"
+    mode: read_only
+  - pattern: "git rev-parse*"
+    mode: read_only
+  - pattern: "git branch*"
+    mode: read_only
+  - pattern: "git checkout -b coding-agent-gateway/*"
+    mode: mutating
+  - pattern: "git add *"
+    mode: mutating
+  - pattern: "git commit *"
+    mode: mutating
+  - pattern: "git push origin coding-agent-gateway/*"
+    mode: mutating

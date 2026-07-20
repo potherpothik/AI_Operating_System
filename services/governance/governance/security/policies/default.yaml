@@ -1097,6 +1097,42 @@ roles:
       resource: "*"
       effect: allow
 
+  coding_agent_gateway:
+    # Phase 22: the one action this whole role exists for — always
+    # require_approval, never allow, since an approved run still only
+    # proceeds if coding_gateway_bridge.py's own sandbox-backend check
+    # passes (structural, enforced in code, not by this policy layer).
+    - action: "coding_gateway.propose_run"
+      resource: "*"
+      effect: require_approval
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "task.read"
+      resource: "*"
+      effect: allow
+    - action: "task.update_status"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
+      resource: "*"
+      effect: allow
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
+
   git_manager:
     - action: "code_analysis.scan"
       resource: "*"

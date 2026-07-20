@@ -3,6 +3,18 @@
 
 ---
 
+## Built (real code, real live-verified safety gate — see Section 7)
+
+Everything in Sections 1–6 below is the original design, written before any
+code existed. It's carried forward unchanged as the record of what was
+planned. **Section 7 is new**: what actually got built, and the one real
+finding worth knowing before extending this — a live external-agent session
+was deliberately never run in this environment, for a structural reason
+grounded in code that already existed (Phase 6's `SubprocessSandbox`), not a
+new restriction invented for this phase.
+
+---
+
 ## 0. Priority Decision: Why a Governed Gateway for External Coding Agents
 
 **Why it exists:** the Coding Brain needs strong code-editing agents without
@@ -226,11 +238,77 @@ config.
 
 ---
 
+## 7. What Actually Got Built
+
+**Real code, not a stub:** `services/agents/agents/coding_agent_gateway/`
+(capability.yaml, template.md, register.py — config over the shared
+Reasoning Engine, no new FastAPI service, matching every Phase 14–18 agent),
+`services/agents/agents/reasoning_engine/coding_gateway_bridge.py` (the
+materialization logic), a new `coding_agent_gateway.yaml` allowlist under
+Shell Executor, and a new `coding_agent_gateway` role in governance's
+`default.yaml` (`coding_gateway.propose_run` unconditionally
+`require_approval`, matching Section 4's capability declaration design
+exactly). `loop.py` dispatches to the bridge after approval via a new
+`CODING_GATEWAY_PROPOSE_ACTIONS` set, the same `resume()` pattern every
+other propose_* action already uses.
+
+**The one genuinely new mechanism, live-verified, not asserted:** before
+any git branch/commit/CLI invocation happens, `coding_gateway_bridge.py`
+runs a harmless `<binary> --version` probe through Shell Executor and reads
+back the `backend` field Shell Executor already returns on every execution
+(`execution_out()`, Phase 6). If that backend isn't `docker`, the function
+refuses the mutating run outright — `status: "unsafe_backend"` — rather
+than proceeding. This is not a new restriction invented for this phase; it's
+Phase 6's own, already-documented finding (`SubprocessSandbox`: "NOT real
+filesystem or network isolation") now enforced at the one call site where it
+actually matters. Every earlier agent's shell commands were deterministic
+scripts or git operations with no live external credentials to leak; an
+external coding agent given a real task would run with this environment's
+real credentials and unrestricted network access under that backend —
+exactly the "untrusted tool" Section 0 says must stay confined.
+
+**Confirmed live, both real terminal states, in this environment:**
+- `opencode` genuinely isn't installed (`shutil.which` finds nothing) — the
+  real probe returns `status: "not_configured"`.
+- `claude` (Claude Code) IS genuinely installed (version 2.1.215) — the real
+  probe succeeds as a real process, but reports `backend: "subprocess"` (no
+  Docker daemon anywhere in this environment, the same constraint named
+  since Phase 6/19), so the gate returns `status: "unsafe_backend"` before
+  any branch, instruction file, or CLI invocation with a real task ever
+  happens. A second, unplanned finding from the same live test: the real
+  `claude --version` subprocess actually crashed under
+  `SubprocessSandbox`'s 512MB `RLIMIT_AS` cap (exit code -6, SIGABRT) — a
+  second, independent reason this backend can't safely run this CLI, on top
+  of the isolation gap the gate is actually checking for.
+
+**What was deliberately never done, and why it's not a stub:** a full,
+live, autonomous coding session through this gateway (the actual
+`-p "<instruction>"` / `opencode run` path). Not because of a missing
+binary — `claude` is right there — but because `SubprocessSandbox`
+genuinely cannot contain it safely (no `--network none`, no real filesystem
+confinement, this environment's real credentials reachable), and this
+environment has never had a Docker daemon since Phase 6. Running it anyway
+would mean this system materializing an unconfined, live, credentialed
+agent process rather than the sandboxed one every design section above
+describes — the gate exists precisely to make that refusal automatic and
+structural rather than something a human has to remember to check by hand.
+The full run-and-commit code path (branch → instruction file → invoke →
+diff → commit → push → open_mr) is real and reachable — it's simply never
+reached in this environment, same honesty tier as `DockerSandbox` itself
+since Phase 6.
+
+**Tests:** `services/agents/tests/test_phase22_agent.py` — capability
+boundaries, live governance policy check, the `not_configured` and
+`unsafe_backend` terminal states (both against real, live services, not
+mocked), an unknown-provider refusal before any shell call, and a live-model
+smoke test (skipped if Ollama unreachable).
+
+---
+
 ## Next
 
-After Phases 15–18 domain agents (or in parallel if Coding Brain is the
-priority): implement Coding Agent Gateway against real OpenCode / Claude
-Code CLIs in the execution sandbox; pin versions; add Honesty notes for
-whatever the environment actually has installed. Then write a full
-Phase 23 Model Router design when multi-model routing outgrows config
-overrides.
+Phase 23 — a full Model Router design (typed `ModelType` + priority-ordered
+handlers over Ollama, sketched in `architecture-vision.md` §3) when
+multi-model routing outgrows the current config-override approach. Phase 24
+(Control UI) is designed and waiting when operator-facing UI becomes the
+priority.

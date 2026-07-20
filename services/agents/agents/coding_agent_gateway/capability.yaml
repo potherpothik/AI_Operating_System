@@ -1,0 +1,18 @@
+capability: coding_agent_gateway
+brain: coding
+allowed_actions:
+  - coding_gateway.propose_run
+forbidden_actions:
+  - git.merge
+  - git.force_push
+requires_approval:
+  - coding_gateway.propose_run
+classification_ceiling: confidential
+template_id: coding_agent_gateway
+known_limitation: >
+  Materialization (agents/reasoning_engine/coding_gateway_bridge.py) refuses
+  to run a live external-agent session unless Shell Executor reports its
+  sandbox backend as docker — no Docker daemon exists in this environment
+  (Phase 6/19), so an approved run against Claude Code or OpenCode returns
+  "unsafe_backend", never a silently-skipped or faked success. See
+  docs/phase-22-external-coding-agents.md Section 3.

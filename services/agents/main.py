@@ -26,11 +26,12 @@ from agents.python_agent import register as python_agent_register
 from agents.documentation_agent import register as documentation_agent_register
 from agents.security_agent import register as security_agent_register
 from agents.research_agent import register as research_agent_register
+from agents.coding_agent_gateway import register as coding_agent_gateway_register
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="AI Orchestration Layer — Phase 5/7/8/10/14/15/16/17/18: Reasoning Engine + twenty-two agents",
+    title="AI Orchestration Layer — Phase 5/7/8/10/14/15/16/17/18/22: Reasoning Engine + twenty-three agents",
     description="The shared execution loop every agent runs through, and the agents running on it.",
 )
 
@@ -67,6 +68,7 @@ def on_startup():
     documentation_agent_register.ensure_template_registered()
     security_agent_register.ensure_template_registered()
     research_agent_register.ensure_template_registered()
+    coding_agent_gateway_register.ensure_template_registered()
 
 
 @app.post("/capabilities/reload")
@@ -222,6 +224,11 @@ def register_security_agent_template():
 @app.post("/research_agent/register")
 def register_research_agent_template():
     return research_agent_register.ensure_template_registered()
+
+
+@app.post("/coding_agent_gateway/register")
+def register_coding_agent_gateway_template():
+    return coding_agent_gateway_register.ensure_template_registered()
 
 
 @app.get("/healthz")

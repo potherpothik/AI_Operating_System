@@ -31,7 +31,7 @@ The AI must eventually understand:
 | Docker / DevOps / Testing | Coding | Built (Phase 10) |
 | Git repositories | Coding | Built (Phase 6 Git Manager) |
 | React / frontend code quality | Coding | Designed (Phases 16–18) |
-| External coding agents (OpenCode, Claude Code) | Coding | Designed (Phase 22) |
+| External coding agents (OpenCode, Claude Code) | Coding | Built (Phase 22) — real safety gate, no live agentic session run in this environment |
 
 ---
 
@@ -134,15 +134,15 @@ approval).
 
 ## 4. Domain roadmap
 
-**Built today:** Phases 1–21 (governance, platform spine, memory, assembly,
+**Built today:** Phases 1–22 (governance, platform spine, memory, assembly,
 agents + Reasoning Engine, execution, database, planning, knowledge pipelines,
 extensibility/MCP, observability metrics/health, costing/accounting/inventory
 agents, manufacturing/sales/PM agents, code-review/reverse-engineering/
 architecture agents, calculation/cutlist-optimization/AutoCAD agents,
-python/documentation/security/research agents), plus real Phase 19
-deployment artifacts (`Dockerfile`s, `docker-compose.yml`) — written to
-the real interface but genuinely unbuilt/unverified against a live
-Docker daemon, which doesn't exist in this environment; a different
+python/documentation/security/research agents, Coding Agent Gateway), plus
+real Phase 19 deployment artifacts (`Dockerfile`s, `docker-compose.yml`) —
+written to the real interface but genuinely unbuilt/unverified against a
+live Docker daemon, which doesn't exist in this environment; a different
 honesty tier than the tested phases, named as such. Phase 20's backup/
 restore scripts (`deploy/backup.sh`, `deploy/restore.sh`) are a third
 honesty tier of their own: real, live-drilled against this environment's
@@ -152,13 +152,15 @@ Section 3 for the real drill result. Phase 21 regenerates the original
 speculative component diagram, API surface index, and DB schema index
 from the real, grepped source — see
 [`phase-21-consolidated-reference.md`](phase-21-consolidated-reference.md).
-See root [`README.md`](../README.md) status table for the authoritative
-phase → service map.
+Phase 22 (Coding Agent Gateway) is a fourth honesty tier of its own: real
+code, real live-verified structural safety gate, but a deliberate refusal
+to ever run a live external-agent session in this environment, since the
+only available sandbox backend can't isolate one — see
+[`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md)
+Section 7. See root [`README.md`](../README.md) status table for the
+authoritative phase → service map.
 
 **Designed, not built:**
-- **Phase 22** — External coding agents (OpenCode, Claude Code) via a
-  governed Coding Agent Gateway
-  ([`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md))
 - **Phase 24** — Control UI (Web Shell: chat, approvals, ops, capability views)
   ([`phase-24-control-ui.md`](phase-24-control-ui.md))
 - **Phase 23** — Model Router (seed only; full phase doc when ready)
@@ -171,7 +173,8 @@ Built-phase design docs worth re-reading before extending code:
 [`phase-18-cross-cutting-agents.md`](phase-18-cross-cutting-agents.md),
 [`phase-19-deployment-docker.md`](phase-19-deployment-docker.md),
 [`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md),
-[`phase-21-consolidated-reference.md`](phase-21-consolidated-reference.md).
+[`phase-21-consolidated-reference.md`](phase-21-consolidated-reference.md),
+[`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md).
 
 ---
 
@@ -196,8 +199,10 @@ imported by this Python orchestration layer.
 - New **agent capability** (Phases 16–18) → follow the
   `add-agent-capability` skill; declare `brain: erp | coding`; no new
   FastAPI service.
-- External coding CLIs → Phase 22 design; treat as untrusted tools under
-  the same authorize → sandbox → propose → approve → merge gate.
+- External coding CLIs → Phase 22, built; `coding_agent_gateway`'s own
+  structural sandbox-backend gate (Section 7 of the phase doc) is the
+  reference pattern for handing any future untrusted tool a live task
+  only when isolation can actually be confirmed, not assumed.
 - **Control UI** → Phase 24 design; follow `add-new-service` for the BFF
   (`services/control-ui/`) plus `web/` shell; governance-first chat
   (tasks through Gateway, not direct agent execution).
@@ -209,9 +214,7 @@ Before any implementation, follow the doc-reading protocol in
 
 ## Next
 
-Phase 22 (Coding Agent Gateway) is next to build, following the same
-discipline as every phase through 21 — design doc first, real
-implementation, real tests, honest README. Phase 24 (Control UI) when
-operator-facing UI is prioritized; a full Phase 23 Model Router doc when
-multi-model routing becomes a real bottleneck rather than a config
-override.
+Phase 24 (Control UI, already designed) when operator-facing UI is
+prioritized; a full Phase 23 Model Router doc when multi-model routing
+becomes a real bottleneck rather than a config override. Both are the only
+remaining designed-but-not-built phases now that Phase 22 is built.

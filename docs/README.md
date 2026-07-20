@@ -57,7 +57,7 @@ is what we actually implement; the technical reference is external study materia
 | repo root (`Dockerfile`s, `docker-compose.yml`) | 19 | [`phase-19-deployment-docker.md`](phase-19-deployment-docker.md) | yes (unbuilt/unverified — no Docker daemon in this environment) |
 | `deploy/backup.sh`, `deploy/restore.sh` | 20 | [`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md) | yes (real, live restore drill run) |
 | consolidated reference (component diagram, API/DB index) | 21 | [`phase-21-consolidated-reference.md`](phase-21-consolidated-reference.md) | yes (regenerated from grepped source, no new code) |
-| Coding Agent Gateway | 22 | [`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md) | no |
+| `services/agents/agents/coding_agent_gateway/` (+ `coding_gateway_bridge.py`) | 22 | [`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md) | yes (live-verified safety gate; never runs a live agentic session in this environment — see Section 7) |
 | Model Router (seed) | 23 | (see [`architecture-vision.md`](architecture-vision.md) §3) | no |
 | `services/control-ui/` + `web/` (planned) | 24 | [`phase-24-control-ui.md`](phase-24-control-ui.md) | no |
 

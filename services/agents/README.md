@@ -1,4 +1,4 @@
-# Phase 5/7/8/10/14/15/16/17/18 — Reasoning Engine + twenty-two agents (working implementation)
+# Phase 5/7/8/10/14/15/16/17/18/22 — Reasoning Engine + twenty-three agents (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
@@ -710,6 +710,23 @@ materializes as a real git document. One live-model smoke test each.
   first phase since Phase 12 where every test passed on its first live
   run against the running stack, worth stating plainly rather than
   padding this section for symmetry with every other phase's write-up.
+- **Coding Agent Gateway (Phase 22)'s one new mechanism — a structural
+  sandbox-backend safety gate — is confirmed live, both real terminal
+  states, not simulated.** `coding_gateway_bridge.py` probes the target
+  CLI with a harmless `--version` call through Shell Executor and reads
+  back the real `backend` field Shell Executor already returns; when the
+  reported backend isn't `docker`, the mutating run is refused before
+  any branch/commit/CLI-with-a-real-task ever happens. Live-verified with
+  both real providers: `opencode` genuinely isn't installed here
+  (`not_configured`), and `claude` (Claude Code, v2.1.215) IS genuinely
+  installed but reports `backend: "subprocess"` (no Docker daemon
+  anywhere in this environment, unchanged since Phase 6/19), so the gate
+  correctly returns `unsafe_backend`. An unplanned second finding from
+  that same live run: the real `claude --version` subprocess crashed
+  under `SubprocessSandbox`'s 512MB `RLIMIT_AS` cap (exit code -6,
+  SIGABRT) — independent confirmation the backend can't safely run this
+  CLI, on top of the isolation gap the gate exists to catch. Full detail
+  in `docs/phase-22-external-coding-agents.md` Section 7.
 
 ## What's a stub or simplified
 
@@ -842,13 +859,21 @@ materializes as a real git document. One live-model smoke test each.
   anywhere in its history (offline-first, `docs/architecture-vision.md`);
   an approved proposal is a real, reviewable document describing what to
   look up and why, for a human to go do manually.
+- **Coding Agent Gateway (Phase 22) never actually runs a live external
+  coding session in this environment** — not because a binary is
+  missing (`claude` is genuinely installed), but because the one
+  available sandbox backend (`SubprocessSandbox`, no Docker daemon since
+  Phase 6/19) can't isolate a live, credentialed agentic process, and the
+  gate refusing that is real, tested code, not a placeholder. The full
+  branch → instruction file → invoke → diff → commit → push → open_mr
+  path is real and reachable — it only executes when the probe reports
+  `backend: "docker"`, which no test run in this environment can ever
+  produce. Same honesty tier as `DockerSandbox` itself since Phase 6.
 
 ## Next
 
-Phase 19–21: Deployment Architecture, Backup Strategy/Disaster Recovery,
-and a consolidated reference doc — infrastructure and operational
-concerns rather than new agent capabilities, now that every agent batch
-through Phase 18 is built. Phase 22 (Coding Agent Gateway) and Phase 24
-(Control UI, `docs/phase-24-control-ui.md`) remain available to
-prioritize instead once external-tool or operator-UI work is ready to
-start.
+Phase 23 — a full Model Router design (typed `ModelType` + priority-ordered
+handlers over Ollama, `architecture-vision.md` §3) once multi-model routing
+outgrows the current config-override approach. Phase 24 (Control UI,
+`docs/phase-24-control-ui.md`) remains available to prioritize instead once
+operator-UI work is ready to start.

@@ -72,6 +72,23 @@ been tested here is `SubprocessSandbox`, the automatic fallback:
 is on `PATH` — no code change needed, same swap mechanism as the
 embedding model in Phase 3.
 
+**Phase 22 made this gap concrete, not just theoretical.** Coding Agent
+Gateway's `coding_gateway_bridge.py` probes an external CLI (Claude Code /
+OpenCode) with `<binary> --version` before ever handing it a real task, and
+reads back this execution's own `backend` field to decide whether to
+proceed. Live-confirmed in this environment: `claude` (Claude Code) really
+is installed, the probe genuinely runs, and it reports `backend:
+"subprocess"` — so Coding Agent Gateway refuses the mutating run outright,
+never handing a live, credentialed external agent to a backend that can't
+isolate its network or filesystem access. A second, unplanned finding from
+that same live probe: the real `claude --version` process crashed under
+this backend's 512MB `RLIMIT_AS` cap (exit code -6, SIGABRT) — the resource
+limits meant for isolating small deterministic scripts turn out to be too
+tight for a real Node/Bun-runtime CLI, an independent reason this backend
+isn't the right one for that specific workload. Full detail in
+`docs/phase-22-external-coding-agents.md` Section 7 and
+`services/agents/README.md`.
+
 ## A real bug found by live testing, not the test suite
 
 The first version set `RLIMIT_NPROC(64, 64)` in the subprocess sandbox as
