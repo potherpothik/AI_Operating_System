@@ -1,0 +1,174 @@
+# AI Operating System — command cheat sheet
+# Repo root: /home/saadi/Documents/AI_Operating_System
+# Model: qwen3.2:4b (Ollama) | Auth token: dev-admin-token
+# Full install steps: docs/installation-guide.md
+
+cd /home/saadi/Documents/AI_Operating_System
+source .venv/bin/activate
+python --version   # Python 3.12.13
+
+./deploy/run-local.sh start
+cd web && npm run dev
+./deploy/run-local.sh stop
+
+# ─── Ollama ───────────────────────────────────────────────────────────────
+ollama list
+ollama serve                                    # if not already running
+curl http://localhost:11434/api/tags            # verify API + pulled models
+
+# ─── One-time setup (Python 3.12 venv) ─────────────────────────────────────
+cd /home/saadi/Documents/AI_Operating_System
+python3.12 -m venv .venv          # ~/.local/bin/python3.12 if needed
+source .venv/bin/activate
+pip install --upgrade pip
+for s in governance platform-spine knowledge assembly agents execution database planning knowledge_pipelines extensibility observability control-ui; do
+  pip install -r "services/$s/requirements.txt"
+done
+mkdir -p /tmp/ai_os_sandbox /tmp/ai_os_plugins
+cd web && npm install && cd ..
+
+# ─── Start / stop entire backend (uses .venv) ─────────────────────────────
+./deploy/run-local.sh start    # all FastAPI services + model override
+./deploy/run-local.sh stop
+cd web && npm run dev          # UI → http://localhost:3000
+
+# Override model if yours differs (default in run-local.sh: qwen3.5:4b)
+AIOS_LOCAL_MODEL=qwen3.2:4b ./deploy/run-local.sh start
+
+# Point Reasoning Engine at your pulled model (run after platform-spine :8002 is up)
+curl -s -X POST http://localhost:8002/config/override \
+  -H "Authorization: Bearer dev-admin-token" \
+  -H "Content-Type: application/json" \
+  -d '{"service":"reasoning_engine","key":"default_local_model","value":"qwen3.2:4b","set_by":"human_admin"}'
+curl -s -X POST http://localhost:8002/config/override \
+  -H "Authorization: Bearer dev-admin-token" \
+  -H "Content-Type: application/json" \
+  -d '{"service":"reasoning_engine","key":"fallback_local_model","value":"qwen3.2:4b","set_by":"human_admin"}'
+curl -s http://localhost:8002/config/reasoning_engine -H "Authorization: Bearer dev-admin-token"
+
+# Sync agent roster (after planning :8008 + agents :8005 are up)
+curl -s -X POST http://localhost:8008/capabilities/sync -H "Authorization: Bearer dev-admin-token"
+
+# ─── Start backend (one terminal each) ────────────────────────────────────
+# 1 governance :8000
+cd services/governance && uvicorn main:app --port 8000
+
+# 2 platform-spine :8002
+cd services/platform-spine && SECURITY_LAYER_URL=http://localhost:8000 uvicorn main:app --port 8002
+
+# 3 knowledge :8003
+cd services/knowledge && SECURITY_LAYER_URL=http://localhost:8000 uvicorn main:app --port 8003
+
+# 4 assembly :8004
+cd services/assembly && SECURITY_LAYER_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 KNOWLEDGE_URL=http://localhost:8003 uvicorn main:app --port 8004
+
+# 5 execution :8006
+cd services/execution && SECURITY_LAYER_URL=http://localhost:8000 SANDBOX_ROOT=/tmp/ai_os_sandbox CODE_ANALYSIS_URL=http://localhost:8009 uvicorn main:app --port 8006
+
+# 6 database :8007
+cd services/database && SECURITY_LAYER_URL=http://localhost:8000 uvicorn main:app --port 8007
+
+# 7 agents :8005  (needs Ollama)
+cd services/agents && SECURITY_LAYER_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 KNOWLEDGE_URL=http://localhost:8003 ASSEMBLY_URL=http://localhost:8004 EXECUTION_URL=http://localhost:8006 PROPOSAL_REPO_PATH=/tmp/ai_os_sandbox DATABASE_CONNECTOR_URL=http://localhost:8007 CAPABILITY_REGISTRY_URL=http://localhost:8008 KNOWLEDGE_PIPELINES_URL=http://localhost:8009 PLUGIN_CAPABILITIES_DIR=/tmp/ai_os_plugins uvicorn main:app --port 8005
+
+# 8 planning :8008
+cd services/planning && SECURITY_LAYER_URL=http://localhost:8000 AGENTS_URL=http://localhost:8005 PLATFORM_URL=http://localhost:8002 uvicorn main:app --port 8008
+
+# 9 knowledge_pipelines :8009
+cd services/knowledge_pipelines && SECURITY_LAYER_URL=http://localhost:8000 KNOWLEDGE_URL=http://localhost:8003 DATABASE_CONNECTOR_URL=http://localhost:8007 ASSEMBLY_URL=http://localhost:8004 uvicorn main:app --port 8009
+
+# 10 extensibility :8010
+cd services/extensibility && SECURITY_LAYER_URL=http://localhost:8000 ASSEMBLY_URL=http://localhost:8004 AGENTS_URL=http://localhost:8005 PLUGIN_CAPABILITIES_DIR=/tmp/ai_os_plugins uvicorn main:app --port 8010
+
+# 11 observability :8013  (8013 matches web/vite proxy; root README uses 8011)
+cd services/observability && GOVERNANCE_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 KNOWLEDGE_URL=http://localhost:8003 ASSEMBLY_URL=http://localhost:8004 AGENTS_URL=http://localhost:8005 EXECUTION_URL=http://localhost:8006 DATABASE_CONNECTOR_URL=http://localhost:8007 PLANNING_URL=http://localhost:8008 KNOWLEDGE_PIPELINES_URL=http://localhost:8009 EXTENSIBILITY_URL=http://localhost:8010 uvicorn main:app --port 8013
+
+# 12 control-ui BFF :8024
+cd services/control-ui && SECURITY_LAYER_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 OBSERVABILITY_URL=http://localhost:8013 uvicorn main:app --port 8024
+
+# 13 web UI :3000
+cd web && npm run dev
+
+# Open: http://localhost:3000  |  Sign in: dev-admin-token
+
+# ─── Minimal UI stack (chat + approvals only) ─────────────────────────────
+# Start: governance, platform-spine, knowledge, assembly, agents, control-ui, web
+# Optional: observability on 8013 for Ops page
+
+# ─── Health checks ────────────────────────────────────────────────────────
+curl -s http://localhost:8000/security/policy/human_admin | head
+curl -s -H "Authorization: Bearer dev-admin-token" http://localhost:8024/ui/bootstrap
+curl -s http://localhost:8013/health/system
+curl -s http://localhost:8013/metrics/overview
+
+# ─── Tasks (Gateway) ──────────────────────────────────────────────────────
+curl -s -X POST http://localhost:8002/api/v1/tasks \
+  -H "Authorization: Bearer dev-admin-token" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test task","description":"Explain our inventory workflow","requested_by":"human_admin","priority":"normal"}'
+
+curl -s -H "Authorization: Bearer dev-admin-token" http://localhost:8002/api/v1/tasks
+
+# SSE task stream (browser EventSource uses ?token=; curl uses header)
+curl -N -H "Authorization: Bearer dev-admin-token" "http://localhost:8002/api/v1/tasks/<TASK_ID>/stream"
+
+# ─── Conversations (Control UI / BFF) ─────────────────────────────────────
+curl -s -X POST -H "Authorization: Bearer dev-admin-token" -H "Content-Type: application/json" \
+  -d '{"title":"ERP questions"}' http://localhost:8024/ui/conversations
+
+curl -s -H "Authorization: Bearer dev-admin-token" http://localhost:8024/ui/conversations
+
+# ─── Approvals ────────────────────────────────────────────────────────────
+curl -s -H "Authorization: Bearer dev-admin-token" http://localhost:8000/approval/pending
+
+curl -s -X POST -H "Authorization: Bearer dev-admin-token" -H "Content-Type: application/json" \
+  -d '{"decided_by":"human_admin","approve":true,"comment":"approved"}' \
+  http://localhost:8024/ui/approvals/<APPROVAL_ID>/decide
+
+# ─── Reasoning (direct, advanced) ─────────────────────────────────────────
+curl -s -X POST http://localhost:8005/reasoning/execute \
+  -H "Content-Type: application/json" \
+  -d '{"task_id":"<TASK_ID>","agent_capability":"odoo_agent","task_description":"What is a bill of materials?","namespace":"default","target_model":"qwen3.2:4b","max_iterations":4}'
+
+curl -s http://localhost:8005/reasoning/<EXECUTION_ID>/trace
+
+# ─── Knowledge: ingest docs ─────────────────────────────────────────────────
+curl -s -X POST http://localhost:8009/docs/ingest \
+  -H "Authorization: Bearer dev-admin-token" \
+  -H "Content-Type: application/json" \
+  -d '{"path":"/absolute/path/to/doc.pdf","project_id":"my_project","doc_type":"architecture"}'
+
+curl -s -X POST http://localhost:8003/vector/query \
+  -H "Content-Type: application/json" \
+  -d '{"project_id":"my_project","query":"deployment architecture","top_k":5,"classification_ceiling":"internal"}'
+
+# ─── ERP schema sync ───────────────────────────────────────────────────────
+# Set DEMO_ERP_DATABASE_URL on governance process first, then:
+curl -s -X POST http://localhost:8009/erp-knowledge/sync \
+  -H "Authorization: Bearer dev-admin-token" \
+  -H "Content-Type: application/json" \
+  -d '{"target_db":"demo_erp"}'
+
+# ─── Planner ───────────────────────────────────────────────────────────────
+curl -s -X POST http://localhost:8008/planner/plan \
+  -H "Authorization: Bearer dev-admin-token" \
+  -H "Content-Type: application/json" \
+  -d '{"task_id":"<TASK_ID>","task_description":"Plan a Django settings review","requested_by":"human_admin"}'
+
+curl -s http://localhost:8008/capabilities -H "Authorization: Bearer dev-admin-token"
+
+# ─── Tests (per service) ───────────────────────────────────────────────────
+cd services/governance && pytest tests/ -v
+cd services/platform-spine && PHASE1_PATH=../governance pytest tests/ -v
+cd services/agents && pytest tests/ -v
+cd services/control-ui && PHASE1_PATH=../governance PHASE2_PATH=../platform-spine pytest tests/ -v
+
+# ─── Docker (production-style, when Docker is available) ───────────────────
+cp .env.example .env
+docker compose build
+docker compose up -d
+# UI still manual until compose includes control-ui + web
+
+# ─── Backup / restore (Postgres) ───────────────────────────────────────────
+./deploy/backup.sh
+./deploy/restore.sh   # see services/governance/README.md for drill notes

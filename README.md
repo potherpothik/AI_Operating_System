@@ -6,42 +6,44 @@ model. Governance-first: nothing executes without passing through Security
 Layer, and every mutating action is logged and approval-gated before it
 touches anything real.
 
-Designed and built one subsystem at a time — see [`docs/`](docs/) for the
-full phase-by-phase architecture (why each decision was made, alternatives
-considered, trade-offs, security implications) before diving into code.
-**AI agents:** start with [`docs/README.md`](docs/README.md) for the doc index
-and mandatory read-before-code checklist.
-Long-term picture (ERP Brain + Coding Brain on one kernel, Model Router
-gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/architecture-vision.md).
+Designed and built one subsystem at a time — see
+[`docs/installation-guide.md`](docs/installation-guide.md) to run it locally,
+[`docs/command.txt`](docs/command.txt) for terminal commands, and
+[`docs/aios-architecture-and-phases.md`](docs/aios-architecture-and-phases.md)
+for the full phase-by-phase architecture.
+[`docs/README.md`](docs/README.md) is the doc index and mandatory
+read-before-code checklist.
+Long-term picture (ERP Brain + Coding Brain on one kernel):
+[`docs/architecture-vision.md`](docs/architecture-vision.md).
 
 ## Status
 
 | Phase | Subsystem | Design doc | Code |
 |---|---|---|---|
-| 1 | Security Layer, Audit Logger, Human Approval Layer | [`docs/phase-1-governance-layer.md`](docs/phase-1-governance-layer.md) | [`services/governance/`](services/governance/) — 47 tests |
-| 2 | Configuration Manager, Gateway, Task Manager | [`docs/phase-2-gateway-task-manager-config.md`](docs/phase-2-gateway-task-manager-config.md) | [`services/platform-spine/`](services/platform-spine/) — 23 tests |
-| 3 | Memory Manager, Vector Search | [`docs/phase-3-memory-vector-search.md`](docs/phase-3-memory-vector-search.md) | [`services/knowledge/`](services/knowledge/) — 22 tests |
-| 4 | Context Builder, Prompt Builder | [`docs/phase-4-context-prompt-builder.md`](docs/phase-4-context-prompt-builder.md) | [`services/assembly/`](services/assembly/) — 26 tests |
-| 5 | Reasoning Engine, Odoo Agent | [`docs/phase-5-odoo-agent-reasoning-engine.md`](docs/phase-5-odoo-agent-reasoning-engine.md) | [`services/agents/`](services/agents/) — 27 tests |
-| 6 | Shell Executor, Git Manager | [`docs/phase-6-shell-git-manager.md`](docs/phase-6-shell-git-manager.md) | [`services/execution/`](services/execution/) — 72 tests |
-| 7 | Database Connector, Database Agent | [`docs/phase-7-database-connector-agent.md`](docs/phase-7-database-connector-agent.md) | [`services/database/`](services/database/) — 54 tests (Database Agent itself lives in `services/agents/agents/database_agent/`) |
-| 8 | Planner, Capability Registry | [`docs/phase-8-planner-capability-registry.md`](docs/phase-8-planner-capability-registry.md) | [`services/planning/`](services/planning/) — 27 tests (Planner itself lives in `services/agents/agents/planner/`) |
-| 9 | Documentation Engine, ERP Knowledge Engine | [`docs/phase-9-documentation-erp-knowledge-engine.md`](docs/phase-9-documentation-erp-knowledge-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 27 tests |
-| 10 | Django, DevOps, Docker, Testing Agents | [`docs/phase-10-django-devops-docker-testing-agents.md`](docs/phase-10-django-devops-docker-testing-agents.md) | [`services/agents/`](services/agents/) — 38 tests (all four agents live in `services/agents/agents/{django_agent,devops_agent,docker_agent,testing_agent}/`) |
-| 11 | Code Analysis Engine | [`docs/phase-11-code-analysis-engine.md`](docs/phase-11-code-analysis-engine.md) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 53 tests (Code Analysis Engine itself lives in `services/knowledge_pipelines/knowledge_pipelines/code_analysis_engine/`) |
-| 12 | MCP Client, Plugin System | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/extensibility/`](services/extensibility/) — 25 tests |
-| 13 | Metrics Dashboard, Health Monitor | [`docs/phase-13-metrics-health.md`](docs/phase-13-metrics-health.md) | [`services/observability/`](services/observability/) — 19 tests |
-| 14 | Costing, Accounting, Inventory Agents | [`docs/phases-12-21-remaining-subsystems.md`](docs/phases-12-21-remaining-subsystems.md) | [`services/agents/`](services/agents/) — 50 tests (all three agents live in `services/agents/agents/{costing_agent,accounting_agent,inventory_agent}/`) |
-| 15 | Manufacturing, Sales, Project Management Agents | [`docs/phase-15-operations-agents.md`](docs/phase-15-operations-agents.md) | [`services/agents/`](services/agents/) — 61 tests (all three agents live in `services/agents/agents/{manufacturing_agent,sales_agent,project_management_agent}/`; also extends `services/database/` with a new PII classification dimension and `services/platform-spine/` with a task-events endpoint) |
-| 16 | Code Review, Reverse Engineering, Architecture Agents | [`docs/phase-16-code-quality-agents.md`](docs/phase-16-code-quality-agents.md) | [`services/agents/`](services/agents/) — 69 tests (all three agents live in `services/agents/agents/{code_review_agent,reverse_engineering_agent,architecture_agent}/`; also extends `services/governance/` with an approval-review attachment mechanism) |
-| 17 | Calculation, Cutlist Optimization, AutoCAD Agents | [`docs/phase-17-engineering-calculation-agents.md`](docs/phase-17-engineering-calculation-agents.md) | [`services/agents/`](services/agents/) — 78 tests (all three agents live in `services/agents/agents/{calculation_agent,cutlist_optimization_agent,autocad_agent}/`; also adds real deterministic scripts under `services/execution/` and a formula-by-name gap-fill on `services/knowledge_pipelines/`) |
-| 18 | Python, Documentation, Security, Research Agents | [`docs/phase-18-cross-cutting-agents.md`](docs/phase-18-cross-cutting-agents.md) | [`services/agents/`](services/agents/) — 87 tests (all four agents live in `services/agents/agents/{python_agent,documentation_agent,security_agent,research_agent}/`; also adds a `correlation_id` filter to `services/governance/`'s audit query) |
-| 19 | Deployment Architecture, Docker Deployment | [`docs/phase-19-deployment-docker.md`](docs/phase-19-deployment-docker.md) | real `Dockerfile`s (all eleven services) + [`docker-compose.yml`](docker-compose.yml) — written to the real interface, unbuilt/unverified (no Docker daemon in this environment) |
-| 20 | Backup Strategy, Disaster Recovery | [`docs/phase-20-backup-disaster-recovery.md`](docs/phase-20-backup-disaster-recovery.md) | [`deploy/backup.sh`](deploy/backup.sh), [`deploy/restore.sh`](deploy/restore.sh) — real, live restore drill run against a disposable database; result in [`services/governance/README.md`](services/governance/README.md#phase-20-addition--real-restore-drill-result) |
-| 21 | Consolidated reference | [`docs/phase-21-consolidated-reference.md`](docs/phase-21-consolidated-reference.md) | regenerated from real, grepped source — component diagram, API surface index, DB schema index, agent list, canonical message format |
-| 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | [`services/agents/agents/coding_agent_gateway/`](services/agents/agents/coding_agent_gateway/) — live-verified structural safety gate refuses a live agentic session (`unsafe_backend`/`not_configured`), never runs one unconfined in this environment |
-| 23 | Model Router | [`docs/phase-23-model-router.md`](docs/phase-23-model-router.md) | [`services/agents/agents/reasoning_engine/model_router.py`](services/agents/agents/reasoning_engine/model_router.py) — real typed registry + Ollama fallback, live-verified against a real dead-config bug found this phase; cloud providers real interface, honestly `not_configured` |
-| 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/phase-24-control-ui.md`](docs/phase-24-control-ui.md) | [`services/control-ui/`](services/control-ui/) (BFF) + [`web/`](web/) (Vite+React) — live-tested end to end in a browser: real task creation, real approval decision, real ops data. Capability views and settings honestly out of scope this session |
+| 1 | Security Layer, Audit Logger, Human Approval Layer | [`docs/aios-architecture-and-phases.md#phase-1-governance-layer`](docs/aios-architecture-and-phases.md#phase-1-governance-layer) | [`services/governance/`](services/governance/) — 47 tests |
+| 2 | Configuration Manager, Gateway, Task Manager | [`docs/aios-architecture-and-phases.md#phase-2-platform-spine`](docs/aios-architecture-and-phases.md#phase-2-platform-spine) | [`services/platform-spine/`](services/platform-spine/) — 23 tests |
+| 3 | Memory Manager, Vector Search | [`docs/aios-architecture-and-phases.md#phase-3-knowledge-substrate`](docs/aios-architecture-and-phases.md#phase-3-knowledge-substrate) | [`services/knowledge/`](services/knowledge/) — 22 tests |
+| 4 | Context Builder, Prompt Builder | [`docs/aios-architecture-and-phases.md#phase-4-context-prompt-assembly`](docs/aios-architecture-and-phases.md#phase-4-context-prompt-assembly) | [`services/assembly/`](services/assembly/) — 26 tests |
+| 5 | Reasoning Engine, Odoo Agent | [`docs/aios-architecture-and-phases.md#phase-5-first-live-agent`](docs/aios-architecture-and-phases.md#phase-5-first-live-agent) | [`services/agents/`](services/agents/) — 27 tests |
+| 6 | Shell Executor, Git Manager | [`docs/aios-architecture-and-phases.md#phase-6-execution-layer`](docs/aios-architecture-and-phases.md#phase-6-execution-layer) | [`services/execution/`](services/execution/) — 72 tests |
+| 7 | Database Connector, Database Agent | [`docs/aios-architecture-and-phases.md#phase-7-data-execution-layer`](docs/aios-architecture-and-phases.md#phase-7-data-execution-layer) | [`services/database/`](services/database/) — 54 tests (Database Agent itself lives in `services/agents/agents/database_agent/`) |
+| 8 | Planner, Capability Registry | [`docs/aios-architecture-and-phases.md#phase-8-automatic-routing`](docs/aios-architecture-and-phases.md#phase-8-automatic-routing) | [`services/planning/`](services/planning/) — 27 tests (Planner itself lives in `services/agents/agents/planner/`) |
+| 9 | Documentation Engine, ERP Knowledge Engine | [`docs/aios-architecture-and-phases.md#phase-9-knowledge-ingestion`](docs/aios-architecture-and-phases.md#phase-9-knowledge-ingestion) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 27 tests |
+| 10 | Django, DevOps, Docker, Testing Agents | [`docs/aios-architecture-and-phases.md#phase-10-engineering-platform-agents`](docs/aios-architecture-and-phases.md#phase-10-engineering-platform-agents) | [`services/agents/`](services/agents/) — 38 tests (all four agents live in `services/agents/agents/{django_agent,devops_agent,docker_agent,testing_agent}/`) |
+| 11 | Code Analysis Engine | [`docs/aios-architecture-and-phases.md#phase-11-structural-code-understanding`](docs/aios-architecture-and-phases.md#phase-11-structural-code-understanding) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 53 tests (Code Analysis Engine itself lives in `services/knowledge_pipelines/knowledge_pipelines/code_analysis_engine/`) |
+| 12 | MCP Client, Plugin System | [`docs/aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap`](docs/aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap) | [`services/extensibility/`](services/extensibility/) — 25 tests |
+| 13 | Metrics Dashboard, Health Monitor | [`docs/aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor`](docs/aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor) | [`services/observability/`](services/observability/) — 19 tests |
+| 14 | Costing, Accounting, Inventory Agents | [`docs/aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap`](docs/aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap) | [`services/agents/`](services/agents/) — 50 tests (all three agents live in `services/agents/agents/{costing_agent,accounting_agent,inventory_agent}/`) |
+| 15 | Manufacturing, Sales, Project Management Agents | [`docs/aios-architecture-and-phases.md#phase-15-operations-agents`](docs/aios-architecture-and-phases.md#phase-15-operations-agents) | [`services/agents/`](services/agents/) — 61 tests (all three agents live in `services/agents/agents/{manufacturing_agent,sales_agent,project_management_agent}/`; also extends `services/database/` with a new PII classification dimension and `services/platform-spine/` with a task-events endpoint) |
+| 16 | Code Review, Reverse Engineering, Architecture Agents | [`docs/aios-architecture-and-phases.md#phase-16-code-quality-agents`](docs/aios-architecture-and-phases.md#phase-16-code-quality-agents) | [`services/agents/`](services/agents/) — 69 tests (all three agents live in `services/agents/agents/{code_review_agent,reverse_engineering_agent,architecture_agent}/`; also extends `services/governance/` with an approval-review attachment mechanism) |
+| 17 | Calculation, Cutlist Optimization, AutoCAD Agents | [`docs/aios-architecture-and-phases.md#phase-17-engineering-calculation-agents`](docs/aios-architecture-and-phases.md#phase-17-engineering-calculation-agents) | [`services/agents/`](services/agents/) — 78 tests (all three agents live in `services/agents/agents/{calculation_agent,cutlist_optimization_agent,autocad_agent}/`; also adds real deterministic scripts under `services/execution/` and a formula-by-name gap-fill on `services/knowledge_pipelines/`) |
+| 18 | Python, Documentation, Security, Research Agents | [`docs/aios-architecture-and-phases.md#phase-18-cross-cutting-agents`](docs/aios-architecture-and-phases.md#phase-18-cross-cutting-agents) | [`services/agents/`](services/agents/) — 87 tests (all four agents live in `services/agents/agents/{python_agent,documentation_agent,security_agent,research_agent}/`; also adds a `correlation_id` filter to `services/governance/`'s audit query) |
+| 19 | Deployment Architecture, Docker Deployment | [`docs/aios-architecture-and-phases.md#phase-19-deployment-architecture-docker-deployment`](docs/aios-architecture-and-phases.md#phase-19-deployment-architecture-docker-deployment) | real `Dockerfile`s (all eleven services) + [`docker-compose.yml`](docker-compose.yml) — written to the real interface, unbuilt/unverified (no Docker daemon in this environment) |
+| 20 | Backup Strategy, Disaster Recovery | [`docs/aios-architecture-and-phases.md#phase-20-backup-strategy-disaster-recovery`](docs/aios-architecture-and-phases.md#phase-20-backup-strategy-disaster-recovery) | [`deploy/backup.sh`](deploy/backup.sh), [`deploy/restore.sh`](deploy/restore.sh) — real, live restore drill run against a disposable database; result in [`services/governance/README.md`](services/governance/README.md#phase-20-addition--real-restore-drill-result) |
+| 21 | Consolidated reference | [`docs/aios-architecture-and-phases.md#phase-21-consolidated-reference`](docs/aios-architecture-and-phases.md#phase-21-consolidated-reference) | regenerated from real, grepped source — component diagram, API surface index, DB schema index, agent list, canonical message format |
+| 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/aios-architecture-and-phases.md#phase-22-external-coding-agents`](docs/aios-architecture-and-phases.md#phase-22-external-coding-agents) | [`services/agents/agents/coding_agent_gateway/`](services/agents/agents/coding_agent_gateway/) — live-verified structural safety gate refuses a live agentic session (`unsafe_backend`/`not_configured`), never runs one unconfined in this environment |
+| 23 | Model Router | [`docs/aios-architecture-and-phases.md#phase-23-model-router`](docs/aios-architecture-and-phases.md#phase-23-model-router) | [`services/agents/agents/reasoning_engine/model_router.py`](services/agents/agents/reasoning_engine/model_router.py) — real typed registry + Ollama fallback, live-verified against a real dead-config bug found this phase; cloud providers real interface, honestly `not_configured` |
+| 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](docs/aios-architecture-and-phases.md#phase-24-control-ui-web-shell) | [`services/control-ui/`](services/control-ui/) (BFF) + [`web/`](web/) (Vite+React) — live-tested end to end in a browser: real task creation, real approval decision, real ops data. Capability views and settings honestly out of scope this session |
 
 Eleven backend services plus a new BFF and web frontend are real, tested
 code today, now hosting every phase in the original mandate, 1–24
@@ -196,7 +198,7 @@ four networks matching Phase 6's own "no network by default" sandboxing
 principle applied at the deployment layer (`public`: Gateway only;
 `internal`: every service; `data-net`: Postgres; `model-net`: Ollama,
 reached only by `agents`). Design and full honesty notes:
-[`docs/phase-19-deployment-docker.md`](docs/phase-19-deployment-docker.md).
+[`docs/aios-architecture-and-phases.md#phase-19-deployment-architecture-docker-deployment`](docs/aios-architecture-and-phases.md#phase-19-deployment-architecture-docker-deployment).
 
 **Read before relying on this**: no Docker daemon exists in this
 development environment (confirmed directly, the same constraint
@@ -446,7 +448,7 @@ until that gap is closed.
   carried since Phase 6, now named for a whole phase instead of one
   fallback class. Full detail, including a real, named gap
   (`depends_on` without healthchecks doesn't wait for real readiness),
-  in `docs/phase-19-deployment-docker.md`.
+  in `docs/aios-architecture-and-phases.md#phase-19-deployment-architecture-docker-deployment`.
 - **Phase 20 is the opposite honesty case from Phase 19 — genuinely
   live-drilled, not just written to spec** — `pg_dump`/`pg_restore`/
   `psql` are real, available tools in this environment (unlike a Docker
@@ -461,7 +463,7 @@ until that gap is closed.
   chain); the other ten logical databases are backed up by the same
   script but not independently drill-verified this phase, named as an
   explicit, un-covered gap rather than silently assumed fine. Full detail
-  in `docs/phase-20-backup-disaster-recovery.md` and
+  in `docs/aios-architecture-and-phases.md#phase-20-backup-strategy-disaster-recovery` and
   `services/governance/README.md`.
 - **Phase 21 found the real system already matched its own speculative
   design closely — all 21 API base paths, grepped straight from
@@ -479,7 +481,7 @@ until that gap is closed.
   SAME agent's next turn — distinct from `delegate_to`'s inter-agent
   handoff, and only necessary once agents needed to actually call real
   services starting Phase 6. Full detail in
-  `docs/phase-21-consolidated-reference.md`.
+  `docs/aios-architecture-and-phases.md#phase-21-consolidated-reference`.
 - **Phase 22 built a real structural safety gate and then watched it
   fire correctly against both real external CLIs, live.** Before handing
   a real task to Claude Code or OpenCode, `coding_gateway_bridge.py`
@@ -498,7 +500,7 @@ until that gap is closed.
   agentic session was ever run in this environment — a deliberate
   refusal grounded in existing, already-documented code, not a new
   restriction invented for this phase. Full detail in
-  `docs/phase-22-external-coding-agents.md` Section 7.
+  `docs/aios-architecture-and-phases.md#phase-22-external-coding-agents` Section 7.
 - **Phase 23 (Model Router) found a real bug that every prior phase's own
   live-model testing had silently routed around all session long.**
   `default_local_model`/`fallback_local_model` are real config keys that
@@ -515,7 +517,7 @@ until that gap is closed.
   is untouched, preserving all 46 existing tests that monkeypatch
   `loop.generate` directly — a deliberate, narrower wiring than the
   design doc originally sketched, explained in
-  `docs/phase-23-model-router.md` Section 3. Cloud providers
+  `docs/aios-architecture-and-phases.md#phase-23-model-router` Section 3. Cloud providers
   (`OpenAIProvider`/`AnthropicProvider`/`GeminiProvider`) are real
   classes, real interface, genuinely never configured — no external API
   key this build ever sets, no real external call added to this

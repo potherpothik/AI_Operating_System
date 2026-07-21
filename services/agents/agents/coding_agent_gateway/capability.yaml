@@ -15,4 +15,4 @@ known_limitation: >
   sandbox backend as docker — no Docker daemon exists in this environment
   (Phase 6/19), so an approved run against Claude Code or OpenCode returns
   "unsafe_backend", never a silently-skipped or faked success. See
-  docs/phase-22-external-coding-agents.md Section 3.
+  docs/aios-architecture-and-phases.md#phase-22-external-coding-agents Section 3.

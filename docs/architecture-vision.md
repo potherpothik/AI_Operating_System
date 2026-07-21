@@ -156,21 +156,21 @@ honesty tier than the tested phases, named as such. Phase 20's backup/
 restore scripts (`deploy/backup.sh`, `deploy/restore.sh`) are a third
 honesty tier of their own: real, live-drilled against this environment's
 own Postgres instance (`pg_dump`/`pg_restore` ARE available here, unlike
-a Docker daemon) — see [`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md)
+a Docker daemon) — see [`aios-architecture-and-phases.md#phase-20-backup-strategy-disaster-recovery`](aios-architecture-and-phases.md#phase-20-backup-strategy-disaster-recovery)
 Section 3 for the real drill result. Phase 21 regenerates the original
 speculative component diagram, API surface index, and DB schema index
 from the real, grepped source — see
-[`phase-21-consolidated-reference.md`](phase-21-consolidated-reference.md).
+[`aios-architecture-and-phases.md#phase-21-consolidated-reference`](aios-architecture-and-phases.md#phase-21-consolidated-reference).
 Phase 22 (Coding Agent Gateway) is a fourth honesty tier of its own: real
 code, real live-verified structural safety gate, but a deliberate refusal
 to ever run a live external-agent session in this environment, since the
 only available sandbox backend can't isolate one — see
-[`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md)
+[`aios-architecture-and-phases.md#phase-22-external-coding-agents`](aios-architecture-and-phases.md#phase-22-external-coding-agents)
 Section 7. Phase 23 (Model Router) found and fixed a real, previously
 invisible bug: `default_local_model` was never actually pulled in this
 environment's Ollama, and every prior phase's own live-model testing
 had silently routed around it by always overriding `target_model` — see
-[`phase-23-model-router.md`](phase-23-model-router.md) Section 6. Phase
+[`aios-architecture-and-phases.md#phase-23-model-router`](aios-architecture-and-phases.md#phase-23-model-router) Section 6. Phase
 24 (Control UI) is the first phase with a real browser in
 the loop: `services/control-ui/` (BFF) and `web/` (Vite+React, one app
 instead of the design doc's three npm packages, a documented
@@ -178,7 +178,7 @@ simplification) were live-tested end to end in an actual browser — sign
 in, a chat message that created one real task, a real approval decided
 and independently confirmed, real ops data. Capability views and a
 settings page are the one named, out-of-scope gap — see
-[`phase-24-control-ui.md`](phase-24-control-ui.md), `services/control-ui/README.md`,
+[`aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](aios-architecture-and-phases.md#phase-24-control-ui-web-shell), `services/control-ui/README.md`,
 `web/README.md`. See root [`README.md`](../README.md) status table for the
 authoritative phase → service map.
 
@@ -189,17 +189,17 @@ offline-first posture is deliberately relaxed for a specific, approved
 use case.
 
 Built-phase design docs worth re-reading before extending code:
-[`phase-13-metrics-health.md`](phase-13-metrics-health.md),
-[`phase-15-operations-agents.md`](phase-15-operations-agents.md),
-[`phase-16-code-quality-agents.md`](phase-16-code-quality-agents.md),
-[`phase-17-engineering-calculation-agents.md`](phase-17-engineering-calculation-agents.md),
-[`phase-18-cross-cutting-agents.md`](phase-18-cross-cutting-agents.md),
-[`phase-19-deployment-docker.md`](phase-19-deployment-docker.md),
-[`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md),
-[`phase-21-consolidated-reference.md`](phase-21-consolidated-reference.md),
-[`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md),
-[`phase-23-model-router.md`](phase-23-model-router.md),
-[`phase-24-control-ui.md`](phase-24-control-ui.md).
+[`aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor`](aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor),
+[`aios-architecture-and-phases.md#phase-15-operations-agents`](aios-architecture-and-phases.md#phase-15-operations-agents),
+[`aios-architecture-and-phases.md#phase-16-code-quality-agents`](aios-architecture-and-phases.md#phase-16-code-quality-agents),
+[`aios-architecture-and-phases.md#phase-17-engineering-calculation-agents`](aios-architecture-and-phases.md#phase-17-engineering-calculation-agents),
+[`aios-architecture-and-phases.md#phase-18-cross-cutting-agents`](aios-architecture-and-phases.md#phase-18-cross-cutting-agents),
+[`aios-architecture-and-phases.md#phase-19-deployment-architecture-docker-deployment`](aios-architecture-and-phases.md#phase-19-deployment-architecture-docker-deployment),
+[`aios-architecture-and-phases.md#phase-20-backup-strategy-disaster-recovery`](aios-architecture-and-phases.md#phase-20-backup-strategy-disaster-recovery),
+[`aios-architecture-and-phases.md#phase-21-consolidated-reference`](aios-architecture-and-phases.md#phase-21-consolidated-reference),
+[`aios-architecture-and-phases.md#phase-22-external-coding-agents`](aios-architecture-and-phases.md#phase-22-external-coding-agents),
+[`aios-architecture-and-phases.md#phase-23-model-router`](aios-architecture-and-phases.md#phase-23-model-router),
+[`aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](aios-architecture-and-phases.md#phase-24-control-ui-web-shell).
 
 ---
 
@@ -248,6 +248,6 @@ Before any implementation, follow the doc-reading protocol in
 Every phase in the original 24-phase mandate is built. Remaining scope is
 narrower increments within already-built phases: real cloud-provider
 support for Model Router (a product decision, not an engineering one —
-`phase-23-model-router.md` §0) and, within Control UI's own remaining
+`aios-architecture-and-phases.md#phase-23-model-router` §0) and, within Control UI's own remaining
 scope, a settings page (§5.6) and capability views (§5.5, blocked on a
 real view-manifest convention landing on `services/extensibility/` first).

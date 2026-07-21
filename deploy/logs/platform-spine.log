@@ -1,0 +1,10 @@
+INFO:     Started server process [28603]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8002 (Press CTRL+C to quit)
+INFO:     127.0.0.1:55706 - "GET /config/gateway HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55718 - "POST /config/override HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55732 - "POST /config/override HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39550 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46038 - "GET /api/v1/conversations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46054 - "GET /api/v1/conversations HTTP/1.1" 200 OK

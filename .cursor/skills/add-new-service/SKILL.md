@@ -30,18 +30,16 @@ Copy this checklist and work through it in order:
 Follow `.cursor/rules/docs-reading-protocol.mdc`:
 
 - Root [`README.md`](../../../README.md) status table and [`docs/README.md`](../../../docs/README.md) service → phase map
-- Phase design doc(s) for **every service you touch or depend on**, including built phases you gap-fill (e.g. Phase 24 → read [`phase-2-gateway-task-manager-config.md`](../../../docs/phase-2-gateway-task-manager-config.md), [`phase-13-metrics-health.md`](../../../docs/phase-13-metrics-health.md), [`phase-12`](../../../docs/phases-12-21-remaining-subsystems.md) extensibility sections)
+- Phase design doc(s) for **every service you touch or depend on**, including built phases you gap-fill (e.g. Phase 24 → read [`aios-architecture-and-phases.md#phase-2-platform-spine`](../../../docs/aios-architecture-and-phases.md#phase-2-platform-spine), [`aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor`](../../../docs/aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor), [`phase-12`](../../../docs/aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap) extensibility sections)
 - [`docs/architecture-vision.md`](../../../docs/architecture-vision.md) for cross-cutting or new-phase work
 - [`docs/elizaos-borrowed-ideas.md`](../../../docs/elizaos-borrowed-ideas.md) when borrowing ElizaOS patterns (map section to task)
 - Optional: [`docs/eliza-develop-technical-reference.md`](../../../docs/eliza-develop-technical-reference.md) for external framework detail only
 
-**Phase 24 (Control UI):** mandatory reads — [`phase-24-control-ui.md`](../../../docs/phase-24-control-ui.md), elizaos-borrowed §7, optional eliza technical reference §10 (Web UI).
+**Phase 24 (Control UI):** mandatory reads — [`aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](../../../docs/aios-architecture-and-phases.md#phase-24-control-ui-web-shell), elizaos-borrowed §7, optional eliza technical reference §10 (Web UI).
 
 ### 1. Write the design doc in `docs/`
 
-Create `docs/phase-N-<name>.md` (next unused phase number) before writing any
-implementation code. Follow the skeleton used by every existing phase doc in
-`docs/`:
+Add or extend a section in [`docs/aios-architecture-and-phases.md`](../../../docs/aios-architecture-and-phases.md) (next unused phase number) before writing any implementation code. Follow the skeleton used by existing phase sections in that file:
 
 - Title + module subtitle
 - Priority Decision: why this subsystem now, alternatives considered, trade-offs, security implications, performance, future scalability, estimated complexity

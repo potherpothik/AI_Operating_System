@@ -51,7 +51,7 @@ message service.
 - Keep channel adapters thin: normalize → orchestrator.
 - Today agent handoff already uses Task Manager + Planner + `delegate_to`
   (see Agent Communication Protocol in
-  [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md));
+  [`aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap`](aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap));
   room scoping is the natural next refinement, not a rewrite.
 
 ---
@@ -175,7 +175,7 @@ stubs for desktop-only plugins.
 
 **Agents implementing Phase 24 must read this section** before writing Control UI code.
 
-Full design: [`phase-24-control-ui.md`](phase-24-control-ui.md).
+Full design: [`aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](aios-architecture-and-phases.md#phase-24-control-ui-web-shell).
 
 ---
 
@@ -214,7 +214,7 @@ Full design: [`phase-24-control-ui.md`](phase-24-control-ui.md).
 ## Next
 
 When implementing **Phase 24 (Control UI)**, re-read section 7 and
-[`phase-24-control-ui.md`](phase-24-control-ui.md). When implementing Phase 22
+[`aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](aios-architecture-and-phases.md#phase-24-control-ui-web-shell). When implementing Phase 22
 (external coding agents) or Phase 23 (Model Router), re-read sections 4–5.
 When adding multi-agent session scoping to Memory, re-read sections 2–3. Do
 not pull `eliza-develop/` into the runtime path.

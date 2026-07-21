@@ -106,7 +106,7 @@ Ordered by impact on your stated vision.
 
 **Problem:** No operator surface; an “OS” without a console.
 
-**Do:** Build as designed in [`phase-24-control-ui.md`](phase-24-control-ui.md):
+**Do:** Build as designed in [`aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](aios-architecture-and-phases.md#phase-24-control-ui-web-shell):
 - Chat → `POST /api/v1/tasks` (not raw `/reasoning/execute`).
 - Approval inbox, ops widgets (Phase 13), capability views.
 - SSE task/coding-session timeline.

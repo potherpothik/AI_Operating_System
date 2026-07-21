@@ -1,0 +1,12 @@
+28601 governance
+28603 platform-spine
+28604 knowledge
+28605 assembly
+28606 execution
+28607 database
+28608 agents
+28609 planning
+28610 knowledge_pipelines
+28611 extensibility
+28612 observability
+28613 control-ui

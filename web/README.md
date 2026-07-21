@@ -7,7 +7,7 @@ The first non-Python product surface in this repo.
 
 ## A real, deliberate deviation from the Phase 24 design doc
 
-The design doc (`docs/phase-24-control-ui.md` §4–§6) sketches three separate
+The design doc (`docs/aios-architecture-and-phases.md#phase-24-control-ui-web-shell` §4–§6) sketches three separate
 npm packages — `web/shell/`, `web/ui/`, `web/client/` — each with its own
 `package.json`. This implementation is **one Vite app** (`web/`) with that
 same layering as internal folders (`src/pages/` = shell/routing,

@@ -40,7 +40,7 @@ Follow `.cursor/rules/docs-reading-protocol.mdc` and [`docs/README.md`](../../..
 
 ### 1. Confirm design coverage
 
-- Prefer an existing design block in `docs/phases-12-21-remaining-subsystems.md`
+- Prefer an existing design block in `docs/aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap`
   or a dedicated phase doc (e.g. Phase 22) before inventing a capability.
 - If none exists, write or extend the design doc first (same skeleton as
   other phase docs: responsibilities, allowed/forbidden actions, approval
@@ -118,5 +118,5 @@ Reasoning Engine — do not rely on prompt wording alone for
 - Doc index + read order → [`docs/README.md`](../../../docs/README.md).
 - Vision / brain map → [`docs/architecture-vision.md`](../../../docs/architecture-vision.md).
 - ElizaOS borrowed patterns → [`docs/elizaos-borrowed-ideas.md`](../../../docs/elizaos-borrowed-ideas.md).
-- External OpenCode / Claude Code wrapper → [`docs/phase-22-external-coding-agents.md`](../../../docs/phase-22-external-coding-agents.md).
-- Control UI (not an agent capability) → [`docs/phase-24-control-ui.md`](../../../docs/phase-24-control-ui.md) + `add-new-service`.
+- External OpenCode / Claude Code wrapper → [`docs/aios-architecture-and-phases.md#phase-22-external-coding-agents`](../../../docs/aios-architecture-and-phases.md#phase-22-external-coding-agents).
+- Control UI (not an agent capability) → [`docs/aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](../../../docs/aios-architecture-and-phases.md#phase-24-control-ui-web-shell) + `add-new-service`.

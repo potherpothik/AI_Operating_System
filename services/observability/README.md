@@ -13,7 +13,7 @@ that could mutate system state would need the full governance treatment
 everything else gets.
 
 Six earlier services needed one small, real listing endpoint each — see
-`docs/phase-13-metrics-health.md` Section 1. None of them gained a new
+`docs/aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor` Section 1. None of them gained a new
 write surface; each is a plain GET over data that service already stored.
 
 ## Run it
@@ -131,7 +131,7 @@ phase's own live-model test.
   human (or a future real integration) reads back, the same
   "offline-capable" posture Human Approval Layer already has (a human
   polls `GET /approval/pending` today; this doesn't change that). See
-  `docs/phase-13-metrics-health.md` Section 5 for the full reasoning.
+  `docs/aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor` Section 5 for the full reasoning.
 - **`check_stuck_reasoning_executions`'s own test mocks
   `clients.get_reasoning_executions`** rather than forcing a genuine
   Reasoning Engine iteration-exhaustion through the live `agents`

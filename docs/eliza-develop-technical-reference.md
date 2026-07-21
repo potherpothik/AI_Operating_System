@@ -777,7 +777,7 @@ For engineers onboarding to the codebase:
 
 ## Related documents in this repo
 
-For ideas elizaOS inspired in the AI Operating System (without adopting the runtime), see [`elizaos-borrowed-ideas.md`](./elizaos-borrowed-ideas.md). The Web UI section (§10) is mapped to a full control-plane design in [`phase-24-control-ui.md`](./phase-24-control-ui.md).
+For ideas elizaOS inspired in the AI Operating System (without adopting the runtime), see [`elizaos-borrowed-ideas.md`](./elizaos-borrowed-ideas.md). The Web UI section (§10) is mapped to a full control-plane design in [`aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](aios-architecture-and-phases.md#phase-24-control-ui-web-shell).
 
 Side-by-side capability judgment (who is better where, what to borrow):
 [`aios-vs-eliza-develop-comparison.md`](./aios-vs-eliza-develop-comparison.md).

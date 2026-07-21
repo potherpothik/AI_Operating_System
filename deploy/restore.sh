@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Phase 20: real pg_restore from a backup.sh-produced directory into a
 # NAMED target database — never implicitly the source database. A
-# restore drill (docs/phase-20-backup-disaster-recovery.md, Section 3)
+# restore drill (docs/aios-architecture-and-phases.md#phase-20-backup-strategy-disaster-recovery, Section 3)
 # always names its target explicitly rather than silently restoring
 # over a live database, matching this project's own destructive-action
 # discipline (CLAUDE.md).

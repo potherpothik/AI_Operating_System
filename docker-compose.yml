@@ -1,7 +1,7 @@
 # Phase 19 — real deployment topology, adapted from the master roadmap's
-# illustrative skeleton (docs/phases-12-21-remaining-subsystems.md) to
+# illustrative skeleton (docs/aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap) to
 # the actual, as-built eleven-service module boundaries. See
-# docs/phase-19-deployment-docker.md for the full design and the honest
+# docs/aios-architecture-and-phases.md#phase-19-deployment-architecture-docker-deployment for the full design and the honest
 # note that this has not been built or run against a live Docker daemon
 # in this development environment (none is installed here).
 #

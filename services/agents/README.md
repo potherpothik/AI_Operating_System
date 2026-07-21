@@ -744,7 +744,7 @@ materializes as a real git document. One live-model smoke test each.
   under `SubprocessSandbox`'s 512MB `RLIMIT_AS` cap (exit code -6,
   SIGABRT) — independent confirmation the backend can't safely run this
   CLI, on top of the isolation gap the gate exists to catch. Full detail
-  in `docs/phase-22-external-coding-agents.md` Section 7.
+  in `docs/aios-architecture-and-phases.md#phase-22-external-coding-agents` Section 7.
 - **Model Router (Phase 23) found and fixed a real, previously-invisible
   bug just by checking config against reality.** `default_local_model`/
   `fallback_local_model` are real config keys that have existed since
@@ -760,7 +760,7 @@ materializes as a real git document. One live-model smoke test each.
   `ReasoningExecution.target_model` field. `loop.py`'s `generate()` call
   site itself is unchanged — only model-name resolution changed —
   preserving all 46 existing tests that monkeypatch `loop.generate`
-  directly. Full detail in `docs/phase-23-model-router.md` Section 6.
+  directly. Full detail in `docs/aios-architecture-and-phases.md#phase-23-model-router` Section 6.
 
 ## What's a stub or simplified
 
@@ -912,7 +912,7 @@ materializes as a real git document. One live-model smoke test each.
   half-built — this system is offline-first by explicit design, and
   adding a real external call here means real credentials, real cost,
   and real data egress of retrieved context, a decision this phase's own
-  doc explicitly declines to make unilaterally (`docs/phase-23-model-router.md`
+  doc explicitly declines to make unilaterally (`docs/aios-architecture-and-phases.md#phase-23-model-router`
   Section 0). `resolve_and_generate()` (the dispatcher these providers
   would plug into) is real, tested code, not wired to any call site yet.
 
@@ -921,5 +921,5 @@ materializes as a real git document. One live-model smoke test each.
 Real cloud provider support (a second, genuinely configured `ModelProvider`
 in `model_router.py`) is the natural next increment when/if this system's
 offline-first posture is deliberately relaxed for a specific, approved use
-case — a product decision, not an engineering one (`docs/phase-23-model-router.md`
+case — a product decision, not an engineering one (`docs/aios-architecture-and-phases.md#phase-23-model-router`
 Section 0). Every phase named in the original mandate is now built.

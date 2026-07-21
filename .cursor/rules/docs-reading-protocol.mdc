@@ -13,7 +13,7 @@ design docs — do not rely on memory or generic patterns alone.
 
 1. **Root [`README.md`](../../README.md) status table** — phase number, built vs designed, service path.
 2. **[`docs/README.md`](../../docs/README.md)** — service → phase doc map and task-specific mandatory reads.
-3. **Phase design doc(s)** — `docs/phase-N-<name>.md` (or `docs/phases-12-21-remaining-subsystems.md` for consolidated phases) for **every service you touch**, including built phases you extend via gap-fill.
+3. **Phase design section(s)** — [`docs/aios-architecture-and-phases.md`](../../docs/aios-architecture-and-phases.md) (use the TOC anchors for Phases 1–24) for **every service you touch**, including built phases you extend via gap-fill.
 4. **Service README(s)** — `services/<name>/README.md` for run/test instructions and Honesty notes.
 5. **[`docs/architecture-vision.md`](../../docs/architecture-vision.md)** — when work is cross-cutting, a new phase, or affects brain/routing/kernel map.
 6. **[`docs/elizaos-borrowed-ideas.md`](../../docs/elizaos-borrowed-ideas.md)** — when borrowing ElizaOS patterns (plugins §1, agents §2, memory §3, tools §4, runtime §5, bus §6, UI §7). Skip for routine single-service bugfixes with no pattern borrow.
@@ -21,9 +21,10 @@ design docs — do not rely on memory or generic patterns alone.
 
 ## Built phases
 
-When code already exists under `services/`, **re-read** that phase's design doc
-before changing behavior. If APIs, gap-fill, or scope changed, **update the phase
-doc first** (see `docs-and-honesty.mdc`) — do not only document changes in a new phase.
+When code already exists under `services/`, **re-read** that phase's section in
+[`docs/aios-architecture-and-phases.md`](../../docs/aios-architecture-and-phases.md)
+before changing behavior. If APIs, gap-fill, or scope changed, **update that
+section first** (see `docs-and-honesty.mdc`) — do not only document changes in a new phase.
 
 ## Hard rules
 

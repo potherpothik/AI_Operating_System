@@ -86,7 +86,7 @@ this backend's 512MB `RLIMIT_AS` cap (exit code -6, SIGABRT) — the resource
 limits meant for isolating small deterministic scripts turn out to be too
 tight for a real Node/Bun-runtime CLI, an independent reason this backend
 isn't the right one for that specific workload. Full detail in
-`docs/phase-22-external-coding-agents.md` Section 7 and
+`docs/aios-architecture-and-phases.md#phase-22-external-coding-agents` Section 7 and
 `services/agents/README.md`.
 
 ## A real bug found by live testing, not the test suite

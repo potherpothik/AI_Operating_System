@@ -10,12 +10,15 @@ reading order.
 
 ---
 
-## Layer 1 — Vision (cross-cutting context)
+## Layer 1 — Architecture & vision
 
 | Doc | When to read |
 |---|---|
-| [`architecture-vision.md`](architecture-vision.md) | New phase, brain/routing work, kernel map, roadmap |
-| [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md) | Phases 12, 20–21 (consolidated designs); original design blocks for 14–19 also still live here, but each of those now has its own dedicated, built-phase doc — read the dedicated doc first |
+| [`installation-guide.md`](installation-guide.md) | **First-time setup** — prerequisites, Ollama, start services, Web UI |
+| [`command.txt`](command.txt) | Copy-paste terminal commands (ports, curl, tests) |
+| [`aios-architecture-and-phases.md`](aios-architecture-and-phases.md) | **Primary reference** — lifecycle flow, Phases 1–24 design (TOC with anchors), API/DB index (Phase 21), deployment, backup |
+| [`architecture-vision.md`](architecture-vision.md) | Long-term vision, two brains, kernel map, roadmap |
+| [`aios-db-erd.md`](aios-db-erd.md) | Logical database ERD across all services |
 
 ---
 
@@ -36,34 +39,34 @@ phase design docs before implementation.
 
 ---
 
-## Layer 3 — Phase design docs (source of truth per subsystem)
+## Layer 3 — Phase sections (in [`aios-architecture-and-phases.md`](aios-architecture-and-phases.md))
 
 | Service directory | Phase | Design doc | Built? |
 |---|---|---|---|
-| `services/governance/` | 1 | [`phase-1-governance-layer.md`](phase-1-governance-layer.md) | yes |
-| `services/platform-spine/` | 2 | [`phase-2-gateway-task-manager-config.md`](phase-2-gateway-task-manager-config.md) | yes |
-| `services/knowledge/` | 3 | [`phase-3-memory-vector-search.md`](phase-3-memory-vector-search.md) | yes |
-| `services/assembly/` | 4 | [`phase-4-context-prompt-builder.md`](phase-4-context-prompt-builder.md) | yes |
-| `services/agents/` (Reasoning Engine, Odoo) | 5 | [`phase-5-odoo-agent-reasoning-engine.md`](phase-5-odoo-agent-reasoning-engine.md) | yes |
-| `services/execution/` | 6 | [`phase-6-shell-git-manager.md`](phase-6-shell-git-manager.md) | yes |
-| `services/database/` | 7 | [`phase-7-database-connector-agent.md`](phase-7-database-connector-agent.md) | yes |
-| `services/planning/` | 8 | [`phase-8-planner-capability-registry.md`](phase-8-planner-capability-registry.md) | yes |
-| `services/knowledge_pipelines/` (docs + ERP knowledge) | 9 | [`phase-9-documentation-erp-knowledge-engine.md`](phase-9-documentation-erp-knowledge-engine.md) | yes |
-| `services/agents/agents/{django,devops,docker,testing}_agent/` | 10 | [`phase-10-django-devops-docker-testing-agents.md`](phase-10-django-devops-docker-testing-agents.md) | yes |
-| `services/knowledge_pipelines/.../code_analysis_engine/` | 11 | [`phase-11-code-analysis-engine.md`](phase-11-code-analysis-engine.md) | yes |
-| `services/extensibility/` | 12 | [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md) | yes |
-| `services/observability/` | 13 | [`phase-13-metrics-health.md`](phase-13-metrics-health.md) | yes |
-| `services/agents/agents/{costing,accounting,inventory}_agent/` | 14 | [`phases-12-21-remaining-subsystems.md`](phases-12-21-remaining-subsystems.md) | yes |
-| `services/agents/agents/{manufacturing,sales,project_management}_agent/` (+ Phase 7/2 extensions) | 15 | [`phase-15-operations-agents.md`](phase-15-operations-agents.md) | yes |
-| `services/agents/agents/{code_review,reverse_engineering,architecture}_agent/` (+ Phase 1 extension) | 16 | [`phase-16-code-quality-agents.md`](phase-16-code-quality-agents.md) | yes |
-| `services/agents/agents/{calculation,cutlist_optimization,autocad}_agent/` (+ Phase 6/9 extensions) | 17 | [`phase-17-engineering-calculation-agents.md`](phase-17-engineering-calculation-agents.md) | yes |
-| `services/agents/agents/{python,documentation,security,research}_agent/` (+ Phase 1 extension) | 18 | [`phase-18-cross-cutting-agents.md`](phase-18-cross-cutting-agents.md) | yes |
-| repo root (`Dockerfile`s, `docker-compose.yml`) | 19 | [`phase-19-deployment-docker.md`](phase-19-deployment-docker.md) | yes (unbuilt/unverified — no Docker daemon in this environment) |
-| `deploy/backup.sh`, `deploy/restore.sh` | 20 | [`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md) | yes (real, live restore drill run) |
-| consolidated reference (component diagram, API/DB index) | 21 | [`phase-21-consolidated-reference.md`](phase-21-consolidated-reference.md) | yes (regenerated from grepped source, no new code) |
-| `services/agents/agents/coding_agent_gateway/` (+ `coding_gateway_bridge.py`) | 22 | [`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md) | yes (live-verified safety gate; never runs a live agentic session in this environment — see Section 7) |
-| `services/agents/agents/reasoning_engine/model_router.py` | 23 | [`phase-23-model-router.md`](phase-23-model-router.md) | yes (real Ollama provider + fallback, live-verified against a real dead-config bug; cloud providers real interface, honestly not_configured) |
-| `services/control-ui/` + `web/` | 24 | [`phase-24-control-ui.md`](phase-24-control-ui.md) | yes (live-tested in a browser end to end; capability views + settings honestly out of scope) |
+| `services/governance/` | 1 | [`aios-architecture-and-phases.md#phase-1-governance-layer`](aios-architecture-and-phases.md#phase-1-governance-layer) | yes |
+| `services/platform-spine/` | 2 | [`aios-architecture-and-phases.md#phase-2-platform-spine`](aios-architecture-and-phases.md#phase-2-platform-spine) | yes |
+| `services/knowledge/` | 3 | [`aios-architecture-and-phases.md#phase-3-knowledge-substrate`](aios-architecture-and-phases.md#phase-3-knowledge-substrate) | yes |
+| `services/assembly/` | 4 | [`aios-architecture-and-phases.md#phase-4-context-prompt-assembly`](aios-architecture-and-phases.md#phase-4-context-prompt-assembly) | yes |
+| `services/agents/` (Reasoning Engine, Odoo) | 5 | [`aios-architecture-and-phases.md#phase-5-first-live-agent`](aios-architecture-and-phases.md#phase-5-first-live-agent) | yes |
+| `services/execution/` | 6 | [`aios-architecture-and-phases.md#phase-6-execution-layer`](aios-architecture-and-phases.md#phase-6-execution-layer) | yes |
+| `services/database/` | 7 | [`aios-architecture-and-phases.md#phase-7-data-execution-layer`](aios-architecture-and-phases.md#phase-7-data-execution-layer) | yes |
+| `services/planning/` | 8 | [`aios-architecture-and-phases.md#phase-8-automatic-routing`](aios-architecture-and-phases.md#phase-8-automatic-routing) | yes |
+| `services/knowledge_pipelines/` (docs + ERP knowledge) | 9 | [`aios-architecture-and-phases.md#phase-9-knowledge-ingestion`](aios-architecture-and-phases.md#phase-9-knowledge-ingestion) | yes |
+| `services/agents/agents/{django,devops,docker,testing}_agent/` | 10 | [`aios-architecture-and-phases.md#phase-10-engineering-platform-agents`](aios-architecture-and-phases.md#phase-10-engineering-platform-agents) | yes |
+| `services/knowledge_pipelines/.../code_analysis_engine/` | 11 | [`aios-architecture-and-phases.md#phase-11-structural-code-understanding`](aios-architecture-and-phases.md#phase-11-structural-code-understanding) | yes |
+| `services/extensibility/` | 12 | [`aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap`](aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap) | yes |
+| `services/observability/` | 13 | [`aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor`](aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor) | yes |
+| `services/agents/agents/{costing,accounting,inventory}_agent/` | 14 | [`aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap`](aios-architecture-and-phases.md#ai-orchestration-layer-remaining-roadmap) | yes |
+| `services/agents/agents/{manufacturing,sales,project_management}_agent/` (+ Phase 7/2 extensions) | 15 | [`aios-architecture-and-phases.md#phase-15-operations-agents`](aios-architecture-and-phases.md#phase-15-operations-agents) | yes |
+| `services/agents/agents/{code_review,reverse_engineering,architecture}_agent/` (+ Phase 1 extension) | 16 | [`aios-architecture-and-phases.md#phase-16-code-quality-agents`](aios-architecture-and-phases.md#phase-16-code-quality-agents) | yes |
+| `services/agents/agents/{calculation,cutlist_optimization,autocad}_agent/` (+ Phase 6/9 extensions) | 17 | [`aios-architecture-and-phases.md#phase-17-engineering-calculation-agents`](aios-architecture-and-phases.md#phase-17-engineering-calculation-agents) | yes |
+| `services/agents/agents/{python,documentation,security,research}_agent/` (+ Phase 1 extension) | 18 | [`aios-architecture-and-phases.md#phase-18-cross-cutting-agents`](aios-architecture-and-phases.md#phase-18-cross-cutting-agents) | yes |
+| repo root (`Dockerfile`s, `docker-compose.yml`) | 19 | [`aios-architecture-and-phases.md#phase-19-deployment-architecture-docker-deployment`](aios-architecture-and-phases.md#phase-19-deployment-architecture-docker-deployment) | yes (unbuilt/unverified — no Docker daemon in this environment) |
+| `deploy/backup.sh`, `deploy/restore.sh` | 20 | [`aios-architecture-and-phases.md#phase-20-backup-strategy-disaster-recovery`](aios-architecture-and-phases.md#phase-20-backup-strategy-disaster-recovery) | yes (real, live restore drill run) |
+| consolidated reference (component diagram, API/DB index) | 21 | [`aios-architecture-and-phases.md#phase-21-consolidated-reference`](aios-architecture-and-phases.md#phase-21-consolidated-reference) | yes (regenerated from grepped source, no new code) |
+| `services/agents/agents/coding_agent_gateway/` (+ `coding_gateway_bridge.py`) | 22 | [`aios-architecture-and-phases.md#phase-22-external-coding-agents`](aios-architecture-and-phases.md#phase-22-external-coding-agents) | yes (live-verified safety gate; never runs a live agentic session in this environment — see Section 7) |
+| `services/agents/agents/reasoning_engine/model_router.py` | 23 | [`aios-architecture-and-phases.md#phase-23-model-router`](aios-architecture-and-phases.md#phase-23-model-router) | yes (real Ollama provider + fallback, live-verified against a real dead-config bug; cloud providers real interface, honestly not_configured) |
+| `services/control-ui/` + `web/` | 24 | [`aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](aios-architecture-and-phases.md#phase-24-control-ui-web-shell) | yes (live-tested in a browser end to end; capability views + settings honestly out of scope) |
 
 Agent capabilities live under `services/agents/agents/<name>/` — read the
 phase doc for that agent batch, plus [`agent-capability-schema`](../.cursor/rules/agent-capability-schema.mdc).
@@ -83,15 +86,16 @@ phase doc for that agent batch, plus [`agent-capability-schema`](../.cursor/rule
    to task: §1 plugins, §2 agents, §3 memory, §4 tools, §5 runtime, §6 bus, §7 UI).
 6. **`eliza-develop-technical-reference.md`** — optional; external framework detail
    only (never treat as this repo's source of truth).
-7. **Plan changed?** — update the relevant `docs/phase-N-*.md` **before** code
-   (see `docs-and-honesty.mdc`).
+7. **Plan changed?** — update the relevant section in
+   [`aios-architecture-and-phases.md`](aios-architecture-and-phases.md) **before**
+   code (see `docs-and-honesty.mdc`).
 
 ### Phase-specific mandatory reads
 
 | Task | Also read |
 |---|---|
-| Phase 24 Control UI | [`phase-24-control-ui.md`](phase-24-control-ui.md), elizaos-borrowed §7, gap-fill deps: phase-2, phase-13, phase-12 |
-| Phase 22 coding gateway | [`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md), elizaos-borrowed §4–5, phase-6 |
+| Phase 24 Control UI | [`aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](aios-architecture-and-phases.md#phase-24-control-ui-web-shell), elizaos-borrowed §7, gap-fill deps: phase-2, phase-13, phase-12 |
+| Phase 22 coding gateway | [`aios-architecture-and-phases.md#phase-22-external-coding-agents`](aios-architecture-and-phases.md#phase-22-external-coding-agents), elizaos-borrowed §4–5, phase-6 |
 | Extend built service | That service's phase doc + update doc if APIs/scope change |
 
 ---
