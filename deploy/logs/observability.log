@@ -3,3 +3,49 @@ INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8013 (Press CTRL+C to quit)
 INFO:     127.0.0.1:39508 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38268 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38272 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38280 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38294 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43722 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43724 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44930 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44914 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38620 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38634 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42658 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42662 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60196 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60206 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32844 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32854 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42670 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42684 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32968 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32980 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59028 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59040 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49330 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49332 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47496 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47500 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59226 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59234 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55786 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55788 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57798 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57808 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41046 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41060 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38230 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38240 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48576 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48582 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53220 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53230 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48922 - "GET /metrics/overview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48924 - "GET /health/system HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [28612]

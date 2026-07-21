@@ -5,3 +5,25 @@ INFO:     Uvicorn running on http://127.0.0.1:8024 (Press CTRL+C to quit)
 INFO:     127.0.0.1:37488 - "GET /ui/bootstrap HTTP/1.1" 200 OK
 INFO:     127.0.0.1:49744 - "GET /ui/conversations HTTP/1.1" 200 OK
 INFO:     127.0.0.1:49754 - "GET /ui/conversations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40456 - "GET /ui/conversations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40460 - "GET /ui/conversations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48628 - "POST /ui/conversations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48638 - "GET /ui/conversations/4c746496-e22e-4b01-a0e0-0a8496522d11/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53738 - "GET /ui/approvals/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53746 - "GET /ui/approvals/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37840 - "GET /ui/approvals/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37856 - "GET /ui/approvals/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37866 - "GET /ui/conversations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37868 - "GET /ui/conversations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39972 - "POST /ui/conversations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39974 - "GET /ui/conversations/7bde9e3d-12fe-4b8b-bc6d-386793e5ef9e/timeline HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56216 - "GET /ui/approvals/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56224 - "GET /ui/approvals/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49630 - "GET /ui/conversations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49632 - "GET /ui/conversations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46946 - "POST /ui/conversations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46960 - "GET /ui/conversations/8a3330c2-fc8d-4758-9b02-5779178af244/timeline HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [28613]

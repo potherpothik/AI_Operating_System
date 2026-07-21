@@ -2,3 +2,49 @@ INFO:     Started server process [28604]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8003 (Press CTRL+C to quit)
+INFO:     127.0.0.1:38602 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38610 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38626 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38642 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46294 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46304 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47632 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47642 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41620 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41622 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41612 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41622 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41728 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41742 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54916 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54918 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60880 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60892 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32894 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32908 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53676 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53690 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33998 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34006 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45376 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45380 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57682 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57688 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55594 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55610 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53250 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53252 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34980 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34986 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57714 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57718 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56484 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56492 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37754 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37762 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45316 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45324 - "GET /vector/stats HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [28604]

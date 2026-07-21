@@ -6,3 +6,121 @@ INFO:     127.0.0.1:59000 - "GET /security/policy/human_admin HTTP/1.1" 200 OK
 INFO:     127.0.0.1:59008 - "GET /security/policy/human_admin HTTP/1.1" 200 OK
 INFO:     127.0.0.1:59012 - "GET /security/policy/human_admin HTTP/1.1" 200 OK
 INFO:     127.0.0.1:55444 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44656 - "POST /security/authorize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35328 - "GET /approval/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35332 - "GET /approval/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60406 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60412 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60408 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60418 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60424 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60434 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60436 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60444 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60446 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60462 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40710 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:40696 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40718 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40732 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53778 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53792 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53772 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53794 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53802 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57018 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:57012 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57022 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57038 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57054 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38812 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:38828 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38830 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38836 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38852 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44842 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:44828 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44844 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44852 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44864 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58346 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:58344 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58360 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58376 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58384 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43550 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:43570 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43564 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43584 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43598 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44710 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:44724 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44718 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44738 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44754 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43856 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:43866 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43848 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43882 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43896 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39176 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:39182 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39160 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39196 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39198 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40792 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:40788 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40796 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40812 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40824 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53150 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53140 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53162 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53170 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53186 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37082 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:37090 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37070 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37096 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37106 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60078 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60080 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60074 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60082 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60088 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33482 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:33488 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33472 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33504 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33508 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50396 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50398 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50390 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50410 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50426 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40848 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:40864 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40836 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40878 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40880 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47242 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:47256 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47232 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47258 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47268 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50362 - "GET /healthz HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50352 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50378 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50388 - "GET /approval HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50402 - "POST /audit/log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50414 - "GET /approval/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50424 - "GET /approval/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42158 - "POST /security/authorize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58364 - "GET /approval/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58368 - "GET /approval/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41514 - "POST /security/authorize HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [28601]

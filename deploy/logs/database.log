@@ -2,3 +2,49 @@ INFO:     Started server process [28607]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8007 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50118 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50102 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50132 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50134 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55060 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55066 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58402 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58414 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33762 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33772 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43148 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43162 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41556 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41562 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52716 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52718 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44264 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44268 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51006 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51014 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43756 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43770 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33302 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33318 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49478 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49484 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49978 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49994 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58990 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58992 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36104 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36118 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53734 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53750 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47858 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47874 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45982 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45986 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60394 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60402 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40410 - "GET /db/query-log HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40422 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [28607]

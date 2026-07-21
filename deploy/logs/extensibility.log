@@ -2,3 +2,28 @@ INFO:     Started server process [28611]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8010 (Press CTRL+C to quit)
+INFO:     127.0.0.1:39452 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39454 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38634 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60558 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59122 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33622 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59638 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48988 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52118 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35250 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42840 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47338 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55844 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46726 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41426 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57844 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57962 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39332 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34328 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45864 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50038 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [28611]
