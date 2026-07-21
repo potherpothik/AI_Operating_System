@@ -46,12 +46,13 @@ Long-term picture (ERP Brain + Coding Brain on one kernel):
 | 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](docs/aios-architecture-and-phases.md#phase-24-control-ui-web-shell) | [`services/control-ui/`](services/control-ui/) (BFF) + [`web/`](web/) (Vite+React) — live-tested end to end in a browser: real task creation, real approval decision, real ops data. Capability views and settings honestly out of scope this session |
 | 25 | Model & Retrieval Quality | [`docs/aios-architecture-and-phases.md#phase-25-model-retrieval-quality`](docs/aios-architecture-and-phases.md#phase-25-model-retrieval-quality) | Real `nomic-embed-text` embeddings adopted (measured 3/3 vs 2/3 retrieval accuracy against ERP docs, one real bug found and fixed — silent dimension-mismatch corruption). `qwen2.5-coder:7b` evaluated and deliberately NOT adopted as default — better raw code, but reproducibly less reliable at this system's structured-output contract |
 | 26 | MCP Surface | [`docs/aios-architecture-and-phases.md#phase-26-mcp-surface`](docs/aios-architecture-and-phases.md#phase-26-mcp-surface) | [`services/mcp-surface/`](services/mcp-surface/) — new service, real MCP JSON-RPC server (own isolated venv), 8 governed tools, 9 live tests, no approval-deciding tool anywhere. Plus `research_agent`'s new `research.invoke_mcp_tool` wiring the existing Phase 12 MCP client into Reasoning Engine for real, live-tested end to end. Found and fixed two real pre-existing bugs in `services/assembly/`'s template versioning along the way |
+| 27 | OpenAI-Compatible Endpoint | [`docs/aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint`](docs/aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint) | `services/platform-spine/platform_spine/gateway/openai_shim.py` — real `POST /v1/chat/completions` (+ live SSE streaming) and `GET /v1/models`, live-verified structural bar refusing confidential-classified content against an unrecognized model's ceiling before any model call, both outcomes provable in the real audit trail. Real model access added to `services/agents/` (`/reasoning/raw_generate*`). Found and fixed a real bug: a stale config value was silently giving the actual local model a `public` classification ceiling instead of `confidential` |
 
 Twelve backend services plus a new BFF and web frontend are real, tested
 code today, now hosting every phase in the original 24-phase mandate plus
-Phases 25–26 from the new Phases 25–31 forward plan
+Phases 25–27 from the new Phases 25–31 forward plan
 (1–11 as their own dedicated design docs, 12–14 from the consolidated
-Phases 12–21 doc, 15/16/17/18/22/23/24/25/26 each from their own dedicated design
+Phases 12–21 doc, 15/16/17/18/22/23/24/25/26/27 each from their own dedicated design
 doc — written separately because each phase's core mechanism (PII scoping;
 approval-review attachment; real sandboxed deterministic execution; a
 real audit-trail tool call; a structural sandbox-backend safety gate; a
@@ -94,7 +95,19 @@ for `research_agent`. Along the way it found and fixed a real
 pre-existing bug in `services/assembly/`'s prompt-template versioning
 (string, not numeric, version ordering) and a real `mcp`/`starlette`
 dependency conflict, resolved by giving the new service its own isolated
-venv. Vision and ElizaOS study notes:
+venv. Phase 27 adds the OpenAI-compatible endpoint (the "GPU-day
+switch"): `POST /v1/chat/completions` (real SSE streaming, live-verified
+token-by-token) and `GET /v1/models` on the Gateway, so any IDE that
+already speaks the OpenAI shape can select AIOS as its model provider —
+confidential-classified content is structurally barred from a model
+whose classification ceiling can't cover it, before any model call
+happens, both allow and deny decisions provable in the real audit
+trail. Along the way it found and fixed a second real bug hiding behind
+Phase 23's already-known dead config value: the same stale
+`default_local_model` was silently giving the actual local model a
+`public` classification ceiling instead of `confidential`, refusing a
+benign request live for the wrong reason — corrected at the source
+rather than routed around again. Vision and ElizaOS study notes:
 [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md). Doc
 index and mandatory read-before-code checklist: [`docs/README.md`](docs/README.md).

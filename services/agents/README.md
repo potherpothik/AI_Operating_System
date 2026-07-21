@@ -1,4 +1,4 @@
-# Phase 5/7/8/10/14/15/16/17/18/22/23/25/26 — Reasoning Engine + twenty-three agents + Model Router + MCP client wiring (working implementation)
+# Phase 5/7/8/10/14/15/16/17/18/22/23/25/26/27 — Reasoning Engine + twenty-three agents + Model Router + MCP client wiring + OpenAI shim's raw model access (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
@@ -249,15 +249,23 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live 8-service stack + live Ollama
 ```
 
-110 tests (as of Phase 26; 87 as of Phase 18, growing with Phase
-22/23/26's own test files — `test_phase22_agent.py`, `test_phase23_model_router.py`,
-`test_phase26_mcp_bridge.py`), all passing against real Postgres (genuine
-`TIMESTAMPTZ` columns, confirmed via direct schema inspection, under a
-deliberately non-UTC session) and a real live Ollama model — not mocked,
-except for deliberately-stubbed tests (see below) used specifically
-where live-model phrasing would make a test non-deterministic without
-changing what's actually being verified. `test_phase26_mcp_bridge.py`
-(Phase 26) reuses `services/extensibility/tests/conftest.py`'s own real
+114 tests (110 as of Phase 26; 87 as of Phase 18, growing with Phase
+22/23/26/27's own test files — `test_phase22_agent.py`, `test_phase23_model_router.py`,
+`test_phase26_mcp_bridge.py`, `test_phase27_openai_shim.py`), all passing
+against real Postgres (genuine `TIMESTAMPTZ` columns, confirmed via
+direct schema inspection, under a deliberately non-UTC session) and a
+real live Ollama model — not mocked, except for deliberately-stubbed
+tests (see below) used specifically where live-model phrasing would
+make a test non-deterministic without changing what's actually being
+verified. `test_phase27_openai_shim.py` (Phase 27) covers the new
+`/reasoning/available_models`, `/reasoning/raw_generate`, and
+`/reasoning/raw_generate_stream` endpoints against a real live Ollama
+instance: real generation with real, non-zero token-usage counts from
+Ollama itself, a real streamed response confirmed to arrive as genuine
+incremental deltas (not one chunk pretending to stream), and a clean
+404 for a model name that plainly isn't pulled rather than a silent
+fallback. `test_phase26_mcp_bridge.py` (Phase 26) reuses
+`services/extensibility/tests/conftest.py`'s own real
 stub-MCP-server pattern (mirrored into this service's own `conftest.py`
 as `stub_mcp_server`, a genuine `http.server.HTTPServer`): register and
 activate a real MCP server through extensibility's real endpoints, then
@@ -532,6 +540,25 @@ materializes as a real git document. One live-model smoke test each.
   for the first time, exposing a bug latent since Phase 4. Fixed by
   ordering on `created_at` instead of `version` in both places. Full
   detail in `docs/aios-architecture-and-phases.md` Phase 26, Section 3.
+- **Phase 27: a stale config value (Phase 23's own known finding) turned
+  out to be silently breaking a SECOND, more consequential mechanism —
+  the classification-ceiling gate — not just model resolution.**
+  `services/platform-spine/platform_spine/config_manager/files/reasoning_engine.yaml`'s
+  `default_local_model`/`fallback_local_model` had held `qwen-coder`/
+  `deepseek-coder` since Phase 2 — never actually pulled here.
+  `resolve_model()` (Phase 23) worked around this with a live
+  availability check; `assembly`'s `ceiling_for_model()` (Phase 4/11)
+  never did — it only recognizes those two config keys as "local," so
+  the model actually used everywhere in this environment (`qwen3.5:4b`)
+  was silently downgraded from a `confidential` to a `public`
+  classification ceiling. Invisible until Phase 27's own structural
+  security bar tried to use it for real: a benign, `internal`-classified
+  chat request against the REAL local model was refused live, for the
+  wrong reason. Root-caused at the source this time — the config file
+  itself is now `default_local_model: qwen3.5:4b`,
+  `fallback_local_model: qwen2.5-coder:7b` — not just routed around
+  again. Full detail in `docs/aios-architecture-and-phases.md` Phase 27,
+  Section 3.
 
 ## What's real
 
@@ -826,6 +853,19 @@ materializes as a real git document. One live-model smoke test each.
   report — "no active MCP server named X" — when the model names a
   server that was never registered. Full detail in
   `docs/aios-architecture-and-phases.md#phase-26-mcp-surface` Section 2.
+- **Phase 27's `/reasoning/raw_generate`, `/reasoning/raw_generate_stream`,
+  and `/reasoning/available_models` are real model access, deliberately
+  NOT the agentic loop above** — no capability boundary, no template, no
+  approval gate, the minimum services/platform-spine's OpenAI-compatible
+  shim needs. Built on two new `ollama_adapter.py` functions using
+  Ollama's real `/api/chat` (messages-native): `chat()` returns real
+  `prompt_eval_count`/`eval_count` token usage from Ollama itself, never
+  fabricated; `chat_stream()` is a genuine generator yielding real
+  newline-delimited JSON chunks as Ollama actually produces them, live-
+  confirmed via `curl -N` to arrive as incremental per-token deltas, not
+  a complete response chunked after the fact. Full detail in
+  `docs/aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint`
+  Section 2.
 
 ## What's a stub or simplified
 
@@ -990,17 +1030,20 @@ materializes as a real git document. One live-model smoke test each.
 
 ## Next
 
-Phase 27 — OpenAI-Compatible Endpoint (`docs/aios-forward-plan-phases-25-31.md`),
-now that Phase 26 has both a new MCP server (`services/mcp-surface/`,
-exposing this system's governed agents/knowledge/approvals as MCP tools
-for IDEs) and the existing MCP client stub genuinely wired into
-Reasoning Engine as a real tool source. Real cloud provider support (a
-second, genuinely configured `ModelProvider` in `model_router.py`) remains
-a product decision, not an engineering one
+Phase 28 — Adapter Contracts (`docs/aios-forward-plan-phases-25-31.md`),
+now that three real, working implementations exist to generalize
+interface contracts from: Model Router (Phase 23), MCP Surface (Phase
+26), and the OpenAI-compatible shim (Phase 27, this service's own
+`/reasoning/raw_generate*` endpoints as the real model-access layer
+underneath it). Real cloud provider support (a second, genuinely
+configured `ModelProvider` in `model_router.py`) remains a product
+decision, not an engineering one
 (`docs/aios-architecture-and-phases.md#phase-23-model-router` Section 0).
-Revisiting `qwen2.5-coder:7b` as a default is worth another look if its
-structured-output reliability gap turns out to be a fixable
-prompting/format-constraint issue rather than an inherent model limitation
-— not investigated this phase (Phase 25, Section 2). Real per-user auth
-for MCP Surface stays deferred to Phase 31, per the forward plan's own
-sequencing.
+Revisiting `qwen2.5-coder:7b` as the AGENTIC pipeline's default is worth
+another look if its structured-output reliability gap turns out to be a
+fixable prompting/format-constraint issue rather than an inherent model
+limitation — not investigated this phase (Phase 25, Section 2); it's
+already the real `fallback_local_model` for Phase 27's raw chat
+completions, where that gap doesn't apply. Real per-user auth for MCP
+Surface and the OpenAI shim's `ide_client` actor both stay deferred to
+Phase 31, per the forward plan's own sequencing.

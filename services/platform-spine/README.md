@@ -37,11 +37,13 @@ that need it skip cleanly rather than failing confusingly — everything else
 still runs. With it set, conftest.py starts a real Phase 1 instance for the
 test session and tears it down afterward.
 
-23 tests total: layered config resolution and security-tagged override
-gating, the task state machine's valid and invalid transitions, enqueue/
-dequeue/list behavior, and Gateway's auth, rate limiting, and end-to-end task
-creation — the last of which makes a real network call to Phase 1, not a
-mock.
+37 tests total (23 as of Phase 2; Phase 24's conversation/SSE gap-fill and
+Phase 27's OpenAI shim added the rest): layered config resolution and
+security-tagged override gating, the task state machine's valid and
+invalid transitions, enqueue/dequeue/list behavior, Gateway's auth, rate
+limiting, and end-to-end task creation — the last of which makes a real
+network call to Phase 1, not a mock — plus `/v1/chat/completions` and
+`/v1/models` (see the Phase 27 section below).
 
 **Phase 15 addition:** `GET /api/v1/tasks/{task_id}/events` — the real,
 ordered state-transition history behind a task's current snapshot.
@@ -94,6 +96,39 @@ original `resolve_actor`, unchanged.
 stub-auth bearer token `services/mcp-surface/` (Phase 26) uses for its
 `submit_task` calls into Gateway. Same explicitly-a-placeholder posture
 this file has always had (see "What's a stub" below); no new mechanism.
+
+## Phase 27 addition — OpenAI-Compatible Endpoint
+
+`gateway/openai_shim.py` adds `POST /v1/chat/completions` (+ real SSE
+streaming) and `GET /v1/models` — the "GPU-day switch": any IDE that
+already speaks the OpenAI chat-completions shape can select AIOS as its
+model provider. `tokens.yaml` gained `dev-ide-client-token: ide_client`.
+A thin translator, not a second model layer: real generation happens in
+`services/agents/` (new `/reasoning/raw_generate`/`raw_generate_stream`),
+real classification happens in `services/governance/` (Phase 1's
+existing `/security/classify`), real ceiling-checking happens in
+`services/assembly/` (Phase 4/11's existing `ceiling_for_model()`). Every
+request is classified and ceiling-checked against its target model
+BEFORE any model call — confirmed live: a request naming an unrecognized
+model (`ceiling="public"`) with ordinary business content
+(`classification="internal"`) gets a real 403, and the identical request
+against the real local model succeeds — both outcomes written to the
+real, hash-chained audit trail.
+
+**A real, previously latent bug found and fixed along the way:**
+`config_manager/files/reasoning_engine.yaml`'s `default_local_model`/
+`fallback_local_model` had held `qwen-coder`/`deepseek-coder` since Phase
+2 — literal values never actually pulled in this environment (Phase 23's
+own finding, worked around there but never corrected at the source).
+This phase found a second, more consequential place trusting that stale
+value without checking reality: assembly's `ceiling_for_model()` only
+recognizes these two config keys as "local," so the model actually used
+everywhere in this environment (`qwen3.5:4b`) was silently getting a
+`public` ceiling instead of `confidential` — this phase's own structural
+bar caught it live, refusing a benign request against the real local
+model for the wrong reason. Corrected at the source:
+`default_local_model: qwen3.5:4b`, `fallback_local_model: qwen2.5-coder:7b`.
+One pre-existing test (`test_config_manager.py`) updated to match.
 
 ## Postgres
 

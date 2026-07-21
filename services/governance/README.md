@@ -282,6 +282,18 @@ in this repo points at `governance_dr_drill`.
   action; extensibility's own `/mcp/invoke` separately authorizes on
   `mcp.invoke` for the same capability — two real, independent checks.
 
+## Phase 27 addition
+
+- `ide_client` (Phase 27): new role for `services/platform-spine`'s
+  OpenAI-compatible shim's fixed, stub-auth actor — `model.generate: allow`
+  and `model.list: allow`, same stub-identity posture as `mcp_surface`
+  (Phase 26). This `allow` rule is deliberately NOT the real security
+  gate for this phase — the actual "confidential content structurally
+  barred from a lower-ceiling model" check is a separate, content-
+  dependent comparison `openai_shim.py` runs against `services/assembly/`'s
+  real `ceiling_for_model()` on every single request, independent of
+  this role grant existing at all.
+
 ## Next
 
 This is one piece of Phase 1's design; Phase 2 (Gateway, Task Manager,

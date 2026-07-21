@@ -37,3 +37,37 @@ def is_security_layer_reachable() -> bool:
         return resp.status_code == 200
     except Exception:
         return False
+
+
+def classify(content: str, declared_classification: str = "internal") -> dict:
+    """
+    Phase 27: real call to Security Layer's classify heuristic (Phase 1)
+    — the same fail-conservative posture as authorize(). Unreachable
+    Security Layer means the OpenAI shim must not guess a classification
+    on its own behalf; the caller treats an exception here as "assume
+    confidential," never "assume public."
+    """
+    resp = httpx.post(
+        f"{SECURITY_LAYER_URL}/security/classify",
+        json={"content": content, "declared_classification": declared_classification},
+        timeout=5.0,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def audit_log(actor_id: str, action: str, resource: str, decision: str, reason: str = "", correlation_id: str = "") -> None:
+    """Phase 27: direct write to the shared, hash-chained audit trail —
+    same endpoint every other service's own bridge already writes
+    through (e.g. services/agents/agents/reasoning_engine/mcp_bridge.py)."""
+    try:
+        httpx.post(
+            f"{SECURITY_LAYER_URL}/audit/log",
+            json={
+                "actor_id": actor_id, "actor_type": "agent", "action": action, "resource": resource,
+                "decision": decision, "reason": reason, "correlation_id": correlation_id,
+            },
+            timeout=5.0,
+        )
+    except Exception:  # noqa: BLE001 — best-effort, never blocks the real response on a logging failure
+        pass

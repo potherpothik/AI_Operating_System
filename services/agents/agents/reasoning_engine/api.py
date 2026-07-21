@@ -1,10 +1,13 @@
+import json
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from agents import clients
 from agents.db import get_db
-from agents.reasoning_engine import loop, store
+from agents.reasoning_engine import loop, store, model_router, ollama_adapter
 
 router = APIRouter(prefix="/reasoning", tags=["reasoning"])
 
@@ -99,3 +102,90 @@ def resume(execution_id: str, db: Session = Depends(get_db)):
     if not execution:
         raise HTTPException(status_code=404, detail="execution not found")
     return _execution_out(execution)
+
+
+# ---------------------------------------------------------------------------
+# Phase 27: raw model access for the OpenAI-compatible shim
+# (services/platform-spine's /v1/chat/completions). Deliberately NOT the
+# agentic loop above — no capability boundary, no template, no
+# approval gate. This is model_router/ollama_adapter exposed directly
+# over HTTP, the minimum a "select AIOS as your IDE's model provider"
+# shim needs. Classification-vs-model-ceiling gating happens in the
+# CALLER (platform-spine, which owns auth and already calls governance +
+# assembly for exactly this) — this endpoint only resolves a real,
+# available model and genuinely calls it, nothing more.
+# ---------------------------------------------------------------------------
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class RawGenerateRequest(BaseModel):
+    messages: list[ChatMessage]
+    model: Optional[str] = None
+
+
+@router.get("/available_models")
+def available_models():
+    """Real, currently-pulled Ollama tags, plus whichever one
+    model_router.resolve_model() would actually pick as the default
+    right now — never a hardcoded list."""
+    provider = model_router.OllamaProvider()
+    models = provider.list_models()
+    config = clients.get_reasoning_engine_config()
+    try:
+        default = model_router.resolve_model(config, provider)
+    except model_router.AllCandidatesExhausted:
+        default = None
+    return {"models": models, "default": default}
+
+
+def _resolve_target_model(model: Optional[str]) -> str:
+    provider = model_router.OllamaProvider()
+    if model:
+        if not provider.has_model(model):
+            raise HTTPException(status_code=404, detail=f"model {model!r} is not available on this Ollama instance")
+        return model
+    config = clients.get_reasoning_engine_config()
+    try:
+        return model_router.resolve_model(config, provider)
+    except model_router.AllCandidatesExhausted as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.post("/raw_generate")
+def raw_generate(req: RawGenerateRequest):
+    target_model = _resolve_target_model(req.model)
+    try:
+        result = ollama_adapter.chat(target_model, [m.model_dump() for m in req.messages])
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"model call failed: {e}")
+    message = result.get("message", {})
+    return {
+        "model": target_model,
+        "content": message.get("content", ""),
+        "prompt_eval_count": result.get("prompt_eval_count", 0),
+        "eval_count": result.get("eval_count", 0),
+    }
+
+
+@router.post("/raw_generate_stream")
+def raw_generate_stream(req: RawGenerateRequest):
+    target_model = _resolve_target_model(req.model)
+
+    def event_stream():
+        try:
+            for chunk in ollama_adapter.chat_stream(target_model, [m.model_dump() for m in req.messages]):
+                message = chunk.get("message", {})
+                delta = message.get("content", "")
+                done = chunk.get("done", False)
+                payload = {"delta": delta, "done": done}
+                if done:
+                    payload["prompt_eval_count"] = chunk.get("prompt_eval_count", 0)
+                    payload["eval_count"] = chunk.get("eval_count", 0)
+                yield f"data: {json.dumps(payload)}\n\n"
+        except Exception as e:  # noqa: BLE001
+            yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

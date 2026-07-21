@@ -39,6 +39,7 @@ flow, and the Phases 12–21 roadmap into a single reference.
 - [Phase 24 — Control UI (Web Shell)](#phase-24-control-ui-web-shell)
 - [Phase 25 — Model & Retrieval Quality](#phase-25-model-retrieval-quality)
 - [Phase 26 — MCP Surface](#phase-26-mcp-surface)
+- [Phase 27 — OpenAI-Compatible Endpoint](#phase-27-openai-compatible-endpoint)
 
 ---
 
@@ -5665,3 +5666,112 @@ the widely-supported OpenAI chat-completions request/response shape, so
 external tools that already speak "OpenAI-compatible" (not MCP) can call
 this system too. See `aios-forward-plan-phases-25-31.md` for the full
 sequencing rationale (25→31).
+
+
+---
+
+<!-- source: phase-27-openai-compatible-endpoint.md -->
+
+# Phase 27 — OpenAI-Compatible Endpoint
+### The GPU-day switch: `/v1/chat/completions` + `/v1/models` on the Gateway
+
+---
+
+## Built (real code, live-tested — not impression)
+
+The forward plan's own framing: "the day the GPU server arrives, AIOS
+should be selectable as the model provider inside any IDE — confidential
+code then flows through AIOS's own classification and routing instead of
+a vendor's cloud." This phase builds that shim now, while it's small,
+rather than the day it's suddenly urgent.
+
+## 1. The shim (`services/platform-spine/platform_spine/gateway/openai_shim.py`)
+
+`POST /v1/chat/completions` (+ `stream: true` SSE) and `GET /v1/models`,
+on the Gateway (platform-spine), same auth mechanism as every other
+Gateway endpoint — a bearer token resolved to an actor via the existing
+`tokens.yaml` (Phase 2), now with a new `ide_client` role/token. A thin
+translator, never a second model layer: the real model call happens in
+`services/agents/` (below), classification happens in `services/governance/`
+(Phase 1's existing `/security/classify`), and the classification-ceiling
+check happens in `services/assembly/` (Phase 4/11's existing
+`ceiling_for_model()`, exposed at `GET /context/model-ceiling`) — this
+module's only job is auth, gating, and OpenAI-shape translation.
+
+**The structural bar, live-verified, not asserted:** a request is
+classified and its target model's ceiling checked BEFORE any call to the
+model happens — never after. `curl`, live: a request naming `gpt-4`
+(never a recognized local model, so `ceiling_for_model("gpt-4")` returns
+`"public"`) with ordinary business content (classified `"internal"`,
+this system's own default floor) is refused with a real 403 —
+`"content classified 'internal' exceeds 'gpt-4''s ceiling 'public'"` —
+and the same request against the real local model (`ceiling="confidential"`)
+succeeds. Both outcomes — allow and deny — are written to the real,
+hash-chained audit trail (`GET /audit/query?actor_id=ide_client&action=model.generate`
+confirmed live, both decisions present with the real reason string),
+satisfying the plan's own "provable in the audit log" requirement.
+
+## 2. Real model access (`services/agents/agents/reasoning_engine/api.py`)
+
+Three new endpoints, deliberately NOT the agentic loop `/reasoning/execute`
+already provides — no capability boundary, no template, no approval
+gate, the minimum a raw "select AIOS as your model provider" call needs:
+`GET /reasoning/available_models` (real Ollama tags plus whichever model
+`model_router.resolve_model()` would actually pick right now),
+`POST /reasoning/raw_generate`, and `POST /reasoning/raw_generate_stream`.
+Built on two new `ollama_adapter.py` functions using Ollama's real
+`/api/chat` (messages-native, unlike the existing `generate()`'s single
+prompt string) — `chat()` for a complete response with real
+`prompt_eval_count`/`eval_count` token usage from Ollama itself, never
+fabricated zeroes, and `chat_stream()`, a genuine generator yielding
+real newline-delimited JSON chunks as Ollama actually produces them
+(`stream=true`), not a complete response chunked artificially after the
+fact. Live-verified end to end with `curl -N`: real per-token deltas
+arrive incrementally, not all at once.
+
+## 3. A real, previously latent bug this phase found and fixed
+
+`services/platform-spine/platform_spine/config_manager/files/reasoning_engine.yaml`'s
+`default_local_model`/`fallback_local_model` had held `qwen-coder`/
+`deepseek-coder` since Phase 2 — literal values never actually pulled in
+this environment (Phase 23's own finding). Phase 23 worked AROUND this
+with `resolve_model()`'s live availability check rather than correcting
+the file. This phase found a SECOND, more consequential place that
+trusted the file's literal value without checking reality:
+`ceiling_for_model()` (Phase 4/11) only recognizes
+`default_local_model`/`fallback_local_model` as "local" — so the model
+actually used everywhere in this environment (`qwen3.5:4b`) was never
+recognized as local, silently downgrading its classification ceiling
+from `confidential` to `public`. Invisible until this phase's own
+structural bar tried to use it for real: a benign, `internal`-classified
+request against the REAL local model was refused, live, for the wrong
+reason. Root-caused, not patched around a second time — the config file
+itself is now corrected: `default_local_model: qwen3.5:4b`,
+`fallback_local_model: qwen2.5-coder:7b` (Phase 25's own evaluated coder
+model — its structured-output unreliability finding is irrelevant here,
+since this config's fallback role is for raw chat completions, not the
+agentic pipeline's JSON contract). Confirmed live: `/reasoning/available_models`
+now reports a real, non-null `default`, and the structural bar correctly
+allows the real local model while still refusing an unrecognized one.
+One pre-existing test (`services/platform-spine/tests/test_config_manager.py`)
+updated to assert the corrected value.
+
+## 4. Explicitly Out of Scope
+
+Real cloud-provider generation (Model Router's `OpenAIProvider`/
+`AnthropicProvider`/`GeminiProvider` remain real interfaces, honestly
+`not_configured`, per Phase 23's own scope decision — this phase adds no
+new external call). Real per-user auth for the `ide_client` actor —
+same fixed, stub-auth posture as `mcp_surface` (Phase 26) and Control UI
+(Phase 24), deferred to Phase 31. Adapter-contract formalization across
+Model Router / MCP Surface / this shim — that's Phase 28, deliberately
+sequenced after three real, working implementations exist to generalize
+from, not designed against zero implementations.
+
+## Next
+
+Phase 28 — Adapter Contracts: publish versioned interface contracts in
+`docs/contracts/` (`ModelProvider`, `ToolAdapter`, `IDESurface`) extracted
+from three now-real, working implementations (Model Router, MCP Surface,
+this OpenAI shim) rather than invented in a vacuum. See
+`aios-forward-plan-phases-25-31.md` for the full sequencing rationale.

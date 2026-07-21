@@ -1,4 +1,23 @@
-default_local_model: qwen-coder
-fallback_local_model: deepseek-coder
+# Phase 27: corrected to the real, actually-pulled models in this
+# environment (confirmed live via model_router.OllamaProvider().has_model()
+# since Phase 23, and via `ollama pull` in Phase 25) — the literal former
+# values ("qwen-coder", "deepseek-coder") were never pulled here at all.
+# Phase 23 worked AROUND this with resolve_model()'s own live availability
+# check rather than correcting the file; Phase 27 found a second, more
+# consequential place that trusted this file's literal value without
+# checking reality — assembly's ceiling_for_model() (Phase 4/11), which
+# decides whether a model gets the "confidential" classification ceiling.
+# Since ceiling_for_model() only recognizes default_local_model/
+# fallback_local_model as "local," the stale value meant the model this
+# environment actually uses everywhere (qwen3.5:4b) was never recognized
+# as local, silently downgrading its ceiling to "public" — the OpenAI
+# shim's (Phase 27) own core security check, refusing a benign "internal"-
+# classified request against the real model actually in use, is what
+# surfaced this live. fallback_local_model is now qwen2.5-coder:7b,
+# evaluated in Phase 25 as genuinely better at raw code (irrelevant here —
+# this config's fallback role is for Phase 27's raw chat completions, not
+# the structured-JSON agent pipeline where Phase 25 found it unreliable).
+default_local_model: qwen3.5:4b
+fallback_local_model: qwen2.5-coder:7b
 external_model_allowed: false
 max_iterations: 8

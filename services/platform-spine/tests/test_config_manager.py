@@ -7,7 +7,9 @@ client = TestClient(app)
 def test_get_config_returns_file_defaults():
     r = client.get("/config/reasoning_engine")
     body = r.json()
-    assert body["default_local_model"] == "qwen-coder"
+    # Phase 27: corrected from "qwen-coder" (never actually pulled in
+    # this environment) to the real, live-verified default.
+    assert body["default_local_model"] == "qwen3.5:4b"
     assert body["external_model_allowed"] in (False, "false", "False")
 
 

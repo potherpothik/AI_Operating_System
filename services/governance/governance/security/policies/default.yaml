@@ -1184,6 +1184,23 @@ roles:
       resource: "*"
       effect: allow
 
+  ide_client:
+    # Phase 27: the OpenAI-compatible shim's own fixed, stub-auth actor
+    # (services/platform-spine/platform_spine/gateway/openai_shim.py) —
+    # same stub-identity posture as mcp_surface (Phase 26) and Control
+    # UI (Phase 24), real per-user auth deferred to Phase 31. The actual
+    # "confidential content structurally barred from a lower-ceiling
+    # model" gate is NOT this allow rule — that's a separate,
+    # content-dependent check openai_shim.py runs against assembly's
+    # real ceiling_for_model() before ever calling the model, on every
+    # single request regardless of this grant.
+    - action: "model.generate"
+      resource: "*"
+      effect: allow
+    - action: "model.list"
+      resource: "*"
+      effect: allow
+
   human_admin:
     - action: "*"
       resource: "*"

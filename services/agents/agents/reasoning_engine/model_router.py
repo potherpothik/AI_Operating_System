@@ -66,6 +66,14 @@ class OllamaProvider(ModelProvider):
     def generate(self, model_name: str, prompt: str) -> str:
         return ollama_adapter.generate(model_name, prompt)
 
+    def list_models(self) -> list[str]:
+        """Phase 27: real, currently-pulled tags — used by /v1/models,
+        not a hardcoded or config-derived list."""
+        try:
+            return ollama_adapter.list_models()
+        except Exception:  # noqa: BLE001
+            return []
+
 
 class _EnvKeyCloudProvider(ModelProvider):
     """Real class, real interface — deliberately never reachable in this

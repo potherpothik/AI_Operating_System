@@ -86,6 +86,7 @@ Vision names → what actually exists (or is still a gap):
 | Metrics / Health (JSON APIs) | Built | Phase 13 → `services/observability/` |
 | Control UI (Web Shell) | Built | Phase 24 → `services/control-ui/` + `web/` |
 | MCP Surface (AIOS exposed TO IDEs) | Built | Phase 26 → `services/mcp-surface/` |
+| OpenAI-Compatible Endpoint (the GPU-day switch) | Built | Phase 27 → `services/platform-spine/platform_spine/gateway/openai_shim.py` |
 | Tool Router | Partial | Reasoning Engine routes `tool_call_request` (Phase 5); not a standalone module |
 | Model Router | Built | Phase 23 → `services/agents/agents/reasoning_engine/model_router.py` — real typed registry + Ollama fallback; cloud providers real interface, honestly not_configured |
 
@@ -102,7 +103,8 @@ AI Kernel (existing services)
 ├── Security Layer       (governance)
 ├── Human Approval       (governance)
 ├── Model Router         (reasoning_engine/model_router.py — Phase 23)
-└── MCP Surface          (mcp-surface — Phase 26, AIOS exposed TO IDEs)
+├── MCP Surface          (mcp-surface — Phase 26, AIOS exposed TO IDEs)
+└── OpenAI Shim          (platform_spine/gateway/openai_shim.py — Phase 27, the GPU-day switch)
 ```
 
 ---
@@ -144,14 +146,15 @@ already enforces.
 ## 4. Domain roadmap
 
 **Built today:** every phase in the original mandate, 1–24, plus Phases
-25–26 from the new Phases 25–31 forward plan (governance,
+25–27 from the new Phases 25–31 forward plan (governance,
 platform spine, memory,
 assembly, agents + Reasoning Engine, execution, database, planning,
 knowledge pipelines, extensibility/MCP, observability metrics/health,
 costing/accounting/inventory agents, manufacturing/sales/PM agents,
 code-review/reverse-engineering/architecture agents, calculation/cutlist-
 optimization/AutoCAD agents, python/documentation/security/research agents,
-Coding Agent Gateway, Model Router, Control UI, MCP Surface), plus
+Coding Agent Gateway, Model Router, Control UI, MCP Surface, OpenAI-
+Compatible Endpoint), plus
 real Phase 19 deployment artifacts (`Dockerfile`s, `docker-compose.yml`) —
 written to the real interface but genuinely unbuilt/unverified against a
 live Docker daemon, which doesn't exist in this environment; a different
@@ -201,15 +204,28 @@ live-tested end to end. It also found and fixed two real, previously
 latent bugs in `services/assembly/`'s prompt-template versioning (a
 body-diff gap and a string-vs-numeric version-ordering bug) — see
 [`aios-architecture-and-phases.md#phase-26-mcp-surface`](aios-architecture-and-phases.md#phase-26-mcp-surface).
+Phase 27 (OpenAI-Compatible Endpoint) added the "GPU-day switch": real
+`POST /v1/chat/completions` (live SSE streaming, token-by-token,
+confirmed via `curl -N`) and `GET /v1/models` on the Gateway
+(`services/platform-spine/platform_spine/gateway/openai_shim.py`), with
+a real, live-verified structural bar — content classified above a
+candidate model's real ceiling never reaches the model at all, both
+allow and deny decisions provable in the real audit trail. It found and
+fixed a second real bug hiding behind Phase 23's already-known dead
+config value: the same stale `default_local_model` was silently giving
+the actual local model (`qwen3.5:4b`) a `public` classification ceiling
+instead of `confidential`, refusing a benign request live for the wrong
+reason — corrected at the source this time — see
+[`aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint`](aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint).
 See root [`README.md`](../README.md) status table for the
 authoritative phase → service map.
 
-**Designed, not built:** Phases 27–31 from the new forward plan
-(`aios-forward-plan-phases-25-31.md`) — an OpenAI-compatible endpoint,
-enforced adapter contracts, browser/live-Odoo/Django tool adapters,
-declarative workflows, and team/GPU-day hardening, in that sequence. Real
-cloud-provider support for Model Router remains a product decision, not
-an engineering one, independent of that sequence.
+**Designed, not built:** Phases 28–31 from the new forward plan
+(`aios-forward-plan-phases-25-31.md`) — enforced adapter contracts,
+browser/live-Odoo/Django tool adapters, declarative workflows, and
+team/GPU-day hardening, in that sequence. Real cloud-provider support
+for Model Router remains a product decision, not an engineering one,
+independent of that sequence.
 
 Built-phase design docs worth re-reading before extending code:
 [`aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor`](aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor),
@@ -269,17 +285,20 @@ Before any implementation, follow the doc-reading protocol in
 
 ## Next
 
-Phase 27 (OpenAI-Compatible Endpoint) is next per
-`aios-forward-plan-phases-25-31.md`'s own sequencing — Phase 26 (MCP
-Surface) is now built: a real MCP JSON-RPC server plus the existing MCP
-client wired into Reasoning Engine, live-tested end to end
-(`aios-architecture-and-phases.md#phase-26-mcp-surface`). Narrower
-remaining scope within already-built phases: real cloud-provider support
-for Model Router (a product decision, not an engineering one —
+Phase 28 (Adapter Contracts) is next per
+`aios-forward-plan-phases-25-31.md`'s own sequencing, now that three
+real, working implementations exist to generalize interface contracts
+from: Model Router (Phase 23), MCP Surface (Phase 26), and the
+OpenAI-compatible shim (Phase 27 —
+`aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint`).
+Narrower remaining scope within already-built phases: real cloud-provider
+support for Model Router (a product decision, not an engineering one —
 `aios-architecture-and-phases.md#phase-23-model-router` §0), whether
-`qwen2.5-coder:7b`'s structured-output reliability gap is fixable
-(`aios-architecture-and-phases.md#phase-25-model-retrieval-quality` §2),
-real per-user auth for MCP Surface (deferred to Phase 31 —
+`qwen2.5-coder:7b`'s structured-output reliability gap is fixable for the
+AGENTIC pipeline specifically (`aios-architecture-and-phases.md#phase-25-model-retrieval-quality`
+§2 — it's already live as Phase 27's real chat-completions fallback,
+where that gap doesn't apply), real per-user auth for both MCP Surface
+and the OpenAI shim's `ide_client` actor (deferred to Phase 31 —
 `aios-architecture-and-phases.md#phase-26-mcp-surface`), and within
 Control UI's own remaining scope, a settings page (§5.6) and capability
 views (§5.5, blocked on a real view-manifest convention landing on
