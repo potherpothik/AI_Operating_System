@@ -22,7 +22,7 @@ The AI must eventually understand:
 | Odoo | ERP | Built (Phase 5) |
 | Accounting / costing / inventory | ERP | Built (Phase 14) |
 | Manufacturing / sales / project management | ERP | Built (Phase 15) |
-| Operator control plane (chat, approvals, ops UI) | Shared | Designed (Phase 24) |
+| Operator control plane (chat, approvals, ops UI) | Shared | Built (Phase 24) — capability views and settings still designed only |
 | Engineering calculations | ERP | Designed (Phase 17 `calculation_agent`) |
 | Glass / fabrication / cutlist optimization | ERP | Designed (Phase 17 `cutlist_optimization_agent`) |
 | Business workflows | ERP | Partial (ERP Knowledge Engine, Phase 9) |
@@ -84,7 +84,7 @@ Vision names → what actually exists (or is still a gap):
 | Git Manager | Built | Phase 6 → `services/execution/` |
 | MCP Manager | Built (as MCP Client / Plugin System) | Phase 12 → `services/extensibility/` |
 | Metrics / Health (JSON APIs) | Built | Phase 13 → `services/observability/` |
-| Control UI (Web Shell) | **Designed** | Phase 24 — not yet built |
+| Control UI (Web Shell) | Built | Phase 24 → `services/control-ui/` + `web/` |
 | Tool Router | Partial | Reasoning Engine routes `tool_call_request` (Phase 5); not a standalone module |
 | Model Router | **Gap** | Ollama adapter + config overrides today; Phase 23 design seed below |
 
@@ -134,12 +134,13 @@ approval).
 
 ## 4. Domain roadmap
 
-**Built today:** Phases 1–22 (governance, platform spine, memory, assembly,
-agents + Reasoning Engine, execution, database, planning, knowledge pipelines,
-extensibility/MCP, observability metrics/health, costing/accounting/inventory
-agents, manufacturing/sales/PM agents, code-review/reverse-engineering/
-architecture agents, calculation/cutlist-optimization/AutoCAD agents,
-python/documentation/security/research agents, Coding Agent Gateway), plus
+**Built today:** Phases 1–22 and 24 (governance, platform spine, memory,
+assembly, agents + Reasoning Engine, execution, database, planning,
+knowledge pipelines, extensibility/MCP, observability metrics/health,
+costing/accounting/inventory agents, manufacturing/sales/PM agents,
+code-review/reverse-engineering/architecture agents, calculation/cutlist-
+optimization/AutoCAD agents, python/documentation/security/research agents,
+Coding Agent Gateway, Control UI), plus
 real Phase 19 deployment artifacts (`Dockerfile`s, `docker-compose.yml`) —
 written to the real interface but genuinely unbuilt/unverified against a
 live Docker daemon, which doesn't exist in this environment; a different
@@ -157,12 +158,18 @@ code, real live-verified structural safety gate, but a deliberate refusal
 to ever run a live external-agent session in this environment, since the
 only available sandbox backend can't isolate one — see
 [`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md)
-Section 7. See root [`README.md`](../README.md) status table for the
+Section 7. Phase 24 (Control UI) is the first phase with a real browser in
+the loop: `services/control-ui/` (BFF) and `web/` (Vite+React, one app
+instead of the design doc's three npm packages, a documented
+simplification) were live-tested end to end in an actual browser — sign
+in, a chat message that created one real task, a real approval decided
+and independently confirmed, real ops data. Capability views and a
+settings page are the one named, out-of-scope gap — see
+[`phase-24-control-ui.md`](phase-24-control-ui.md), `services/control-ui/README.md`,
+`web/README.md`. See root [`README.md`](../README.md) status table for the
 authoritative phase → service map.
 
 **Designed, not built:**
-- **Phase 24** — Control UI (Web Shell: chat, approvals, ops, capability views)
-  ([`phase-24-control-ui.md`](phase-24-control-ui.md))
 - **Phase 23** — Model Router (seed only; full phase doc when ready)
 
 Built-phase design docs worth re-reading before extending code:
@@ -174,7 +181,8 @@ Built-phase design docs worth re-reading before extending code:
 [`phase-19-deployment-docker.md`](phase-19-deployment-docker.md),
 [`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md),
 [`phase-21-consolidated-reference.md`](phase-21-consolidated-reference.md),
-[`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md).
+[`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md),
+[`phase-24-control-ui.md`](phase-24-control-ui.md).
 
 ---
 
@@ -207,9 +215,11 @@ is gitignored — it is not imported by this Python orchestration layer.
   structural sandbox-backend gate (Section 7 of the phase doc) is the
   reference pattern for handing any future untrusted tool a live task
   only when isolation can actually be confirmed, not assumed.
-- **Control UI** → Phase 24 design; follow `add-new-service` for the BFF
-  (`services/control-ui/`) plus `web/` shell; governance-first chat
-  (tasks through Gateway, not direct agent execution).
+- **Control UI** → Phase 24, built; `services/control-ui/` (BFF) + `web/`
+  (Vite+React) are the reference pattern for governance-first UI: chat
+  submits tasks through Gateway directly, never a direct agent call; any
+  mutating action the BFF touches (approvals) goes through its own
+  authorize → audit → forward proxy first.
 
 Before any implementation, follow the doc-reading protocol in
 [`docs/README.md`](README.md) and `.cursor/rules/docs-reading-protocol.mdc`.
@@ -218,7 +228,9 @@ Before any implementation, follow the doc-reading protocol in
 
 ## Next
 
-Phase 24 (Control UI, already designed) when operator-facing UI is
-prioritized; a full Phase 23 Model Router doc when multi-model routing
-becomes a real bottleneck rather than a config override. Both are the only
-remaining designed-but-not-built phases now that Phase 22 is built.
+A full Phase 23 Model Router doc when multi-model routing becomes a real
+bottleneck rather than a config override — the only remaining
+designed-but-not-built phase now that Phase 24 is built. Within Phase 24's
+own remaining scope: a settings page (§5.6) and capability views (§5.5,
+blocked on a real view-manifest convention landing on
+`services/extensibility/` first).

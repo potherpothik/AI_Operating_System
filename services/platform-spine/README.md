@@ -64,6 +64,30 @@ Ran both services as real processes against real Postgres and confirmed:
   `{"detail":"security layer unreachable, failing closed: ..."}` — Gateway
   genuinely fails closed when Security Layer is down, not just in theory.
 
+## Phase 24 gap-fill: conversations + task threading + SSE token auth
+
+Real additions for `services/control-ui`'s BFF and `web/` frontend:
+`Conversation` model plus `Task.conversation_id` (nullable — a task with no
+conversation still works exactly as before), `POST`/`GET /api/v1/conversations`,
+`GET /api/v1/conversations/{id}`, and a `conversation_id` filter on
+`GET /api/v1/tasks`. Live-tested, both SQLite and real Postgres.
+
+**No migration framework exists in this project** (`Base.metadata.create_all()`
+creates missing tables but never alters existing ones) — extending `task`,
+an already-live table in the real `platform` Postgres database from earlier
+phases' own testing, needed one explicit, manual, additive statement:
+`ALTER TABLE task ADD COLUMN conversation_id VARCHAR;`. Nullable, no data
+loss, no default backfill needed. Anyone else running this against their
+own already-populated Postgres instance needs the same statement — not
+automated, named here so it isn't a surprise.
+
+**`GET /tasks/{id}/stream`'s new `?token=` fallback**
+(`platform_spine/gateway/auth.py`'s `resolve_actor_for_stream`): the browser's
+real `EventSource` API cannot set an `Authorization` header at all — a
+genuine platform limitation, not a workaround for a bug. Scoped to this one
+endpoint only; every other route still requires the real header via the
+original `resolve_actor`, unchanged.
+
 ## Postgres
 
 Tested directly against a live Postgres instance, including under a

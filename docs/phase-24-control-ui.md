@@ -3,6 +3,18 @@
 
 ---
 
+## Built (real code, live-tested in a browser — see Section 15)
+
+Sections 1–14 below are the original design, written before any code
+existed, carried forward unchanged as the record of what was planned.
+**Section 15 is new**: what actually got built, three real, documented
+deviations from this design (one npm app instead of three; capability
+views and Settings out of scope; approvals inbox not enriched with task
+links), and one real gap-fill this phase needed that the design doc never
+anticipated (`EventSource` can't set an `Authorization` header).
+
+---
+
 ## Prerequisites (read before implementation)
 
 Agents must read these **before** coding Phase 24:
@@ -478,11 +490,77 @@ Document in `services/control-ui/README.md`:
 
 ---
 
+## 15. What Actually Got Built
+
+**Gap-fill (§1), real and tested both against SQLite and live Postgres:**
+`Conversation` model, `Task.conversation_id` (nullable), `POST`/`GET
+/api/v1/conversations`, `GET /api/v1/conversations/{id}`, a
+`conversation_id` filter on `GET /api/v1/tasks`
+(`services/platform-spine/platform_spine/`). Extending an already-live
+Postgres `task` table (no migration framework exists in this project)
+needed one explicit `ALTER TABLE task ADD COLUMN conversation_id
+VARCHAR;` — real, additive, no data loss, documented in
+`services/platform-spine/README.md`.
+
+**BFF (§3), real, no persistence of its own:** `services/control-ui/`
+implements `/ui/healthz`, `/ui/bootstrap`, `/ui/conversations` (GET/POST),
+`/ui/conversations/{id}`, `/ui/conversations/{id}/timeline`,
+`/ui/approvals/inbox`, `/ui/approvals/{id}/decide` (the one genuinely
+governed proxy — authorize → audit → forward, live-verified end to end),
+and `/ui/views` (honestly empty). No `ui_user_preferences`/`ui_widget_state`
+tables (§11) — nothing in v1 reads or writes per-user preferences, so this
+service holds no database at all; adding unused tables would violate this
+project's own no-speculative-abstraction discipline.
+
+**Web shell (§4–§6), one real deviation from this doc's own architecture:**
+built as **one Vite + React + TypeScript app** (`web/`) with the
+shell/ui/client layering as internal folders, not three separate npm
+packages. A real, deliberate simplification — three real workspaces would
+add real packaging complexity with no functional benefit at this size —
+not a shortcut that drops anything the design called for. Chat (§5.1),
+Approvals inbox (§5.2), and Ops (§5.3) are built and live-tested.
+Audit & correlation (§5.4), Capability views (§5.5), and Settings (§5.6)
+are **not built this session** — named explicitly, not silently dropped.
+
+**A real gap this design doc never anticipated:** the browser's actual
+`EventSource` API — the real SSE client `web/` uses for live task status
+(§5.1) — cannot set an `Authorization` header at all. Gateway's
+`GET /api/v1/tasks/{id}/stream` now accepts a `?token=` query-param
+fallback (`platform_spine/gateway/auth.py`'s new
+`resolve_actor_for_stream`), scoped to that one endpoint only; every other
+route still requires the real header, unchanged.
+
+**Live-tested in an actual browser, not just unit tests:** signed in with
+the stub `dev-admin-token`, sent one chat message that created exactly one
+real task (confirmed independently via `curl` against platform-spine, not
+just trusting the UI), approved one real pending approval (confirmed
+independently against governance's own `GET /approval/{id}` afterward, its
+`status` really changed to `approved` and `decided_by` really became
+`human_admin`), and viewed the real Ops page, which correctly reported
+services genuinely not running as `"down"` rather than faking them
+healthy.
+
+**Real, named gaps, not faked:**
+- Capability views (§5.5): honestly empty — no view-manifest convention
+  exists on `services/extensibility/` yet (the design doc's own §1
+  gap-fill row for this was never built).
+- Approvals inbox (§5.2) is NOT enriched with task/conversation links, as
+  §3's own API table describes — `ApprovalRequest`
+  (`services/governance/governance/models.py`) has no `correlation_id` or
+  `task_id` field to join against; a further governance schema gap-fill
+  would be needed to close this.
+
+Full detail: `services/control-ui/README.md`, `web/README.md`,
+`services/platform-spine/README.md`.
+
 ## Next
 
-Implement gap-fill on `platform-spine` (conversations + task link), then scaffold
-`services/control-ui/` and `web/` per this doc. Phase 22 adds coding-session events
-to the same chat timeline. Phase 23 adds model-routing settings when Model Router exists.
+Phase 23 — a full Model Router design (typed `ModelType` + priority-ordered
+handlers over Ollama, sketched in `architecture-vision.md` §3) when
+multi-model routing outgrows the current config-override approach. Within
+Phase 24's own remaining scope: a Settings page (§5.6), and Capability
+views (§5.5) once `services/extensibility/` gains a real view-manifest
+convention.
 
 Cross-reference: [`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md) §7,
 [`eliza-develop-technical-reference.md`](eliza-develop-technical-reference.md) §10.
