@@ -267,9 +267,10 @@ external coding agent given a real task would run with this environment's
 real credentials and unrestricted network access under that backend —
 exactly the "untrusted tool" Section 0 says must stay confined.
 
-**Confirmed live, both real terminal states, in this environment:**
-- `opencode` genuinely isn't installed (`shutil.which` finds nothing) — the
-  real probe returns `status: "not_configured"`.
+**Confirmed live, both real terminal states, in this environment (as of
+initial Phase 22 build):**
+- `opencode` genuinely wasn't installed at the time (`shutil.which` found
+  nothing) — the real probe returned `status: "not_configured"`.
 - `claude` (Claude Code) IS genuinely installed (version 2.1.215) — the real
   probe succeeds as a real process, but reports `backend: "subprocess"` (no
   Docker daemon anywhere in this environment, the same constraint named
@@ -280,6 +281,18 @@ exactly the "untrusted tool" Section 0 says must stay confined.
   `SubprocessSandbox`'s 512MB `RLIMIT_AS` cap (exit code -6, SIGABRT) — a
   second, independent reason this backend can't safely run this CLI, on top
   of the isolation gap the gate is actually checking for.
+
+**Update (discovered live during Phase 23 testing):** `opencode` (v1.18.4)
+is now genuinely installed in this environment — a real environmental
+change, not a code change. Re-tested live: the gate still correctly
+refuses it with `status: "unsafe_backend"`, same as `claude`, and the same
+`RLIMIT_AS` crash under `SubprocessSandbox` reproduces for `opencode` too
+(exit code -6). The `not_configured` branch itself is now covered by a
+direct unit test against a mocked Shell Executor response
+(`test_missing_binary_still_reports_not_configured`) rather than relying
+on a real binary happening to be absent — the code path is real either
+way, just no longer demonstrable against an environment where both
+supported providers are actually installed.
 
 **What was deliberately never done, and why it's not a stub:** a full,
 live, autonomous coding session through this gateway (the actual
@@ -298,10 +311,11 @@ reached in this environment, same honesty tier as `DockerSandbox` itself
 since Phase 6.
 
 **Tests:** `services/agents/tests/test_phase22_agent.py` — capability
-boundaries, live governance policy check, the `not_configured` and
-`unsafe_backend` terminal states (both against real, live services, not
-mocked), an unknown-provider refusal before any shell call, and a live-model
-smoke test (skipped if Ollama unreachable).
+boundaries, live governance policy check, the `unsafe_backend` terminal
+state for both real providers (live, not mocked), the `not_configured`
+terminal state (direct unit test against a mocked Shell Executor response,
+per the update note above), an unknown-provider refusal before any shell
+call, and a live-model smoke test (skipped if Ollama unreachable).
 
 ---
 

@@ -40,16 +40,17 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 | 20 | Backup Strategy, Disaster Recovery | [`docs/phase-20-backup-disaster-recovery.md`](docs/phase-20-backup-disaster-recovery.md) | [`deploy/backup.sh`](deploy/backup.sh), [`deploy/restore.sh`](deploy/restore.sh) — real, live restore drill run against a disposable database; result in [`services/governance/README.md`](services/governance/README.md#phase-20-addition--real-restore-drill-result) |
 | 21 | Consolidated reference | [`docs/phase-21-consolidated-reference.md`](docs/phase-21-consolidated-reference.md) | regenerated from real, grepped source — component diagram, API surface index, DB schema index, agent list, canonical message format |
 | 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | [`services/agents/agents/coding_agent_gateway/`](services/agents/agents/coding_agent_gateway/) — live-verified structural safety gate refuses a live agentic session (`unsafe_backend`/`not_configured`), never runs one unconfined in this environment |
+| 23 | Model Router | [`docs/phase-23-model-router.md`](docs/phase-23-model-router.md) | [`services/agents/agents/reasoning_engine/model_router.py`](services/agents/agents/reasoning_engine/model_router.py) — real typed registry + Ollama fallback, live-verified against a real dead-config bug found this phase; cloud providers real interface, honestly `not_configured` |
 | 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/phase-24-control-ui.md`](docs/phase-24-control-ui.md) | [`services/control-ui/`](services/control-ui/) (BFF) + [`web/`](web/) (Vite+React) — live-tested end to end in a browser: real task creation, real approval decision, real ops data. Capability views and settings honestly out of scope this session |
 
 Eleven backend services plus a new BFF and web frontend are real, tested
-code today, now hosting Phases 1–18, 22, and 24
+code today, now hosting every phase in the original mandate, 1–24
 (1–11 as their own dedicated design docs, 12–14 from the consolidated
-Phases 12–21 doc, 15/16/17/18/22/24 each from their own dedicated design
+Phases 12–21 doc, 15/16/17/18/22/23/24 each from their own dedicated design
 doc — written separately because each phase's core mechanism (PII scoping;
 approval-review attachment; real sandboxed deterministic execution; a
 real audit-trail tool call; a structural sandbox-backend safety gate; a
-conversation-threaded chat UI) is a
+typed model-provider registry; a conversation-threaded chat UI) is a
 material change to an already-built service, not just agent
 configuration). Phase 19 adds real deployment artifacts written to the
 interface but unverified (no Docker daemon here). Phase 20 adds two real
@@ -63,12 +64,15 @@ reference. Phase 22 adds Coding Agent Gateway: real code, real live
 tests, but a deliberate structural refusal to ever run a live external
 coding-agent session in this environment, since the only available
 sandbox backend can't isolate one safely — confirmed live, not assumed.
-Phase 24 adds the first human-facing UI: a real FastAPI BFF
-(`services/control-ui/`) and a real Vite+React app (`web/`), live-tested
-end to end in an actual browser, not just unit-tested — capability views
-and a settings page are the one named, out-of-scope gap. Everything past
-Phase 24 (Phase 23 Model Router) is fully designed but not yet
-implemented. Vision and ElizaOS study notes:
+Phase 23 adds Model Router: a real typed provider registry that found and
+fixed a genuinely dead config value (`default_local_model` was never
+actually pulled in this environment's Ollama) — cloud providers are real
+interface, honestly `not_configured`, no real external calls added to
+this offline-first system. Phase 24 adds the first human-facing UI: a
+real FastAPI BFF (`services/control-ui/`) and a real Vite+React app
+(`web/`), live-tested end to end in an actual browser, not just
+unit-tested — capability views and a settings page are the one named,
+out-of-scope gap. Vision and ElizaOS study notes:
 [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md). Doc
 index and mandatory read-before-code checklist: [`docs/README.md`](docs/README.md).
@@ -495,6 +499,27 @@ until that gap is closed.
   refusal grounded in existing, already-documented code, not a new
   restriction invented for this phase. Full detail in
   `docs/phase-22-external-coding-agents.md` Section 7.
+- **Phase 23 (Model Router) found a real bug that every prior phase's own
+  live-model testing had silently routed around all session long.**
+  `default_local_model`/`fallback_local_model` are real config keys that
+  have existed since Phase 2, but nothing had ever checked whether the
+  configured default was actually pulled in this environment's Ollama —
+  it wasn't (`qwen-coder` was never pulled here; only `qwen3.5:4b` was),
+  and every single live-model smoke test this whole session only worked
+  because it explicitly overrode `target_model`. `model_router.py`'s
+  `resolve_model()` now checks for real via `GET /api/tags` and falls
+  back for real — live-verified: a `target_model=None` execution against
+  a config naming the unavailable model as default resolved to the real,
+  actually-pulled fallback, confirmed on the persisted execution row, not
+  just the router's own return value. The `generate()` call site itself
+  is untouched, preserving all 46 existing tests that monkeypatch
+  `loop.generate` directly — a deliberate, narrower wiring than the
+  design doc originally sketched, explained in
+  `docs/phase-23-model-router.md` Section 3. Cloud providers
+  (`OpenAIProvider`/`AnthropicProvider`/`GeminiProvider`) are real
+  classes, real interface, genuinely never configured — no external API
+  key this build ever sets, no real external call added to this
+  offline-first system.
 - **Phase 24 is the first phase with a real browser in the loop, and it
   found a real platform gap the design doc never anticipated.**
   `EventSource` — the actual browser API `web/`'s live task-status stream

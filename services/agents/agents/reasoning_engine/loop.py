@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from agents import clients
-from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge, review_bridge, reverse_eng_bridge, calc_bridge, cutlist_bridge, autocad_bridge, security_bridge, coding_gateway_bridge
+from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge, review_bridge, reverse_eng_bridge, calc_bridge, cutlist_bridge, autocad_bridge, security_bridge, coding_gateway_bridge, model_router
 from agents.reasoning_engine.ollama_adapter import generate, OllamaUnavailable
 from agents.reasoning_engine.models import ReasoningExecution
 
@@ -156,7 +156,18 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
 
     config = clients.get_reasoning_engine_config()
     if target_model is None:
-        target_model = config.get("default_local_model") or "qwen-coder"
+        # Phase 23: resolve against what's actually pulled in Ollama
+        # right now, trying default_local_model then fallback_local_model
+        # in priority order — real config keys since Phase 2, never
+        # actually checked against reality before this phase.
+        try:
+            target_model = model_router.resolve_model(config)
+        except model_router.AllCandidatesExhausted:
+            # Neither configured model is actually available — fall
+            # through to the same value this code always defaulted to
+            # and let the existing OllamaUnavailable handling below
+            # report it for real, rather than inventing a model name.
+            target_model = config.get("default_local_model") or "qwen-coder"
     if max_iterations is None:
         try:
             max_iterations = int(config.get("max_iterations", 8))

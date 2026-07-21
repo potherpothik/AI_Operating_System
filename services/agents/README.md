@@ -1,4 +1,4 @@
-# Phase 5/7/8/10/14/15/16/17/18/22 — Reasoning Engine + twenty-three agents (working implementation)
+# Phase 5/7/8/10/14/15/16/17/18/22/23 — Reasoning Engine + twenty-three agents + Model Router (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
@@ -325,6 +325,24 @@ materializes as a real git document. One live-model smoke test each.
 
 ## Real bugs found by live testing, not the test suite
 
+- **`default_local_model: qwen-coder` was never actually pulled in this
+  environment — a real config value nothing had ever checked (Phase 23).**
+  `default_local_model`/`fallback_local_model` have existed in
+  `reasoning_engine.yaml` since Phase 2, but every single live-model test
+  across every phase this session only ever worked because it explicitly
+  overrode `target_model` to `qwen3.5:4b` (the one model genuinely pulled
+  here) — the config default silently went unused the entire time. Found
+  by building `model_router.py`'s `has_model()` check and pointing it at
+  the real config: `OllamaProvider().has_model("qwen-coder")` returns
+  `False`, confirmed directly against this environment's real `GET
+  /api/tags`. Fixed by making `loop.py`'s `execute()` call
+  `model_router.resolve_model()` for the `target_model=None` path — it
+  tries `default_local_model` first, genuinely checks whether it's
+  available, and falls through to `fallback_local_model` for real. A live
+  end-to-end run (`target_model=None`, config naming the unavailable
+  `qwen-coder` as default) confirmed the execution's persisted
+  `target_model` really ended up `qwen3.5:4b`, not the configured-but-dead
+  default.
 - **`qwen3.5:4b` is a thinking-capable model.** Called through Ollama's
   default `/api/generate` behavior, it spent its *entire* output token
   budget on internal chain-of-thought and hit `done_reason: "length"`
@@ -727,6 +745,22 @@ materializes as a real git document. One live-model smoke test each.
   SIGABRT) — independent confirmation the backend can't safely run this
   CLI, on top of the isolation gap the gate exists to catch. Full detail
   in `docs/phase-22-external-coding-agents.md` Section 7.
+- **Model Router (Phase 23) found and fixed a real, previously-invisible
+  bug just by checking config against reality.** `default_local_model`/
+  `fallback_local_model` are real config keys that have existed since
+  Phase 2, but nothing had ever verified the configured default was
+  actually pulled in Ollama — confirmed live, it wasn't, and every prior
+  phase's live-model test only worked by explicitly overriding
+  `target_model`, silently routing around the dead default the whole
+  time. `model_router.py`'s `resolve_model()` now checks for real via a
+  live `GET /api/tags` and genuinely falls back — live-verified end to
+  end: a `target_model=None` execution against a config naming the
+  unavailable `qwen-coder` as default resolved to the real,
+  actually-pulled `qwen3.5:4b`, confirmed on the persisted
+  `ReasoningExecution.target_model` field. `loop.py`'s `generate()` call
+  site itself is unchanged — only model-name resolution changed —
+  preserving all 46 existing tests that monkeypatch `loop.generate`
+  directly. Full detail in `docs/phase-23-model-router.md` Section 6.
 
 ## What's a stub or simplified
 
@@ -869,11 +903,23 @@ materializes as a real git document. One live-model smoke test each.
   path is real and reachable — it only executes when the probe reports
   `backend: "docker"`, which no test run in this environment can ever
   produce. Same honesty tier as `DockerSandbox` itself since Phase 6.
+- **Model Router's cloud providers (`OpenAIProvider`, `AnthropicProvider`,
+  `GeminiProvider`) are real classes with no real implementation behind
+  them.** `is_configured()` genuinely checks for a real API key env var
+  (`OPENAI_API_KEY`, etc.) this build never sets; `generate()` on an
+  unconfigured provider raises `ProviderNotConfigured` rather than being
+  reachable at all. Deliberate, not a placeholder for something
+  half-built — this system is offline-first by explicit design, and
+  adding a real external call here means real credentials, real cost,
+  and real data egress of retrieved context, a decision this phase's own
+  doc explicitly declines to make unilaterally (`docs/phase-23-model-router.md`
+  Section 0). `resolve_and_generate()` (the dispatcher these providers
+  would plug into) is real, tested code, not wired to any call site yet.
 
 ## Next
 
-Phase 23 — a full Model Router design (typed `ModelType` + priority-ordered
-handlers over Ollama, `architecture-vision.md` §3) once multi-model routing
-outgrows the current config-override approach. Phase 24 (Control UI,
-`docs/phase-24-control-ui.md`) remains available to prioritize instead once
-operator-UI work is ready to start.
+Real cloud provider support (a second, genuinely configured `ModelProvider`
+in `model_router.py`) is the natural next increment when/if this system's
+offline-first posture is deliberately relaxed for a specific, approved use
+case — a product decision, not an engineering one (`docs/phase-23-model-router.md`
+Section 0). Every phase named in the original mandate is now built.

@@ -86,7 +86,7 @@ Vision names → what actually exists (or is still a gap):
 | Metrics / Health (JSON APIs) | Built | Phase 13 → `services/observability/` |
 | Control UI (Web Shell) | Built | Phase 24 → `services/control-ui/` + `web/` |
 | Tool Router | Partial | Reasoning Engine routes `tool_call_request` (Phase 5); not a standalone module |
-| Model Router | **Gap** | Ollama adapter + config overrides today; Phase 23 design seed below |
+| Model Router | Built | Phase 23 → `services/agents/agents/reasoning_engine/model_router.py` — real typed registry + Ollama fallback; cloud providers real interface, honestly not_configured |
 
 ```
 AI Kernel (existing services)
@@ -100,7 +100,7 @@ AI Kernel (existing services)
 ├── ERP Knowledge        (knowledge_pipelines)
 ├── Security Layer       (governance)
 ├── Human Approval       (governance)
-└── Model Router         (NOT YET — Phase 23)
+└── Model Router         (reasoning_engine/model_router.py — Phase 23)
 ```
 
 ---
@@ -118,29 +118,37 @@ Ollama
     └── Future models
 ```
 
-Today: Reasoning Engine targets whatever is pulled in Ollama; model choice
-is a config override (`default_local_model` / per-capability `target_model`),
-not a real router. **Phase 23 (Model Router)** — not yet designed as a full
-phase doc — should become a typed model-role registry (e.g. `TEXT_LARGE`,
-`CODE`, `EMBEDDING`) with priority-ordered handlers, borrowing the
-ElizaOS `useModel(ModelType, …)` idea without adopting that framework. See
-[`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md).
+Today: `model_router.py` (Phase 23) resolves `default_local_model` /
+`fallback_local_model` (or an explicit per-call `target_model` override)
+against what's genuinely pulled in Ollama, via a typed `ModelType` registry
+(`TEXT_LARGE`, `CODE`, `TEXT_EMBEDDING`, matching
+[`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md) §5's own
+`useModel(ModelType, …)` vocabulary) with priority-ordered fallback —
+real, live-verified, not a design sketch. `TEXT_EMBEDDING` is named but not
+rewired into `services/knowledge/`'s own embedding-model swap mechanism
+(Phase 3) this phase.
 
-External / cloud models remain approval-gated by Security Layer
-classification rules (never send source code externally without explicit
-approval).
+External / cloud models have a real provider interface
+(`OpenAIProvider`/`AnthropicProvider`/`GeminiProvider`) but are
+deliberately never configured in this build — no real API key this
+offline-first system sets, no real external call added. When a real
+cloud provider is genuinely wired in, it remains approval-gated by
+Security Layer classification rules (never send source code externally
+without explicit approval) exactly as `assembly/context_builder/classification.py`
+already enforces.
 
 ---
 
 ## 4. Domain roadmap
 
-**Built today:** Phases 1–22 and 24 (governance, platform spine, memory,
+**Built today:** every phase in the original mandate, 1–24 (governance,
+platform spine, memory,
 assembly, agents + Reasoning Engine, execution, database, planning,
 knowledge pipelines, extensibility/MCP, observability metrics/health,
 costing/accounting/inventory agents, manufacturing/sales/PM agents,
 code-review/reverse-engineering/architecture agents, calculation/cutlist-
 optimization/AutoCAD agents, python/documentation/security/research agents,
-Coding Agent Gateway, Control UI), plus
+Coding Agent Gateway, Model Router, Control UI), plus
 real Phase 19 deployment artifacts (`Dockerfile`s, `docker-compose.yml`) —
 written to the real interface but genuinely unbuilt/unverified against a
 live Docker daemon, which doesn't exist in this environment; a different
@@ -158,7 +166,12 @@ code, real live-verified structural safety gate, but a deliberate refusal
 to ever run a live external-agent session in this environment, since the
 only available sandbox backend can't isolate one — see
 [`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md)
-Section 7. Phase 24 (Control UI) is the first phase with a real browser in
+Section 7. Phase 23 (Model Router) found and fixed a real, previously
+invisible bug: `default_local_model` was never actually pulled in this
+environment's Ollama, and every prior phase's own live-model testing
+had silently routed around it by always overriding `target_model` — see
+[`phase-23-model-router.md`](phase-23-model-router.md) Section 6. Phase
+24 (Control UI) is the first phase with a real browser in
 the loop: `services/control-ui/` (BFF) and `web/` (Vite+React, one app
 instead of the design doc's three npm packages, a documented
 simplification) were live-tested end to end in an actual browser — sign
@@ -169,8 +182,11 @@ settings page are the one named, out-of-scope gap — see
 `web/README.md`. See root [`README.md`](../README.md) status table for the
 authoritative phase → service map.
 
-**Designed, not built:**
-- **Phase 23** — Model Router (seed only; full phase doc when ready)
+**Designed, not built:** nothing — every phase in the original 24-phase
+mandate is built. Real cloud-provider support for Model Router (Section
+3 above) is the natural next increment when/if this system's
+offline-first posture is deliberately relaxed for a specific, approved
+use case.
 
 Built-phase design docs worth re-reading before extending code:
 [`phase-13-metrics-health.md`](phase-13-metrics-health.md),
@@ -182,6 +198,7 @@ Built-phase design docs worth re-reading before extending code:
 [`phase-20-backup-disaster-recovery.md`](phase-20-backup-disaster-recovery.md),
 [`phase-21-consolidated-reference.md`](phase-21-consolidated-reference.md),
 [`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md),
+[`phase-23-model-router.md`](phase-23-model-router.md),
 [`phase-24-control-ui.md`](phase-24-control-ui.md).
 
 ---
@@ -228,9 +245,9 @@ Before any implementation, follow the doc-reading protocol in
 
 ## Next
 
-A full Phase 23 Model Router doc when multi-model routing becomes a real
-bottleneck rather than a config override — the only remaining
-designed-but-not-built phase now that Phase 24 is built. Within Phase 24's
-own remaining scope: a settings page (§5.6) and capability views (§5.5,
-blocked on a real view-manifest convention landing on
-`services/extensibility/` first).
+Every phase in the original 24-phase mandate is built. Remaining scope is
+narrower increments within already-built phases: real cloud-provider
+support for Model Router (a product decision, not an engineering one —
+`phase-23-model-router.md` §0) and, within Control UI's own remaining
+scope, a settings page (§5.6) and capability views (§5.5, blocked on a
+real view-manifest convention landing on `services/extensibility/` first).

@@ -66,10 +66,14 @@ def test_governance_requires_approval_for_coding_gateway_propose_run(full_stack)
 # asserted, the real coding_gateway_bridge.materialize_propose_run() output.
 # ---------------------------------------------------------------------------
 
-def test_opencode_provider_reports_not_configured_live(full_stack, execution_url, proposal_repo, monkeypatch):
-    """opencode genuinely isn't installed in this environment (confirmed:
-    `shutil.which("opencode")` finds nothing) — the real probe against the
-    live execution service must report not_configured, not a fake pass."""
+def test_opencode_provider_reports_unsafe_backend_live(full_stack, execution_url, proposal_repo, monkeypatch):
+    """opencode is now genuinely installed in this environment (v1.18.4 —
+    confirmed live: `opencode --version` really succeeds; it was genuinely
+    absent when Phase 22 was first built and tested, a real environmental
+    change discovered incidentally while testing Phase 23, not a
+    regression). The gate still correctly refuses it, same as claude:
+    the probe genuinely runs, but the sandbox backend still isn't
+    docker, so a live agentic session is still refused."""
     _ensure_ready(coding_agent_gateway_register, full_stack["governance"], full_stack["assembly"])
 
     def fake_generate(model, prompt):
@@ -92,8 +96,42 @@ def test_opencode_provider_reports_not_configured_live(full_stack, execution_url
     assert resumed.status == "completed"
     cg = resumed.result["coding_gateway_execution"]
     assert cg["attempted"] is True
-    assert cg["status"] == "not_configured"
-    assert "opencode" in cg["reason"]
+    assert cg["status"] == "unsafe_backend"
+    assert cg["probe"]["backend"] == "subprocess"
+    # Real finding, not asserted in advance: opencode ALSO crashes under
+    # SubprocessSandbox's 512MB RLIMIT_AS cap (same as claude) — a real
+    # process genuinely ran and terminated, whatever the exit code.
+    assert cg["probe"]["exit_code"] is not None
+
+
+def test_missing_binary_still_reports_not_configured(proposal_repo, monkeypatch):
+    """Structural coverage for the not_configured path, now that both
+    real providers this repo knows about happen to be installed in this
+    environment (a real, live-verified state, not an assumption): a
+    direct unit test of materialize_propose_run() with clients.shell_execute
+    mocked to return the exact shape Shell Executor's own service.py
+    produces for a real FileNotFoundError (SandboxCreationError caught,
+    status="failed", exit_code=None) — the same real code path Phase 22's
+    original live test exercised when opencode was genuinely absent,
+    kept covered now that the environment itself has changed."""
+    from types import SimpleNamespace
+    from agents import clients
+    from agents.reasoning_engine import coding_gateway_bridge
+
+    def fake_shell_execute(command, args, working_dir, capability, requesting_agent, mode, task_id=None, correlation_id=""):
+        assert command == "opencode"
+        return {"ok": True, "result": {"status": "failed", "exit_code": None, "backend": "none", "stdout": "", "stderr": f"command {command!r} not found"}}
+
+    monkeypatch.setattr(clients, "shell_execute", fake_shell_execute)
+
+    fake_execution = SimpleNamespace(
+        id="fake-exec-id", task_id="fake-task-id", agent_capability="coding_agent_gateway", context_id=None,
+        result={"provider": "opencode", "instruction": "Add a docstring to utils.py.", "risk_classification": "high"},
+    )
+    outcome = coding_gateway_bridge.materialize_propose_run(fake_execution)
+    assert outcome["attempted"] is True
+    assert outcome["status"] == "not_configured"
+    assert "opencode" in outcome["reason"]
 
 
 def test_claude_code_provider_reports_unsafe_backend_live(full_stack, execution_url, proposal_repo, monkeypatch):
