@@ -3,6 +3,7 @@ brain: coding
 allowed_actions:
   - research.synthesize_internal
   - research.propose_external_lookup
+  - research.invoke_mcp_tool
 forbidden_actions:
   - research.access_external_direct
 requires_approval:

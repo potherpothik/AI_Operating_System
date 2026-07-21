@@ -7,6 +7,7 @@ SECURITY_LAYER_URL = os.environ.get("SECURITY_LAYER_URL", "http://localhost:8000
 EXECUTION_URL = os.environ.get("EXECUTION_URL", "http://localhost:8006")
 DATABASE_CONNECTOR_URL = os.environ.get("DATABASE_CONNECTOR_URL", "http://localhost:8007")
 KNOWLEDGE_PIPELINES_URL = os.environ.get("KNOWLEDGE_PIPELINES_URL", "http://localhost:8009")
+EXTENSIBILITY_URL = os.environ.get("EXTENSIBILITY_URL", "http://localhost:8010")
 GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "dev-odoo-agent-token")
 
 
@@ -537,3 +538,43 @@ def verify_environment(resolved_environment: str, capability: str, correlation_i
         return {"ok": False, "error": e.response.json().get("detail", str(e))}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"security layer unreachable, failing closed: {e}"}
+
+
+def mcp_list_servers() -> dict:
+    """
+    Phase 26: the real, already-active MCP servers an agent can invoke a
+    tool on (services/extensibility/, Phase 12) — the bridge resolves a
+    model-supplied server NAME to the real server_id extensibility's own
+    /mcp/invoke actually requires, never trusting a model to know or
+    invent an internal id.
+    """
+    try:
+        resp = httpx.get(f"{EXTENSIBILITY_URL}/mcp/servers", timeout=10.0)
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
+def mcp_invoke(server_id: str, tool_name: str, params: dict, capability: str, task_id: str = None, correlation_id: str = "") -> dict:
+    """
+    Phase 26: real dispatch to extensibility's existing, already-tested
+    /mcp/invoke — this is the wiring this phase adds, not a new
+    invocation mechanism. Reasoning Engine was never a caller of this
+    endpoint before this phase existed.
+    """
+    try:
+        resp = httpx.post(
+            f"{EXTENSIBILITY_URL}/mcp/invoke",
+            json={
+                "server_id": server_id, "tool_name": tool_name, "params": params,
+                "capability": capability, "task_id": task_id, "correlation_id": correlation_id,
+            },
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, **resp.json()}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": e.response.json().get("detail", str(e))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}

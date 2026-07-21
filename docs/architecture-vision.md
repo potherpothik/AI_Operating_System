@@ -85,6 +85,7 @@ Vision names → what actually exists (or is still a gap):
 | MCP Manager | Built (as MCP Client / Plugin System) | Phase 12 → `services/extensibility/` |
 | Metrics / Health (JSON APIs) | Built | Phase 13 → `services/observability/` |
 | Control UI (Web Shell) | Built | Phase 24 → `services/control-ui/` + `web/` |
+| MCP Surface (AIOS exposed TO IDEs) | Built | Phase 26 → `services/mcp-surface/` |
 | Tool Router | Partial | Reasoning Engine routes `tool_call_request` (Phase 5); not a standalone module |
 | Model Router | Built | Phase 23 → `services/agents/agents/reasoning_engine/model_router.py` — real typed registry + Ollama fallback; cloud providers real interface, honestly not_configured |
 
@@ -100,7 +101,8 @@ AI Kernel (existing services)
 ├── ERP Knowledge        (knowledge_pipelines)
 ├── Security Layer       (governance)
 ├── Human Approval       (governance)
-└── Model Router         (reasoning_engine/model_router.py — Phase 23)
+├── Model Router         (reasoning_engine/model_router.py — Phase 23)
+└── MCP Surface          (mcp-surface — Phase 26, AIOS exposed TO IDEs)
 ```
 
 ---
@@ -141,15 +143,15 @@ already enforces.
 
 ## 4. Domain roadmap
 
-**Built today:** every phase in the original mandate, 1–24, plus Phase 25
-from the new Phases 25–31 forward plan (governance,
+**Built today:** every phase in the original mandate, 1–24, plus Phases
+25–26 from the new Phases 25–31 forward plan (governance,
 platform spine, memory,
 assembly, agents + Reasoning Engine, execution, database, planning,
 knowledge pipelines, extensibility/MCP, observability metrics/health,
 costing/accounting/inventory agents, manufacturing/sales/PM agents,
 code-review/reverse-engineering/architecture agents, calculation/cutlist-
 optimization/AutoCAD agents, python/documentation/security/research agents,
-Coding Agent Gateway, Model Router, Control UI), plus
+Coding Agent Gateway, Model Router, Control UI, MCP Surface), plus
 real Phase 19 deployment artifacts (`Dockerfile`s, `docker-compose.yml`) —
 written to the real interface but genuinely unbuilt/unverified against a
 live Docker daemon, which doesn't exist in this environment; a different
@@ -190,15 +192,24 @@ deliberately did **not** adopt it: better raw code, but reproducibly less
 reliable at this system's structured-output contract when run through the
 real agent pipeline twice — see
 [`aios-architecture-and-phases.md#phase-25-model-retrieval-quality`](aios-architecture-and-phases.md#phase-25-model-retrieval-quality).
+Phase 26 (MCP Surface) added a new, twelfth backend service
+(`services/mcp-surface/`) — a real MCP JSON-RPC server exposing 8
+governed tools to any MCP-speaking IDE, with no tool anywhere able to
+decide a pending approval — and wired Phase 12's existing MCP client
+into Reasoning Engine as a real tool source for `research_agent`,
+live-tested end to end. It also found and fixed two real, previously
+latent bugs in `services/assembly/`'s prompt-template versioning (a
+body-diff gap and a string-vs-numeric version-ordering bug) — see
+[`aios-architecture-and-phases.md#phase-26-mcp-surface`](aios-architecture-and-phases.md#phase-26-mcp-surface).
 See root [`README.md`](../README.md) status table for the
 authoritative phase → service map.
 
-**Designed, not built:** Phases 26–31 from the new forward plan
-(`aios-forward-plan-phases-25-31.md`) — MCP Surface, an OpenAI-compatible
-endpoint, enforced adapter contracts, browser/live-Odoo/Django tool
-adapters, declarative workflows, and team/GPU-day hardening, in that
-sequence. Real cloud-provider support for Model Router remains a product
-decision, not an engineering one, independent of that sequence.
+**Designed, not built:** Phases 27–31 from the new forward plan
+(`aios-forward-plan-phases-25-31.md`) — an OpenAI-compatible endpoint,
+enforced adapter contracts, browser/live-Odoo/Django tool adapters,
+declarative workflows, and team/GPU-day hardening, in that sequence. Real
+cloud-provider support for Model Router remains a product decision, not
+an engineering one, independent of that sequence.
 
 Built-phase design docs worth re-reading before extending code:
 [`aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor`](aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor),
@@ -258,15 +269,18 @@ Before any implementation, follow the doc-reading protocol in
 
 ## Next
 
-Phase 26 (MCP Surface) is next per `aios-forward-plan-phases-25-31.md`'s
-own sequencing — the IDE integration surface, built before abstracting an
-adapter contract from it (Phase 28), consistent with this project's own
-"don't design interfaces against zero implementations" rule. Narrower
+Phase 27 (OpenAI-Compatible Endpoint) is next per
+`aios-forward-plan-phases-25-31.md`'s own sequencing — Phase 26 (MCP
+Surface) is now built: a real MCP JSON-RPC server plus the existing MCP
+client wired into Reasoning Engine, live-tested end to end
+(`aios-architecture-and-phases.md#phase-26-mcp-surface`). Narrower
 remaining scope within already-built phases: real cloud-provider support
 for Model Router (a product decision, not an engineering one —
 `aios-architecture-and-phases.md#phase-23-model-router` §0), whether
 `qwen2.5-coder:7b`'s structured-output reliability gap is fixable
 (`aios-architecture-and-phases.md#phase-25-model-retrieval-quality` §2),
-and within Control UI's own remaining scope, a settings page (§5.6) and
-capability views (§5.5, blocked on a real view-manifest convention
-landing on `services/extensibility/` first).
+real per-user auth for MCP Surface (deferred to Phase 31 —
+`aios-architecture-and-phases.md#phase-26-mcp-surface`), and within
+Control UI's own remaining scope, a settings page (§5.6) and capability
+views (§5.5, blocked on a real view-manifest convention landing on
+`services/extensibility/` first).

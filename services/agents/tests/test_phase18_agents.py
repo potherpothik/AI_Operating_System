@@ -31,6 +31,7 @@ def _stub(action, **overrides):
         "reasoning": "test reasoning", "answer_or_proposal": "test answer", "confidence": 0.9,
         "provenance": [], "risk_classification": "medium", "delegate_to": None, "action": action,
         "audit_correlation_id": None, "audit_actor_id": None, "audit_action": None,
+        "mcp_server_name": None, "mcp_tool_name": None, "mcp_params_json": None,
     }
     base.update(overrides)
     return json.dumps(base)

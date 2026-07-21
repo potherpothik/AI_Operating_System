@@ -40,7 +40,12 @@ def register_template(req: TemplateRegister, db: Session = Depends(get_db)):
 @router.get("/templates")
 def list_templates(db: Session = Depends(get_db)):
     rows = template_store.list_templates(db)
-    return [{"id": t.id, "agent_template_id": t.agent_template_id, "version": t.version, "status": t.status} for t in rows]
+    # body included so callers like agents' own ensure_template_registered()
+    # can detect a changed template body under an already-active version
+    # (Phase 26: the first time an existing agent's template body changed
+    # in place, not just a brand-new agent being registered for the first
+    # time) rather than only ever comparing status.
+    return [{"id": t.id, "agent_template_id": t.agent_template_id, "version": t.version, "status": t.status, "body": t.body} for t in rows]
 
 
 @router.post("/templates/reconcile-approvals")

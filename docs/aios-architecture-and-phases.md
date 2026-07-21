@@ -38,6 +38,7 @@ flow, and the Phases 12–21 roadmap into a single reference.
 - [Phase 23 — Model Router](#phase-23-model-router)
 - [Phase 24 — Control UI (Web Shell)](#phase-24-control-ui-web-shell)
 - [Phase 25 — Model & Retrieval Quality](#phase-25-model-retrieval-quality)
+- [Phase 26 — MCP Surface](#phase-26-mcp-surface)
 
 ---
 
@@ -5493,3 +5494,174 @@ Cursor, VS Code+Continue, OpenCode), plus wiring the existing MCP client
 stub into the Reasoning Engine as a real tool source. See
 `aios-forward-plan-phases-25-31.md` for the full sequencing rationale
 (25→31).
+
+
+---
+
+<!-- source: phase-26-mcp-surface.md -->
+
+# Phase 26 — MCP Surface
+### AIOS exposed to IDEs · the existing MCP client wired into Reasoning Engine
+
+---
+
+## Built (real code, live-tested — not impression)
+
+Two genuinely separate deliverables, easy to conflate but sharing no
+code: (a) a **new** MCP server (`services/mcp-surface/`) — AIOS exposing
+governed tools TO an IDE, real MCP JSON-RPC 2.0 over streamable HTTP; and
+(b) wiring Phase 12's **existing** MCP client (`services/extensibility/`)
+into Reasoning Engine as a real tool source — AIOS calling OUT to
+external MCP-shaped servers, a deliberately simplified `{tool, params} ->
+{result}` REST contract, unchanged since Phase 12. The forward plan named
+this gap explicitly (`docs/requirements-alignment-assessment.md`): the
+client existed and was tested since Phase 12, but no agent had ever
+called it.
+
+## 1. MCP Surface (`services/mcp-surface/`) — new service
+
+Real MCP server via the official `mcp` Python SDK
+(`mcp.server.fastmcp.FastMCP`, `mcp==1.28.1`), served as a Starlette ASGI
+app (`mcp.streamable_http_app()`) on port 8025. 8 real tools:
+`submit_task`, `get_task_status`, `ask_agent`, `search_knowledge`,
+`get_erp_schema`, `list_pending_approvals`, `get_audit_trail`,
+`list_capabilities`. Every call authorizes and audit-logs through the
+real Security Layer before touching anything — a thin translator, never
+a bypass, the same discipline Control UI's BFF (Phase 24) already
+established.
+
+**Structurally excluded, not just undocumented:** no tool anywhere in
+this surface can decide a pending approval. `list_pending_approvals` is
+read-only. This is the one non-negotiable requirement the forward plan
+named for this phase — "an AI-driven IDE session must not be able to
+approve its own risky actions" — enforced both by omission (no such tool
+exists in `mcp_surface/server.py`) and by governance policy (the
+`mcp_surface` role in `default.yaml` has no `approval.decide`-shaped
+action grant).
+
+Actor identity is a fixed, stub-auth `mcp_surface` role, matching Control
+UI's Phase 24 posture — real per-user auth stays out of scope, deferred
+by the forward plan's own sequencing to Phase 31. `submit_task` layers
+authorization the same way every Gateway-calling capability already does
+(Phase 10's DevOps Agent `shell.execute` pattern): Gateway's own `POST
+/api/v1/tasks` independently re-checks `task.create` for whatever actor
+the bearer token resolves to, on top of the MCP-surface-specific
+`mcp_surface.submit_task` grant.
+
+**A real, live-found dependency conflict, not anticipated by the plan:**
+`pip install mcp` into the shared repo `.venv` upgraded `starlette` to
+1.3.1, which breaks every other FastAPI-based service in this repo —
+`fastapi==0.115.0` requires `starlette<0.39.0`. Caught immediately
+(`python -c "import main"` on governance raised `TypeError:
+Router.__init__() got an unexpected keyword argument 'on_startup'`),
+fixed by downgrading `starlette` back and uninstalling `mcp` and its
+transitive deps from the shared venv, then verifying all 12 pre-existing
+services still import cleanly and their test suites still pass.
+`services/mcp-surface/` now has its **own isolated venv** — a hard rule
+going forward, not just this phase's workaround.
+
+**A real FastMCP serialization behavior, found live, not assumed:** a
+bare Python `list` return type from a tool function serializes as N
+separate `TextContent` content blocks, one per list item, not one JSON
+array in a single block. `list_pending_approvals` and `get_audit_trail`
+return dicts (`{"approvals": [...]}`, `{"task_id":..., "events": [...]}`)
+— both the fix for this SDK behavior and a match for this system's own
+pre-existing convention (every other list-returning endpoint in this
+system already wraps results the same way, e.g. `{"hits": [...]}`,
+`{"capabilities": [...]}`).
+
+9 real tests (`services/mcp-surface/tests/test_mcp_surface.py`) — genuine
+`initialize`/`tools/list`/`tools/call` MCP JSON-RPC round trips via the
+official SDK's own client, against the real running server and real
+backing services (governance, platform-spine, knowledge), not direct
+Python calls and not mocked. Plus a standalone
+`tests/live_smoke_test.py` end-to-end script for manual verification.
+
+## 2. Reasoning Engine wired to the existing MCP client
+
+`research_agent` gets a new action, `research.invoke_mcp_tool` — the
+natural semantic home for external-lookup-shaped calls, consistent with
+how tool-call actions have always been added incrementally per-agent
+(Phase 7's `database_agent`, Phase 10's `docker_agent`/`testing_agent`)
+rather than as a system-wide schema change across all 23 agents.
+`mcp_bridge.py` resolves a model-supplied server **name** to the real,
+active `server_id` via a live lookup against extensibility's
+`/mcp/servers` — never trusting a model-supplied internal id directly,
+the same discipline `execution_bridge.py`'s branch naming already
+established. `governance.mcp.invoke` was already granted to
+`research_agent`'s role since Phase 12 (every non-planner agent role);
+`research.invoke_mcp_tool` itself needed its own new `allow` grant, since
+it's a distinct action name from `mcp.invoke` (the tool-call dispatch in
+`loop.py` authorizes on the top-level action, extensibility's own
+`/mcp/invoke` separately authorizes on `mcp.invoke` for the same
+capability — two real, independent checks, not one).
+
+Live-tested end-to-end reusing `services/extensibility/tests/conftest.py`'s
+`stub_mcp_server` pattern (a genuine `http.server.HTTPServer` on a real
+socket) mirrored into `services/agents/tests/conftest.py`: register a
+real stub server via extensibility's real `/mcp/register` +
+`/servers/{id}/activate`, then confirm `research_agent`, via a stubbed
+model response, genuinely dispatches through `mcp_bridge.py` →
+`clients.mcp_invoke()` → extensibility's real `/mcp/invoke` → the real
+stub server, with the real result folding back into the reasoning loop
+correctly (`tests/test_phase26_mcp_bridge.py`, 2 tests: a successful real
+tool call and an honest "no active server named X" report).
+
+## 3. Two real, pre-existing bugs this phase surfaced and fixed
+
+Neither is new code added by this phase's own feature — both are gaps in
+infrastructure that predates it, found only because this phase modified
+an *already-active* agent template for the first time in this project's
+history (every prior phase's new agent template was registered fresh;
+`research_agent`'s template, active since Phase 18, had never been
+changed in place before).
+
+**Template re-registration never detected a body change.** Every
+`register.py`'s `ensure_template_registered()`, since Phase 5, only ever
+checked template *status* ("already active" → skip) — never *content*. A
+changed `template.md` would silently never take effect once a template
+was already active. Fixed in `research_agent/register.py`: compare the
+active template's stored body against the file on disk, and fall through
+to registering a new version (through the same real approval flow every
+other template registration already goes through) when they differ.
+Required exposing `body` on assembly's `GET /prompt/templates` response
+(`services/assembly/assembly/prompt_builder/api.py`) — not there before,
+since no caller had ever needed to compare it.
+
+**Template version ordering was lexicographic, not numeric.** Both
+`register_template()`'s `next_version` calculation and
+`get_active_template()`'s "which version is live" query
+(`services/assembly/assembly/prompt_builder/templates.py`) ordered by
+`PromptTemplate.version` — a free-text `String` column — descending.
+String ordering puts `"9"` above `"10"` (`'9' > '1'` as the first
+character), so once any agent's template crossed version 9, `next_version`
+would keep recomputing `"10"` forever, and — more seriously —
+`get_active_template()` could serve a stale version 9 body for a live
+render instead of the real, newer version 10. This project's own
+iterative fixing of `research_agent`'s template during this phase pushed
+it past version 9 for the first time in the project's history, exposing
+a bug that had been latent since Phase 4. Fixed by ordering on
+`created_at` instead of `version` in both places — semantically the
+correct meaning of "latest" regardless of how version numbers are
+formatted.
+
+## 4. Explicitly Out of Scope
+
+Real per-user MCP-session auth (Phase 31). An OpenAI-compatible endpoint
+for external tools to call AIOS as a model backend (Phase 27, next).
+Cleaning up the dev-environment cruft this phase's full regression run
+surfaced (12 agent templates stuck `pending_approval` in this specific
+local dev database from earlier, unrelated sessions; a stale `execution`
+service process with a mismatched sandbox root; `DEMO_ERP_DATABASE_URL`
+missing from a manually-started governance process) — none of that is
+code, and none of it shipped; it was local dev-environment state, fixed
+live to get a genuinely clean 110/110 test run, not shipped as part of
+this phase's deliverable.
+
+## Next
+
+Phase 27 — OpenAI-Compatible Endpoint: exposing AIOS's own agents behind
+the widely-supported OpenAI chat-completions request/response shape, so
+external tools that already speak "OpenAI-compatible" (not MCP) can call
+this system too. See `aios-forward-plan-phases-25-31.md` for the full
+sequencing rationale (25→31).

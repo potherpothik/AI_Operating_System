@@ -1063,6 +1063,9 @@ roles:
     - action: "research.propose_external_lookup"
       resource: "*"
       effect: require_approval
+    - action: "research.invoke_mcp_tool"
+      resource: "*"
+      effect: allow
     - action: "research.access_external_direct"
       resource: "*"
       effect: deny
@@ -1135,6 +1138,49 @@ roles:
 
   git_manager:
     - action: "code_analysis.scan"
+      resource: "*"
+      effect: allow
+
+  mcp_surface:
+    # Phase 26: real actions for the 8 real MCP tools this role exists
+    # for — every one "allow", every one still authorize()+audit_log()
+    # gated per call, same defense-in-depth posture as mcp.invoke's own
+    # role grants since Phase 12. Deliberately NO
+    # "approval.decide"-shaped action anywhere in this role — an
+    # AI-driven IDE session must never be able to approve its own risky
+    # actions (Phase 26 doc, Section 0's own explicit requirement).
+    # Structural, not just an omission: there is no tool in
+    # services/mcp-surface/ that could even call one.
+    - action: "mcp_surface.submit_task"
+      resource: "*"
+      effect: allow
+    # Gateway's own POST /api/v1/tasks independently re-checks
+    # "task.create" for whatever actor a bearer token resolves to
+    # (platform_spine/gateway/api.py) — the same layered-authorization
+    # pattern every other Gateway-calling capability already needs
+    # (e.g. odoo_agent's own task.create grant).
+    - action: "task.create"
+      resource: "*"
+      effect: allow
+    - action: "mcp_surface.get_task_status"
+      resource: "*"
+      effect: allow
+    - action: "mcp_surface.ask_agent"
+      resource: "*"
+      effect: allow
+    - action: "mcp_surface.search_knowledge"
+      resource: "*"
+      effect: allow
+    - action: "mcp_surface.get_erp_schema"
+      resource: "*"
+      effect: allow
+    - action: "mcp_surface.list_pending_approvals"
+      resource: "*"
+      effect: allow
+    - action: "mcp_surface.get_audit_trail"
+      resource: "*"
+      effect: allow
+    - action: "mcp_surface.list_capabilities"
       resource: "*"
       effect: allow
 

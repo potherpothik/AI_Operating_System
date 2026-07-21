@@ -28,7 +28,8 @@ PHASE3_PATH=/path/to/knowledge \
 pytest tests/ -v    # full suite, all three auto-started if not already running
 ```
 
-26 tests. All passed on the first full run against all three real
+29 tests (26 as of Phase 4; Phase 26 adds a version-ordering regression
+test — see below). All passed on the first full run against all three real
 dependent services — the earlier phases' lessons (timezone-aware columns,
 conftest respecting `DATABASE_URL`, fail-closed on unreachable services)
 held up rather than needing to be rediscovered. One real bug *was* found
@@ -72,6 +73,25 @@ and locked in as a permanent regression test
   Fixed by moving it earlier in the router; regression-tested with
   `TestClient` specifically because a direct function call wouldn't
   have caught this class of bug (`test_model_ceiling_reachable_over_real_http_routing`).
+
+- **Phase 26: two real, previously latent template-versioning bugs,
+  found only because that phase modified an already-active agent
+  template for the first time in this project's history.** First:
+  `register_template()`/callers like `ensure_template_registered()` only
+  ever checked whether a template was *active*, never whether its
+  *body* still matched the file on disk — a changed template would
+  silently never take effect. `GET /prompt/templates` now includes
+  `body` so a caller can actually detect this. Second, more serious:
+  `PromptTemplate.version` is a free-text `String` column, and both
+  `register_template()`'s `next_version` calculation and
+  `get_active_template()`'s "which version is live" query
+  (`prompt_builder/templates.py`) ordered by it lexicographically, where
+  `"9" > "10"` — once any agent's template crossed version 9,
+  `next_version` would keep recomputing `"10"` forever, and
+  `get_active_template()` could serve a stale version-9 body for a live
+  render instead of the real, newer version 10. Fixed by ordering on
+  `created_at` instead of `version` in both places. Full detail in
+  `docs/aios-architecture-and-phases.md` Phase 26, Section 3.
 
 ## What's a stub or simplified
 

@@ -45,12 +45,13 @@ Long-term picture (ERP Brain + Coding Brain on one kernel):
 | 23 | Model Router | [`docs/aios-architecture-and-phases.md#phase-23-model-router`](docs/aios-architecture-and-phases.md#phase-23-model-router) | [`services/agents/agents/reasoning_engine/model_router.py`](services/agents/agents/reasoning_engine/model_router.py) — real typed registry + Ollama fallback, live-verified against a real dead-config bug found this phase; cloud providers real interface, honestly `not_configured` |
 | 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](docs/aios-architecture-and-phases.md#phase-24-control-ui-web-shell) | [`services/control-ui/`](services/control-ui/) (BFF) + [`web/`](web/) (Vite+React) — live-tested end to end in a browser: real task creation, real approval decision, real ops data. Capability views and settings honestly out of scope this session |
 | 25 | Model & Retrieval Quality | [`docs/aios-architecture-and-phases.md#phase-25-model-retrieval-quality`](docs/aios-architecture-and-phases.md#phase-25-model-retrieval-quality) | Real `nomic-embed-text` embeddings adopted (measured 3/3 vs 2/3 retrieval accuracy against ERP docs, one real bug found and fixed — silent dimension-mismatch corruption). `qwen2.5-coder:7b` evaluated and deliberately NOT adopted as default — better raw code, but reproducibly less reliable at this system's structured-output contract |
+| 26 | MCP Surface | [`docs/aios-architecture-and-phases.md#phase-26-mcp-surface`](docs/aios-architecture-and-phases.md#phase-26-mcp-surface) | [`services/mcp-surface/`](services/mcp-surface/) — new service, real MCP JSON-RPC server (own isolated venv), 8 governed tools, 9 live tests, no approval-deciding tool anywhere. Plus `research_agent`'s new `research.invoke_mcp_tool` wiring the existing Phase 12 MCP client into Reasoning Engine for real, live-tested end to end. Found and fixed two real pre-existing bugs in `services/assembly/`'s template versioning along the way |
 
-Eleven backend services plus a new BFF and web frontend are real, tested
+Twelve backend services plus a new BFF and web frontend are real, tested
 code today, now hosting every phase in the original 24-phase mandate plus
-Phase 25 from the new Phases 25–31 forward plan
+Phases 25–26 from the new Phases 25–31 forward plan
 (1–11 as their own dedicated design docs, 12–14 from the consolidated
-Phases 12–21 doc, 15/16/17/18/22/23/24/25 each from their own dedicated design
+Phases 12–21 doc, 15/16/17/18/22/23/24/25/26 each from their own dedicated design
 doc — written separately because each phase's core mechanism (PII scoping;
 approval-review attachment; real sandboxed deterministic execution; a
 real audit-trail tool call; a structural sandbox-backend safety gate; a
@@ -84,7 +85,16 @@ bug along the way — but deliberately does NOT adopt a larger coder model
 as the new default after live testing found it reproducibly less reliable
 at this system's structured-output contract, despite better raw code
 quality: evidence over assumption, even when the evidence says "don't
-change it." Vision and ElizaOS study notes:
+change it." Phase 26 adds MCP Surface — a new, twelfth backend service
+exposing 8 governed AIOS tools to any MCP-speaking IDE (Claude Code,
+Cursor, VS Code+Continue, OpenCode) over real MCP JSON-RPC, with no tool
+anywhere in the surface able to decide a pending approval, and wires the
+existing Phase 12 MCP client into Reasoning Engine as a real tool source
+for `research_agent`. Along the way it found and fixed a real
+pre-existing bug in `services/assembly/`'s prompt-template versioning
+(string, not numeric, version ordering) and a real `mcp`/`starlette`
+dependency conflict, resolved by giving the new service its own isolated
+venv. Vision and ElizaOS study notes:
 [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md). Doc
 index and mandatory read-before-code checklist: [`docs/README.md`](docs/README.md).
@@ -111,6 +121,11 @@ told the same `PLUGIN_CAPABILITIES_DIR` for that reload to actually
 surface anything. `observability` (Phase 13) calls every other service
 with a plain GET — never a write — to aggregate liveness and metrics;
 it's the one service every other service doesn't need to know exists.
+`mcp-surface` (Phase 26) calls `governance`, `platform-spine` (task
+submission), `agents` (`ask_agent`), and `knowledge` — it needs its own
+isolated venv, never the shared one (see
+[`services/mcp-surface/README.md`](services/mcp-surface/README.md) for
+why); no other service ever calls back into it.
 
 ```bash
 # terminal 1 — DEMO_ERP_DATABASE_URL is only needed once you're using Phase 7;
@@ -185,6 +200,13 @@ AGENTS_URL=http://localhost:8005 EXECUTION_URL=http://localhost:8006 \
 DATABASE_CONNECTOR_URL=http://localhost:8007 PLANNING_URL=http://localhost:8008 \
 KNOWLEDGE_PIPELINES_URL=http://localhost:8009 EXTENSIBILITY_URL=http://localhost:8010 \
 uvicorn main:app --port 8011
+
+# terminal 12 — Phase 26: own isolated venv, NOT the shared repo .venv
+# (installing the mcp SDK there breaks every FastAPI service — see the README)
+cd services/mcp-surface && python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
+SECURITY_LAYER_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 \
+AGENTS_URL=http://localhost:8005 KNOWLEDGE_URL=http://localhost:8003 \
+.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8025
 ```
 
 All default to SQLite with zero setup. Point `DATABASE_URL` at Postgres
@@ -220,10 +242,12 @@ orders container start, not readiness — no `healthcheck:` blocks exist
 yet, a real, named follow-up. `PROPOSAL_REPO_PATH`'s real git working
 directory isn't something Compose creates for you; a one-time real
 `git clone` into the `sandbox-data` volume is a genuine deployment-time
-step. **`services/control-ui/` and `web/` (Phase 24, built after this
-compose file was written) have no `Dockerfile` or compose entry yet** —
-run them directly (`services/control-ui/README.md`, `web/README.md`)
-until that gap is closed.
+step. **`services/control-ui/`, `web/` (Phase 24), and
+`services/mcp-surface/` (Phase 26 — built after this compose file was
+written, and needs its own isolated venv anyway, see its README) have no
+`Dockerfile` or compose entry yet** — run them directly
+(`services/control-ui/README.md`, `web/README.md`,
+`services/mcp-surface/README.md`) until that gap is closed.
 
 ## Honesty notes worth reading before relying on this
 

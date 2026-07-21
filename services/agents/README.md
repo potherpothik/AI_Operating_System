@@ -1,4 +1,4 @@
-# Phase 5/7/8/10/14/15/16/17/18/22/23/25 — Reasoning Engine + twenty-three agents + Model Router (working implementation)
+# Phase 5/7/8/10/14/15/16/17/18/22/23/25/26 — Reasoning Engine + twenty-three agents + Model Router + MCP client wiring (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
@@ -249,12 +249,22 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live 8-service stack + live Ollama
 ```
 
-87 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
-columns, confirmed via direct schema inspection, under a deliberately
-non-UTC session) and a real live Ollama model — not mocked, except for
-deliberately-stubbed tests (see below) used specifically where live-model
-phrasing would make a test non-deterministic without changing what's
-actually being verified. `tests/test_phase10_agents.py` (Phase 10)
+110 tests (as of Phase 26; 87 as of Phase 18, growing with Phase
+22/23/26's own test files — `test_phase22_agent.py`, `test_phase23_model_router.py`,
+`test_phase26_mcp_bridge.py`), all passing against real Postgres (genuine
+`TIMESTAMPTZ` columns, confirmed via direct schema inspection, under a
+deliberately non-UTC session) and a real live Ollama model — not mocked,
+except for deliberately-stubbed tests (see below) used specifically
+where live-model phrasing would make a test non-deterministic without
+changing what's actually being verified. `test_phase26_mcp_bridge.py`
+(Phase 26) reuses `services/extensibility/tests/conftest.py`'s own real
+stub-MCP-server pattern (mirrored into this service's own `conftest.py`
+as `stub_mcp_server`, a genuine `http.server.HTTPServer`): register and
+activate a real MCP server through extensibility's real endpoints, then
+confirm `research_agent`'s `research.invoke_mcp_tool` genuinely dispatches
+through `mcp_bridge.py` and the real tool result folds back into the
+reasoning loop, plus an honest-failure test for an unregistered server
+name. `tests/test_phase10_agents.py` (Phase 10)
 covers all four new agents: capability-registry boundaries, both
 propose-action bridges against a real disposable Git repo, the
 `shell_bridge.py` tool-call round trip against a real command, Testing
@@ -499,6 +509,29 @@ materializes as a real git document. One live-model smoke test each.
   `default_local_model` stays `qwen3.5:4b`; the coder model remains
   pulled and available, evaluated, not adopted. Full detail in
   `docs/aios-architecture-and-phases.md` Phase 25, Section 2.
+- **Phase 26: two real, previously latent bugs in `services/assembly/`'s
+  prompt-template versioning, found only because this phase modified an
+  already-active agent template for the first time in this project's
+  history.** `research_agent`'s `template.md`, active since Phase 18,
+  had never been changed in place before Phase 26 added
+  `research.invoke_mcp_tool`. First: `ensure_template_registered()`
+  (every `register.py` since Phase 5) only ever checked template
+  *status* ("already active" → skip), never *content* — a changed
+  `template.md` would silently never take effect once a template was
+  already active. Fixed with a body-diff check, requiring assembly's
+  `GET /prompt/templates` to expose `body` (not there before, no caller
+  had needed it). Second, more serious: `PromptTemplate.version` is a
+  free-text `String` column, and both `register_template()`'s
+  `next_version` calculation and `get_active_template()`'s "which
+  version is live" query ordered by it lexicographically, where `"9" >
+  "10"` — once any agent's template crossed version 9, `next_version`
+  would keep recomputing `"10"` forever, and `get_active_template()`
+  could serve a stale version-9 body for a live render instead of the
+  real, newer version 10. This project's own iterative fixing of
+  `research_agent`'s template during this phase pushed it past version 9
+  for the first time, exposing a bug latent since Phase 4. Fixed by
+  ordering on `created_at` instead of `version` in both places. Full
+  detail in `docs/aios-architecture-and-phases.md` Phase 26, Section 3.
 
 ## What's real
 
@@ -776,6 +809,23 @@ materializes as a real git document. One live-model smoke test each.
   site itself is unchanged — only model-name resolution changed —
   preserving all 46 existing tests that monkeypatch `loop.generate`
   directly. Full detail in `docs/aios-architecture-and-phases.md#phase-23-model-router` Section 6.
+- **Phase 26's `research.invoke_mcp_tool` genuinely dispatches through
+  extensibility's real, already-tested MCP client — not a new invocation
+  mechanism, real wiring of an existing one.** `mcp_bridge.py` resolves a
+  model-supplied server *name* to the real, active `server_id` via a live
+  lookup against extensibility's `/mcp/servers` (never trusting a
+  model-supplied internal id directly, the same discipline
+  `execution_bridge.py`'s branch naming already established), then calls
+  the real `/mcp/invoke`. Live-tested end to end against a genuine stub
+  MCP server (`http.server.HTTPServer` on a real socket, mirroring
+  `services/extensibility/tests/conftest.py`'s own pattern): register →
+  approve → activate through extensibility's real endpoints, then confirm
+  `research_agent`, via a stubbed model response, genuinely calls the
+  real tool and the real result folds back into the reasoning loop
+  correctly on the next turn. A second test confirms an honest failure
+  report — "no active MCP server named X" — when the model names a
+  server that was never registered. Full detail in
+  `docs/aios-architecture-and-phases.md#phase-26-mcp-surface` Section 2.
 
 ## What's a stub or simplified
 
@@ -908,6 +958,13 @@ materializes as a real git document. One live-model smoke test each.
   anywhere in its history (offline-first, `docs/architecture-vision.md`);
   an approved proposal is a real, reviewable document describing what to
   look up and why, for a human to go do manually.
+- **`research.invoke_mcp_tool` (Phase 26) is not the open internet
+  either** — it only ever reaches an MCP server a human already
+  registered, approved, and activated through extensibility's real
+  approval flow (Phase 12). A model naming a server that isn't already
+  active gets an honest "no active MCP server named X — real active
+  servers right now: [...]" back, never a silent failure or a fabricated
+  result.
 - **Coding Agent Gateway (Phase 22) never actually runs a live external
   coding session in this environment** — not because a binary is
   missing (`claude` is genuinely installed), but because the one
@@ -933,14 +990,17 @@ materializes as a real git document. One live-model smoke test each.
 
 ## Next
 
-Phase 26 — MCP Surface: a new small service exposing this system's
-governed agents/knowledge/approvals as MCP tools for IDEs, plus wiring the
-existing MCP client stub into the Reasoning Engine as a real tool source
-(`docs/aios-forward-plan-phases-25-31.md`). Real cloud provider support (a
+Phase 27 — OpenAI-Compatible Endpoint (`docs/aios-forward-plan-phases-25-31.md`),
+now that Phase 26 has both a new MCP server (`services/mcp-surface/`,
+exposing this system's governed agents/knowledge/approvals as MCP tools
+for IDEs) and the existing MCP client stub genuinely wired into
+Reasoning Engine as a real tool source. Real cloud provider support (a
 second, genuinely configured `ModelProvider` in `model_router.py`) remains
 a product decision, not an engineering one
 (`docs/aios-architecture-and-phases.md#phase-23-model-router` Section 0).
 Revisiting `qwen2.5-coder:7b` as a default is worth another look if its
 structured-output reliability gap turns out to be a fixable
 prompting/format-constraint issue rather than an inherent model limitation
-— not investigated this phase (Phase 25, Section 2).
+— not investigated this phase (Phase 25, Section 2). Real per-user auth
+for MCP Surface stays deferred to Phase 31, per the forward plan's own
+sequencing.

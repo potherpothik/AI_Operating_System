@@ -261,6 +261,27 @@ The disposable database was dropped again after this drill — it was never
 depended on by any other phase's tests or live services, and nothing else
 in this repo points at `governance_dr_drill`.
 
+## Phase 26 addition
+
+- `mcp_surface` (Phase 26): new role for `services/mcp-surface/`'s fixed,
+  stub-auth actor — 8 `mcp_surface.*` actions, every one `allow`, every
+  one still authorize()+audit_log() gated per call (same defense-in-depth
+  posture as `mcp.invoke`'s own role grants since Phase 12), plus
+  `task.create: allow` (Gateway's own `POST /api/v1/tasks` independently
+  re-checks `task.create` for whatever actor a bearer token resolves to,
+  on top of the `mcp_surface`-specific grant). Deliberately **no**
+  `approval.decide`-shaped action anywhere in this role — an AI-driven
+  IDE session must never be able to approve its own risky actions; this
+  is the non-negotiable requirement Phase 26 exists to enforce, backed
+  here structurally (no such action grant exists) in addition to
+  `services/mcp-surface/` itself having no tool that could even ask for
+  one.
+- `research.invoke_mcp_tool` (Phase 26): added `allow` to `research_agent`'s
+  role — a distinct action name from the pre-existing `mcp.invoke` grant
+  (Phase 12). `loop.py`'s tool-call dispatch authorizes on this top-level
+  action; extensibility's own `/mcp/invoke` separately authorizes on
+  `mcp.invoke` for the same capability — two real, independent checks.
+
 ## Next
 
 This is one piece of Phase 1's design; Phase 2 (Gateway, Task Manager,

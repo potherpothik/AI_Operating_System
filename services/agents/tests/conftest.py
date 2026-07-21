@@ -1,6 +1,10 @@
+import http.server
+import json
 import os
+import socket
 import subprocess
 import sys
+import threading
 import time
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test_agents.db")
@@ -199,6 +203,61 @@ def database_url(governance_url):
     if proc:
         proc.terminate()
         proc.wait(timeout=5)
+
+
+@pytest.fixture(scope="session")
+def extensibility_url(governance_url):
+    """Phase 26: real backing service for the MCP client Reasoning Engine
+    now dispatches to (services/extensibility/, Phase 12) — mcp_bridge.py
+    calls its already-tested /mcp/servers and /mcp/invoke, this fixture
+    just makes sure a real instance is reachable for the test."""
+    url, proc = _ensure_service("EXTENSIBILITY_URL", "http://localhost:8010", "PHASE12_PATH", 8010, extra_env={"SECURITY_LAYER_URL": governance_url})
+    yield url
+    if proc:
+        proc.terminate()
+        proc.wait(timeout=5)
+
+
+class _StubMcpHandler(http.server.BaseHTTPRequestHandler):
+    """A real, minimal HTTP server speaking the MCP client's simplified
+    REST contract — genuinely listens on a real socket and answers a
+    real POST /invoke, not a mocked httpx call. Same handler shape as
+    services/extensibility/tests/conftest.py's own stub_mcp_server."""
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = json.loads(self.rfile.read(length) or b"{}")
+        tool = body.get("tool")
+        params = body.get("params", {})
+
+        if tool == "echo":
+            response = {"result": {"echoed": params.get("text", "")}}
+        else:
+            response = {"result": {}}
+
+        payload = json.dumps(response).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def log_message(self, format, *args):  # noqa: A002 — silence default request logging
+        pass
+
+
+@pytest.fixture(scope="session")
+def stub_mcp_server():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+
+    server = http.server.HTTPServer(("127.0.0.1", port), _StubMcpHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield f"http://127.0.0.1:{port}"
+    server.shutdown()
 
 
 @pytest.fixture(scope="session")

@@ -14,7 +14,7 @@ def register_template(db: Session, agent_template_id: str, body: str, expected_o
     existing = (
         db.query(PromptTemplate)
         .filter(PromptTemplate.agent_template_id == agent_template_id, PromptTemplate.status == "active")
-        .order_by(PromptTemplate.version.desc())
+        .order_by(PromptTemplate.created_at.desc())
         .first()
     )
     next_version = str(int(existing.version) + 1) if existing and existing.version.isdigit() else "1"
@@ -55,10 +55,17 @@ def reconcile_pending(db: Session) -> list[PromptTemplate]:
 
 
 def get_active_template(db: Session, agent_template_id: str):
+    # created_at, not version — version is a free-text String column, so
+    # sorting by it is lexicographic (e.g. "9" > "10"), not numeric.
+    # Phase 26 organically pushed research_agent past version 9 while
+    # iterating on template.md, exposing this as a real bug (both here
+    # and in register_template's next_version calc above): the wrong
+    # template could get selected for a live render once any agent's
+    # version count crosses into double digits.
     return (
         db.query(PromptTemplate)
         .filter(PromptTemplate.agent_template_id == agent_template_id, PromptTemplate.status == "active")
-        .order_by(PromptTemplate.version.desc())
+        .order_by(PromptTemplate.created_at.desc())
         .first()
     )
 

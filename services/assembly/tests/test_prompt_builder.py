@@ -83,6 +83,36 @@ def test_rendered_json_schema_example_uses_single_braces_not_doubled(governance_
     db.close()
 
 
+def test_active_template_selection_survives_double_digit_versions(governance_url):
+    """
+    Regression test (Phase 26): PromptTemplate.version is a free-text
+    String column. Registering and approving 11 versions in a row used
+    to break both next_version's calc and get_active_template's "which
+    one is live" query, since string ordering puts "9" above "10" (both
+    were `.order_by(PromptTemplate.version.desc())`) — next_version
+    would keep recomputing "10" forever past the 10th registration, and
+    get_active_template could serve the stale version-9 body instead of
+    the real, newer version 10. Fixed by ordering on created_at instead.
+    Found live while iterating on research_agent's real Phase 26
+    template, not anticipated in advance.
+    """
+    db = SessionLocal()
+    agent_id = "version_ordering_regression_agent"
+    template = None
+    for i in range(11):
+        template, outcome = template_store.register_template(
+            db, agent_id, f"{TEMPLATE_BODY}\n\n# version marker {i}", SCHEMA, created_by="human_admin",
+        )
+        _approve_and_reconcile(db, template, governance_url)
+
+    assert template.version == "11"
+    active = template_store.get_active_template(db, agent_id)
+    assert active.id == template.id
+    assert active.version == "11"
+    assert "# version marker 10" in active.body
+    db.close()
+
+
 def test_render_refuses_rather_than_silently_truncates(governance_url):
     db = SessionLocal()
     template, outcome = template_store.register_template(db, "odoo_agent_size_test", TEMPLATE_BODY, SCHEMA, created_by="human_admin")

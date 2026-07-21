@@ -88,6 +88,13 @@ genuine platform limitation, not a workaround for a bug. Scoped to this one
 endpoint only; every other route still requires the real header via the
 original `resolve_actor`, unchanged.
 
+## Phase 26 addition
+
+`tokens.yaml` gained `dev-mcp-surface-token: mcp_surface` — the fixed,
+stub-auth bearer token `services/mcp-surface/` (Phase 26) uses for its
+`submit_task` calls into Gateway. Same explicitly-a-placeholder posture
+this file has always had (see "What's a stub" below); no new mechanism.
+
 ## Postgres
 
 Tested directly against a live Postgres instance, including under a

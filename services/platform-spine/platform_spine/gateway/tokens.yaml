@@ -1,3 +1,4 @@
 dev-odoo-agent-token: odoo_agent
 dev-planner-token: planner
 dev-admin-token: human_admin
+dev-mcp-surface-token: mcp_surface
