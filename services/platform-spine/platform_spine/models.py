@@ -25,8 +25,24 @@ class Task(Base):
     parent_task_id = Column(String, nullable=True)
     agent_capability = Column(String, nullable=True)  # assigned capability, once known (Planner, Phase 8)
     context_refs = Column(Text, default="")  # JSON-encoded list; kept as text for portability across backends
+    conversation_id = Column(String, nullable=True)  # Phase 24: Control UI chat threading — no FK constraint, matching this file's existing string-id convention
     created_at = Column(DateTime(timezone=True), default=_now)
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class Conversation(Base):
+    """Phase 24: Control UI's minimal World/Room-equivalent — one row per
+    chat thread. A Task is one turn; conversation_id threads turns
+    together, same relationship the Phase 24 doc's own conversation
+    model table describes."""
+    __tablename__ = "conversation"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    title = Column(String, nullable=False)
+    created_by = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+    archived_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class TaskEvent(Base):

@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from platform_spine.db import get_db, SessionLocal
 from platform_spine.security_client import authorize
-from platform_spine.task_manager import store
-from platform_spine.gateway.auth import resolve_actor
+from platform_spine.task_manager import store, conversations
+from platform_spine.gateway.auth import resolve_actor, resolve_actor_for_stream
 from platform_spine.gateway.rate_limit import check_rate_limit
 
 router = APIRouter(prefix="/api/v1", tags=["gateway"])
@@ -21,6 +21,19 @@ class TaskCreate(BaseModel):
     description: str = ""
     priority: str = "normal"
     context_refs: str = ""
+    conversation_id: str = None
+
+
+class ConversationCreate(BaseModel):
+    title: str = "New conversation"
+
+
+def _conversation_out(c) -> dict:
+    return {
+        "id": c.id, "title": c.title, "created_by": c.created_by,
+        "created_at": c.created_at.isoformat(), "updated_at": c.updated_at.isoformat(),
+        "archived_at": c.archived_at.isoformat() if c.archived_at else None,
+    }
 
 
 class TaskStatusUpdate(BaseModel):
@@ -37,9 +50,38 @@ def _task_out(task) -> dict:
         "priority": task.priority,
         "requested_by": task.requested_by,
         "correlation_id": task.correlation_id,
+        "conversation_id": task.conversation_id,
         "created_at": task.created_at.isoformat(),
         "updated_at": task.updated_at.isoformat(),
     }
+
+
+@router.post("/conversations")
+def create_conversation(body: ConversationCreate, db: Session = Depends(get_db), actor: str = Depends(resolve_actor)):
+    """
+    Phase 24 gap-fill: no authorize() call — creating a conversation has
+    no real-world side effect of its own (Task.conversation_id is what
+    threads real orchestration, and task.create is already governed).
+    """
+    check_rate_limit(actor)
+    conversation = conversations.create(db, title=body.title, created_by=actor)
+    return _conversation_out(conversation)
+
+
+@router.get("/conversations")
+def list_conversations_endpoint(db: Session = Depends(get_db), actor: str = Depends(resolve_actor)):
+    check_rate_limit(actor)
+    rows = conversations.list_for_actor(db, created_by=actor)
+    return [_conversation_out(c) for c in rows]
+
+
+@router.get("/conversations/{conversation_id}")
+def get_conversation_endpoint(conversation_id: str, db: Session = Depends(get_db), actor: str = Depends(resolve_actor)):
+    check_rate_limit(actor)
+    conversation = conversations.get(db, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    return _conversation_out(conversation)
 
 
 @router.post("/tasks")
@@ -61,6 +103,7 @@ def create_task(body: TaskCreate, db: Session = Depends(get_db), actor: str = De
         correlation_id=correlation_id,
         priority=body.priority,
         context_refs=body.context_refs,
+        conversation_id=body.conversation_id,
     )
     return _task_out(task)
 
@@ -76,10 +119,10 @@ def get_task_status(task_id: str, db: Session = Depends(get_db), actor: str = De
 
 @router.get("/tasks")
 def list_tasks_endpoint(
-    status: str = None, db: Session = Depends(get_db), actor: str = Depends(resolve_actor)
+    status: str = None, conversation_id: str = None, db: Session = Depends(get_db), actor: str = Depends(resolve_actor)
 ):
     check_rate_limit(actor)
-    tasks = store.list_tasks(db, status=status)
+    tasks = store.list_tasks(db, status=status, conversation_id=conversation_id)
     return [_task_out(t) for t in tasks]
 
 
@@ -125,7 +168,7 @@ def get_task_events(task_id: str, db: Session = Depends(get_db), actor: str = De
 
 
 @router.get("/tasks/{task_id}/stream")
-async def stream_task_status(task_id: str, actor: str = Depends(resolve_actor)):
+async def stream_task_status(task_id: str, actor: str = Depends(resolve_actor_for_stream)):
     """
     Server-sent events: polls task status and yields updates until the
     task reaches a terminal state (done/failed) or the client disconnects.

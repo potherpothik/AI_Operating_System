@@ -7,3 +7,5 @@ __pycache__/
 .venv/
 eliza-develop/
 .claude/settings.local.json
+node_modules/
+dist/

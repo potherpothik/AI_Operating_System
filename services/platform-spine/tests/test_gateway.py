@@ -85,3 +85,84 @@ def test_get_events_for_unknown_task_returns_404(security_layer_url):
 def test_healthz():
     r = client.get("/healthz")
     assert r.json()["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Phase 24 gap-fill: SSE stream accepts a ?token= fallback, since
+# EventSource (the real browser client Control UI uses) cannot set an
+# Authorization header at all. Unit-tested directly against the real
+# resolver function rather than through a live streaming HTTP connection
+# — TestClient's sync stream() never signals disconnect to the server's
+# long-lived async generator, which then runs its full ~5-minute polling
+# loop before the test process can proceed; this tests the exact same
+# real code without that harness limitation.
+# ---------------------------------------------------------------------------
+
+def test_stream_auth_accepts_bearer_header():
+    from platform_spine.gateway.auth import resolve_actor_for_stream
+    assert resolve_actor_for_stream(authorization="Bearer dev-odoo-agent-token", token=None) == "odoo_agent"
+
+
+def test_stream_auth_accepts_token_query_param_when_no_header():
+    from platform_spine.gateway.auth import resolve_actor_for_stream
+    assert resolve_actor_for_stream(authorization=None, token="dev-odoo-agent-token") == "odoo_agent"
+
+
+def test_stream_auth_rejects_missing_auth_entirely():
+    from fastapi import HTTPException
+    from platform_spine.gateway.auth import resolve_actor_for_stream
+    try:
+        resolve_actor_for_stream(authorization=None, token=None)
+        assert False, "expected HTTPException"
+    except HTTPException as e:
+        assert e.status_code == 401
+
+
+def test_stream_auth_rejects_invalid_token_query_param():
+    from fastapi import HTTPException
+    from platform_spine.gateway.auth import resolve_actor_for_stream
+    try:
+        resolve_actor_for_stream(authorization=None, token="garbage")
+        assert False, "expected HTTPException"
+    except HTTPException as e:
+        assert e.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Phase 24 gap-fill: conversations + task.conversation_id
+# ---------------------------------------------------------------------------
+
+def test_create_and_list_conversations(security_layer_url):
+    created = client.post("/api/v1/conversations", json={"title": "Sale order questions"}, headers=AUTH_ODOO).json()
+    assert created["title"] == "Sale order questions"
+    assert created["created_by"] == "odoo_agent"
+    assert created["archived_at"] is None
+
+    fetched = client.get(f"/api/v1/conversations/{created['id']}", headers=AUTH_ODOO).json()
+    assert fetched["id"] == created["id"]
+
+    listing = client.get("/api/v1/conversations", headers=AUTH_ODOO).json()
+    assert any(c["id"] == created["id"] for c in listing)
+
+
+def test_get_unknown_conversation_returns_404(security_layer_url):
+    r = client.get("/api/v1/conversations/nonexistent-id", headers=AUTH_ODOO)
+    assert r.status_code == 404
+
+
+def test_task_threads_into_its_conversation(security_layer_url):
+    conversation = client.post("/api/v1/conversations", json={"title": "Threading test"}, headers=AUTH_ODOO).json()
+    task = client.post(
+        "/api/v1/tasks",
+        json={"title": "explain sale.order fields", "conversation_id": conversation["id"]},
+        headers=AUTH_ODOO,
+    ).json()
+    assert task["conversation_id"] == conversation["id"]
+
+    listed = client.get("/api/v1/tasks", params={"conversation_id": conversation["id"]}, headers=AUTH_ODOO).json()
+    assert len(listed) == 1
+    assert listed[0]["id"] == task["id"]
+
+    # A task with no conversation_id at all still works — threading is optional.
+    untethered = client.post("/api/v1/tasks", json={"title": "no thread"}, headers=AUTH_ODOO).json()
+    assert untethered["conversation_id"] is None

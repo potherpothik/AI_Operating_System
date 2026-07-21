@@ -12,6 +12,7 @@ def enqueue(
     priority: str = "normal",
     context_refs: str = "",
     parent_task_id: str = None,
+    conversation_id: str = None,
 ) -> Task:
     task = Task(
         title=title,
@@ -22,6 +23,7 @@ def enqueue(
         status="queued",
         context_refs=context_refs,
         parent_task_id=parent_task_id,
+        conversation_id=conversation_id,
     )
     db.add(task)
     db.commit()
@@ -56,12 +58,14 @@ def get_task(db: Session, task_id: str):
     return db.query(Task).filter(Task.id == task_id).first()
 
 
-def list_tasks(db: Session, status: str = None, requested_by: str = None, limit: int = 100):
+def list_tasks(db: Session, status: str = None, requested_by: str = None, conversation_id: str = None, limit: int = 100):
     q = db.query(Task)
     if status:
         q = q.filter(Task.status == status)
     if requested_by:
         q = q.filter(Task.requested_by == requested_by)
+    if conversation_id:
+        q = q.filter(Task.conversation_id == conversation_id)
     return q.order_by(Task.created_at.desc()).limit(limit).all()
 
 

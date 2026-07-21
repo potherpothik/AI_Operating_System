@@ -40,14 +40,16 @@ gap, OpenCode/Claude Code gateway): [`docs/architecture-vision.md`](docs/archite
 | 20 | Backup Strategy, Disaster Recovery | [`docs/phase-20-backup-disaster-recovery.md`](docs/phase-20-backup-disaster-recovery.md) | [`deploy/backup.sh`](deploy/backup.sh), [`deploy/restore.sh`](deploy/restore.sh) — real, live restore drill run against a disposable database; result in [`services/governance/README.md`](services/governance/README.md#phase-20-addition--real-restore-drill-result) |
 | 21 | Consolidated reference | [`docs/phase-21-consolidated-reference.md`](docs/phase-21-consolidated-reference.md) | regenerated from real, grepped source — component diagram, API surface index, DB schema index, agent list, canonical message format |
 | 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/phase-22-external-coding-agents.md`](docs/phase-22-external-coding-agents.md) | [`services/agents/agents/coding_agent_gateway/`](services/agents/agents/coding_agent_gateway/) — live-verified structural safety gate refuses a live agentic session (`unsafe_backend`/`not_configured`), never runs one unconfined in this environment |
-| 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/phase-24-control-ui.md`](docs/phase-24-control-ui.md) | not yet built |
+| 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/phase-24-control-ui.md`](docs/phase-24-control-ui.md) | [`services/control-ui/`](services/control-ui/) (BFF) + [`web/`](web/) (Vite+React) — live-tested end to end in a browser: real task creation, real approval decision, real ops data. Capability views and settings honestly out of scope this session |
 
-Eleven services are real, tested code today, now hosting Phases 1–18 and 22
+Eleven backend services plus a new BFF and web frontend are real, tested
+code today, now hosting Phases 1–18, 22, and 24
 (1–11 as their own dedicated design docs, 12–14 from the consolidated
-Phases 12–21 doc, 15/16/17/18/22 each from their own dedicated design doc —
-written separately because each phase's core mechanism (PII scoping;
+Phases 12–21 doc, 15/16/17/18/22/24 each from their own dedicated design
+doc — written separately because each phase's core mechanism (PII scoping;
 approval-review attachment; real sandboxed deterministic execution; a
-real audit-trail tool call; a structural sandbox-backend safety gate) is a
+real audit-trail tool call; a structural sandbox-backend safety gate; a
+conversation-threaded chat UI) is a
 material change to an already-built service, not just agent
 configuration). Phase 19 adds real deployment artifacts written to the
 interface but unverified (no Docker daemon here). Phase 20 adds two real
@@ -61,8 +63,12 @@ reference. Phase 22 adds Coding Agent Gateway: real code, real live
 tests, but a deliberate structural refusal to ever run a live external
 coding-agent session in this environment, since the only available
 sandbox backend can't isolate one safely — confirmed live, not assumed.
-Everything past Phase 22 (Phase 23 Model Router, Phase 24 Control UI) is
-fully designed but not yet implemented. Vision and ElizaOS study notes:
+Phase 24 adds the first human-facing UI: a real FastAPI BFF
+(`services/control-ui/`) and a real Vite+React app (`web/`), live-tested
+end to end in an actual browser, not just unit-tested — capability views
+and a settings page are the one named, out-of-scope gap. Everything past
+Phase 24 (Phase 23 Model Router) is fully designed but not yet
+implemented. Vision and ElizaOS study notes:
 [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md). Doc
 index and mandatory read-before-code checklist: [`docs/README.md`](docs/README.md).
@@ -198,7 +204,10 @@ orders container start, not readiness — no `healthcheck:` blocks exist
 yet, a real, named follow-up. `PROPOSAL_REPO_PATH`'s real git working
 directory isn't something Compose creates for you; a one-time real
 `git clone` into the `sandbox-data` volume is a genuine deployment-time
-step.
+step. **`services/control-ui/` and `web/` (Phase 24, built after this
+compose file was written) have no `Dockerfile` or compose entry yet** —
+run them directly (`services/control-ui/README.md`, `web/README.md`)
+until that gap is closed.
 
 ## Honesty notes worth reading before relying on this
 
@@ -486,6 +495,29 @@ step.
   refusal grounded in existing, already-documented code, not a new
   restriction invented for this phase. Full detail in
   `docs/phase-22-external-coding-agents.md` Section 7.
+- **Phase 24 is the first phase with a real browser in the loop, and it
+  found a real platform gap the design doc never anticipated.**
+  `EventSource` — the actual browser API `web/`'s live task-status stream
+  uses — cannot set an `Authorization` header at all, a genuine
+  limitation of the API, not a bug in this codebase. Gateway's
+  `GET /api/v1/tasks/{id}/stream` now accepts a `?token=` query-param
+  fallback (`resolve_actor_for_stream`), scoped to that one endpoint only
+  — every other route still requires the real header, unchanged. Beyond
+  that: `services/control-ui/` (a new FastAPI BFF, holding no
+  orchestration logic of its own) and `web/` (Vite+React, one app instead
+  of the design doc's three npm packages — a deliberate, documented
+  simplification) were live-tested in an actual browser, not just unit
+  tests — signing in, sending a chat message that created exactly one
+  real task (confirmed independently via `curl`), approving a real
+  pending approval (confirmed independently against governance
+  afterward), and viewing real ops data that correctly showed services
+  as `"down"` when they genuinely weren't running. Real, named gaps:
+  capability views (no view-manifest convention exists on
+  `services/extensibility/` yet) and the approvals inbox's task/
+  conversation enrichment (governance's `ApprovalRequest` has no
+  `correlation_id` field to join against) — both honestly empty/absent
+  rather than faked. Full detail in `services/control-ui/README.md` and
+  `web/README.md`.
 - **Phase 13's Health Monitor and Metrics Dashboard have no write path
   to anything** — every number is computed live from six small, real
   listing endpoints added to earlier services (none of which gained a

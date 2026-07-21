@@ -59,7 +59,7 @@ is what we actually implement; the technical reference is external study materia
 | consolidated reference (component diagram, API/DB index) | 21 | [`phase-21-consolidated-reference.md`](phase-21-consolidated-reference.md) | yes (regenerated from grepped source, no new code) |
 | `services/agents/agents/coding_agent_gateway/` (+ `coding_gateway_bridge.py`) | 22 | [`phase-22-external-coding-agents.md`](phase-22-external-coding-agents.md) | yes (live-verified safety gate; never runs a live agentic session in this environment — see Section 7) |
 | Model Router (seed) | 23 | (see [`architecture-vision.md`](architecture-vision.md) §3) | no |
-| `services/control-ui/` + `web/` (planned) | 24 | [`phase-24-control-ui.md`](phase-24-control-ui.md) | no |
+| `services/control-ui/` + `web/` | 24 | [`phase-24-control-ui.md`](phase-24-control-ui.md) | yes (live-tested in a browser end to end; capability views + settings honestly out of scope) |
 
 Agent capabilities live under `services/agents/agents/<name>/` — read the
 phase doc for that agent batch, plus [`agent-capability-schema`](../.cursor/rules/agent-capability-schema.mdc).
