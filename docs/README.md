@@ -25,10 +25,14 @@ reading order.
 |---|---|
 | [`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md) | Borrowing plugin, memory, UI, orchestration, or model-routing *ideas* |
 | [`eliza-develop-technical-reference.md`](eliza-develop-technical-reference.md) | Optional deep-dive on the external elizaOS framework (Phase 22/24, comparative design) |
+| [`aios-vs-eliza-develop-comparison.md`](aios-vs-eliza-develop-comparison.md) | Capability-by-capability comparison (multi-agent, memory, RAG, plugins, models, tools, REST, UI, MCP, local deploy) and what to borrow |
+| [`requirements-alignment-assessment.md`](requirements-alignment-assessment.md) | Whether AIOS matches the product vision / NFR (“AIOS owns workflow; third parties are plugins”) and what to change |
 
 **Never** import code from `eliza-develop/` (gitignored local checkout). Adopt
 patterns via our Python services only. [`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md)
 is what we actually implement; the technical reference is external study material.
+The comparison and requirements docs are planning aids — they do not replace
+phase design docs before implementation.
 
 ---
 

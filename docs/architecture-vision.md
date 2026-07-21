@@ -186,9 +186,13 @@ typed event bus, Web UI layering) are recorded in
 [`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md) — **what we
 actually adopt**. Optional deep-dive on the external framework itself:
 [`eliza-develop-technical-reference.md`](eliza-develop-technical-reference.md)
-(study only; never a runtime dependency). The reference checkout under
-`eliza-develop/` is local study material and is gitignored — it is not
-imported by this Python orchestration layer.
+(study only; never a runtime dependency). Capability comparison and
+borrow priorities:
+[`aios-vs-eliza-develop-comparison.md`](aios-vs-eliza-develop-comparison.md).
+Whether the build matches the product vision / “AIOS owns workflow” NFR:
+[`requirements-alignment-assessment.md`](requirements-alignment-assessment.md).
+The reference checkout under `eliza-develop/` is local study material and
+is gitignored — it is not imported by this Python orchestration layer.
 
 ---
 
