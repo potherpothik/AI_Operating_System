@@ -1,4 +1,4 @@
-# Phase 5/7/8/10/14/15/16/17/18/22/23 — Reasoning Engine + twenty-three agents + Model Router (working implementation)
+# Phase 5/7/8/10/14/15/16/17/18/22/23/25 — Reasoning Engine + twenty-three agents + Model Router (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
@@ -484,6 +484,21 @@ materializes as a real git document. One live-model smoke test each.
   correctly listed in `requirements.txt` and installed into that same
   venv. Caught during this phase's own test setup, not a defect in any
   shipped code.
+- **Phase 25: a real, reproducible reliability regression, found by
+  actually running the candidate upgrade model through the real
+  pipeline, not just prompting it once.** `qwen2.5-coder:7b` was pulled
+  and evaluated as a `default_local_model` upgrade candidate
+  (`docs/aios-forward-plan-phases-25-31.md`'s own Phase 25 scope).
+  Single-shot, prompt-only comparison favored it clearly — cleaner code,
+  faster (12.9s vs 15.8s), no stray commentary. Run through the real
+  `python_agent` pipeline (full rendered prompt, real retry loop) it
+  failed **twice, reproducibly**, exhausting all 6 retries both times —
+  `schema_invalid_output: not valid JSON`, two different real parse
+  errors across the two runs. `qwen3.5:4b` succeeded on the first
+  iteration both times it was tried on the identical task. Decision:
+  `default_local_model` stays `qwen3.5:4b`; the coder model remains
+  pulled and available, evaluated, not adopted. Full detail in
+  `docs/aios-architecture-and-phases.md` Phase 25, Section 2.
 
 ## What's real
 
@@ -918,8 +933,14 @@ materializes as a real git document. One live-model smoke test each.
 
 ## Next
 
-Real cloud provider support (a second, genuinely configured `ModelProvider`
-in `model_router.py`) is the natural next increment when/if this system's
-offline-first posture is deliberately relaxed for a specific, approved use
-case — a product decision, not an engineering one (`docs/aios-architecture-and-phases.md#phase-23-model-router`
-Section 0). Every phase named in the original mandate is now built.
+Phase 26 — MCP Surface: a new small service exposing this system's
+governed agents/knowledge/approvals as MCP tools for IDEs, plus wiring the
+existing MCP client stub into the Reasoning Engine as a real tool source
+(`docs/aios-forward-plan-phases-25-31.md`). Real cloud provider support (a
+second, genuinely configured `ModelProvider` in `model_router.py`) remains
+a product decision, not an engineering one
+(`docs/aios-architecture-and-phases.md#phase-23-model-router` Section 0).
+Revisiting `qwen2.5-coder:7b` as a default is worth another look if its
+structured-output reliability gap turns out to be a fixable
+prompting/format-constraint issue rather than an inherent model limitation
+— not investigated this phase (Phase 25, Section 2).

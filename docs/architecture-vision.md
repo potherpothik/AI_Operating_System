@@ -141,7 +141,8 @@ already enforces.
 
 ## 4. Domain roadmap
 
-**Built today:** every phase in the original mandate, 1–24 (governance,
+**Built today:** every phase in the original mandate, 1–24, plus Phase 25
+from the new Phases 25–31 forward plan (governance,
 platform spine, memory,
 assembly, agents + Reasoning Engine, execution, database, planning,
 knowledge pipelines, extensibility/MCP, observability metrics/health,
@@ -179,14 +180,25 @@ in, a chat message that created one real task, a real approval decided
 and independently confirmed, real ops data. Capability views and a
 settings page are the one named, out-of-scope gap — see
 [`aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](aios-architecture-and-phases.md#phase-24-control-ui-web-shell), `services/control-ui/README.md`,
-`web/README.md`. See root [`README.md`](../README.md) status table for the
+`web/README.md`. Phase 25 (Model & Retrieval Quality) adopted real
+semantic embeddings (`nomic-embed-text`) after measuring 3/3 vs 2/3
+correct top-1 retrieval against real ERP-domain paraphrase queries — and
+found a real silent-corruption bug along the way (a dimension mismatch
+after switching backends, now a clean `409` instead of a wrong answer).
+It evaluated `qwen2.5-coder:7b` as a default-model upgrade and
+deliberately did **not** adopt it: better raw code, but reproducibly less
+reliable at this system's structured-output contract when run through the
+real agent pipeline twice — see
+[`aios-architecture-and-phases.md#phase-25-model-retrieval-quality`](aios-architecture-and-phases.md#phase-25-model-retrieval-quality).
+See root [`README.md`](../README.md) status table for the
 authoritative phase → service map.
 
-**Designed, not built:** nothing — every phase in the original 24-phase
-mandate is built. Real cloud-provider support for Model Router (Section
-3 above) is the natural next increment when/if this system's
-offline-first posture is deliberately relaxed for a specific, approved
-use case.
+**Designed, not built:** Phases 26–31 from the new forward plan
+(`aios-forward-plan-phases-25-31.md`) — MCP Surface, an OpenAI-compatible
+endpoint, enforced adapter contracts, browser/live-Odoo/Django tool
+adapters, declarative workflows, and team/GPU-day hardening, in that
+sequence. Real cloud-provider support for Model Router remains a product
+decision, not an engineering one, independent of that sequence.
 
 Built-phase design docs worth re-reading before extending code:
 [`aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor`](aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor),
@@ -199,7 +211,8 @@ Built-phase design docs worth re-reading before extending code:
 [`aios-architecture-and-phases.md#phase-21-consolidated-reference`](aios-architecture-and-phases.md#phase-21-consolidated-reference),
 [`aios-architecture-and-phases.md#phase-22-external-coding-agents`](aios-architecture-and-phases.md#phase-22-external-coding-agents),
 [`aios-architecture-and-phases.md#phase-23-model-router`](aios-architecture-and-phases.md#phase-23-model-router),
-[`aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](aios-architecture-and-phases.md#phase-24-control-ui-web-shell).
+[`aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](aios-architecture-and-phases.md#phase-24-control-ui-web-shell),
+[`aios-architecture-and-phases.md#phase-25-model-retrieval-quality`](aios-architecture-and-phases.md#phase-25-model-retrieval-quality).
 
 ---
 
@@ -245,9 +258,15 @@ Before any implementation, follow the doc-reading protocol in
 
 ## Next
 
-Every phase in the original 24-phase mandate is built. Remaining scope is
-narrower increments within already-built phases: real cloud-provider
-support for Model Router (a product decision, not an engineering one —
-`aios-architecture-and-phases.md#phase-23-model-router` §0) and, within Control UI's own remaining
-scope, a settings page (§5.6) and capability views (§5.5, blocked on a
-real view-manifest convention landing on `services/extensibility/` first).
+Phase 26 (MCP Surface) is next per `aios-forward-plan-phases-25-31.md`'s
+own sequencing — the IDE integration surface, built before abstracting an
+adapter contract from it (Phase 28), consistent with this project's own
+"don't design interfaces against zero implementations" rule. Narrower
+remaining scope within already-built phases: real cloud-provider support
+for Model Router (a product decision, not an engineering one —
+`aios-architecture-and-phases.md#phase-23-model-router` §0), whether
+`qwen2.5-coder:7b`'s structured-output reliability gap is fixable
+(`aios-architecture-and-phases.md#phase-25-model-retrieval-quality` §2),
+and within Control UI's own remaining scope, a settings page (§5.6) and
+capability views (§5.5, blocked on a real view-manifest convention
+landing on `services/extensibility/` first).

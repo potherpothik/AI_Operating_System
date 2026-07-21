@@ -17,7 +17,29 @@ def _within_ceiling(classification: str, ceiling: str) -> bool:
     return _TIERS.index(c) <= _TIERS.index(ceil)
 
 
+class EmbeddingDimensionMismatch(Exception):
+    pass
+
+
 def _cosine_similarity(a: list, b: list) -> float:
+    # Phase 25: a real bug found by live-testing an EMBEDDING_BACKEND
+    # switch against an already-populated SQLite database — Python's own
+    # zip() silently truncates to the shorter vector on a dimension
+    # mismatch (e.g. 512-dim hashing vectors queried with a 768-dim
+    # Ollama query vector), producing a real number that LOOKS like a
+    # valid cosine similarity but is meaningless — confirmed live, it
+    # even inverted the ranking (the irrelevant document scored higher
+    # than the relevant one). Postgres/pgvector's own cosine_distance
+    # operator already fails loudly on a dimension mismatch; this SQLite
+    # fallback path had no equivalent guard until now. Fail loud instead
+    # of silently corrupting retrieval results — the caller (index.py's
+    # own reindex/ingest guidance) is expected to reindex the corpus
+    # after switching backends, not this function papering over it.
+    if len(a) != len(b):
+        raise EmbeddingDimensionMismatch(
+            f"query vector has {len(a)} dims but stored chunk has {len(b)} dims — "
+            f"the embedding backend changed since this document was indexed; reindex it first"
+        )
     dot = sum(x * y for x, y in zip(a, b))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(y * y for y in b))

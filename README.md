@@ -44,15 +44,18 @@ Long-term picture (ERP Brain + Coding Brain on one kernel):
 | 22 | Coding Agent Gateway (OpenCode, Claude Code) | [`docs/aios-architecture-and-phases.md#phase-22-external-coding-agents`](docs/aios-architecture-and-phases.md#phase-22-external-coding-agents) | [`services/agents/agents/coding_agent_gateway/`](services/agents/agents/coding_agent_gateway/) — live-verified structural safety gate refuses a live agentic session (`unsafe_backend`/`not_configured`), never runs one unconfined in this environment |
 | 23 | Model Router | [`docs/aios-architecture-and-phases.md#phase-23-model-router`](docs/aios-architecture-and-phases.md#phase-23-model-router) | [`services/agents/agents/reasoning_engine/model_router.py`](services/agents/agents/reasoning_engine/model_router.py) — real typed registry + Ollama fallback, live-verified against a real dead-config bug found this phase; cloud providers real interface, honestly `not_configured` |
 | 24 | Control UI (Web Shell — chat, approvals, ops, views) | [`docs/aios-architecture-and-phases.md#phase-24-control-ui-web-shell`](docs/aios-architecture-and-phases.md#phase-24-control-ui-web-shell) | [`services/control-ui/`](services/control-ui/) (BFF) + [`web/`](web/) (Vite+React) — live-tested end to end in a browser: real task creation, real approval decision, real ops data. Capability views and settings honestly out of scope this session |
+| 25 | Model & Retrieval Quality | [`docs/aios-architecture-and-phases.md#phase-25-model-retrieval-quality`](docs/aios-architecture-and-phases.md#phase-25-model-retrieval-quality) | Real `nomic-embed-text` embeddings adopted (measured 3/3 vs 2/3 retrieval accuracy against ERP docs, one real bug found and fixed — silent dimension-mismatch corruption). `qwen2.5-coder:7b` evaluated and deliberately NOT adopted as default — better raw code, but reproducibly less reliable at this system's structured-output contract |
 
 Eleven backend services plus a new BFF and web frontend are real, tested
-code today, now hosting every phase in the original mandate, 1–24
+code today, now hosting every phase in the original 24-phase mandate plus
+Phase 25 from the new Phases 25–31 forward plan
 (1–11 as their own dedicated design docs, 12–14 from the consolidated
-Phases 12–21 doc, 15/16/17/18/22/23/24 each from their own dedicated design
+Phases 12–21 doc, 15/16/17/18/22/23/24/25 each from their own dedicated design
 doc — written separately because each phase's core mechanism (PII scoping;
 approval-review attachment; real sandboxed deterministic execution; a
 real audit-trail tool call; a structural sandbox-backend safety gate; a
-typed model-provider registry; a conversation-threaded chat UI) is a
+typed model-provider registry; a conversation-threaded chat UI; real
+semantic embeddings) is a
 material change to an already-built service, not just agent
 configuration). Phase 19 adds real deployment artifacts written to the
 interface but unverified (no Docker daemon here). Phase 20 adds two real
@@ -74,7 +77,14 @@ this offline-first system. Phase 24 adds the first human-facing UI: a
 real FastAPI BFF (`services/control-ui/`) and a real Vite+React app
 (`web/`), live-tested end to end in an actual browser, not just
 unit-tested — capability views and a settings page are the one named,
-out-of-scope gap. Vision and ElizaOS study notes:
+out-of-scope gap. Phase 25 adopts real semantic embeddings
+(`nomic-embed-text`), measured 3/3 vs 2/3 correct top-1 retrieval against
+real ERP-domain paraphrase queries, and found + fixed a real silent-corruption
+bug along the way — but deliberately does NOT adopt a larger coder model
+as the new default after live testing found it reproducibly less reliable
+at this system's structured-output contract, despite better raw code
+quality: evidence over assumption, even when the evidence says "don't
+change it." Vision and ElizaOS study notes:
 [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md). Doc
 index and mandatory read-before-code checklist: [`docs/README.md`](docs/README.md).

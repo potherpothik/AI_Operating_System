@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from knowledge.db import get_db
 from knowledge.vector_search import index
+from knowledge.vector_search.index import EmbeddingDimensionMismatch
 
 router = APIRouter(prefix="/vector", tags=["vector"])
 
@@ -37,7 +38,13 @@ def ingest_document(req: IngestRequest, db: Session = Depends(get_db)):
 
 @router.post("/query")
 def query_vectors(req: QueryRequest, db: Session = Depends(get_db)):
-    hits = index.query(db, req.text, req.namespace, req.classification_ceiling, req.doc_type, req.top_k)
+    try:
+        hits = index.query(db, req.text, req.namespace, req.classification_ceiling, req.doc_type, req.top_k)
+    except EmbeddingDimensionMismatch as e:
+        # Phase 25: a real corpus-state conflict — the embedding backend
+        # changed since some of these documents were indexed. A clear
+        # 409, not a raw 500, and never a silently wrong ranking.
+        raise HTTPException(status_code=409, detail=str(e))
     return {"hits": hits}
 
 

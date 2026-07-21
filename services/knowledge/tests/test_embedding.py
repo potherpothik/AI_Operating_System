@@ -1,6 +1,7 @@
 import math
+import pytest
 from knowledge.vector_search.embedding import HashingEmbedding
-from knowledge.vector_search.index import _cosine_similarity
+from knowledge.vector_search.index import _cosine_similarity, EmbeddingDimensionMismatch
 
 
 def test_embedding_is_deterministic():
@@ -39,3 +40,21 @@ def test_different_dims_are_independent_models():
     m2 = HashingEmbedding(dim=256)
     assert len(m1.embed("x")) == 64
     assert len(m2.embed("x")) == 256
+
+
+def test_mismatched_dims_raise_instead_of_silently_truncating():
+    """
+    Phase 25: a real bug found by live-testing an EMBEDDING_BACKEND
+    switch (hashing, dim=512) against a corpus indexed with the OTHER
+    backend (Ollama nomic-embed-text, dim=768). Python's own zip()
+    silently truncates to the shorter vector rather than erroring —
+    before this fix, that produced a real number that looked like a
+    valid cosine similarity but was meaningless, and live-confirmed it
+    even inverted a real ranking (the irrelevant document scored above
+    the relevant one). Locks in the fix: a dimension mismatch must raise,
+    never silently degrade.
+    """
+    m64 = HashingEmbedding(dim=64)
+    m128 = HashingEmbedding(dim=128)
+    with pytest.raises(EmbeddingDimensionMismatch):
+        _cosine_similarity(m64.embed("some text"), m128.embed("some other text"))

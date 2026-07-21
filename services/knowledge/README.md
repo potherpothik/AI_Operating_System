@@ -31,26 +31,34 @@ invisible until actually approved, confirmed invisible again if rejected.
 
 ## The embedding model — read this before trusting search quality
 
-This sandbox has no route to HuggingFace Hub (confirmed: 403 Forbidden) or
-to a live Ollama instance, so a real transformer embedding model couldn't be
-downloaded or tested here. Two implementations exist
-(`knowledge/vector_search/embedding.py`):
+Two implementations exist (`knowledge/vector_search/embedding.py`):
 
-- **`HashingEmbedding`** (default) — fully local, deterministic, real feature
-  hashing, not a stub. Every test above ran against it and it's genuinely
-  exercised end to end. It captures **lexical overlap, not semantic
-  similarity** — it has no notion that "car" and "automobile" are related.
-  Fine for exact/near-exact term matches, meaningfully weaker for
-  paraphrased queries than a real embedding model would be.
+- **`HashingEmbedding`** (still the default) — fully local, deterministic,
+  real feature hashing, not a stub. Every test in this suite runs against it
+  and it's genuinely exercised end to end. It captures **lexical overlap,
+  not semantic similarity** — it has no notion that "car" and "automobile"
+  are related. Fine for exact/near-exact term matches, meaningfully weaker
+  for paraphrased queries — confirmed live, not just theorized, by Phase 25.
 - **`OllamaEmbedding`** — written to Ollama's real `/api/embeddings`
-  contract, but **not live-tested against an actual Ollama instance** —
-  there's no network route to one from here. Point `EMBEDDING_BACKEND=ollama`
-  and `OLLAMA_URL` at your real instance and verify it before relying on it;
-  don't assume it's exercised the way `HashingEmbedding` has been.
+  contract and, as of **Phase 25**, genuinely live-tested end to end
+  (`EMBEDDING_BACKEND=ollama`, model `nomic-embed-text`, real Ollama
+  instance): three real ERP-domain documents, three paraphrase queries
+  sharing no meaningful vocabulary with their target doc. `HashingEmbedding`
+  got 2/3 top-1 correct (one outright wrong, one weak margin);
+  `OllamaEmbedding` got 3/3, every score roughly double. Full results in
+  `docs/aios-architecture-and-phases.md` Phase 25.
 
-Swapping between them is one environment variable — nothing else in Vector
-Search's ingest/query contract changes either way, since both implement the
-same `EmbeddingModel` interface.
+Swapping between them is one environment variable, but **read the module
+docstring on `_cosine_similarity`** before switching on a database with
+existing data: a real bug found by this exact swap (mismatched vector
+dimensions between an old-backend document and a new-backend query) used to
+silently produce a meaningless-but-real-looking score — confirmed live, it
+even inverted a ranking. Fixed: a dimension mismatch now raises
+`EmbeddingDimensionMismatch`, surfaced as `409` from `POST /vector/query`,
+telling you to reindex rather than silently corrupting results. Reindex
+every document (`POST /vector/reindex/{id}`) immediately after switching
+backends on a non-empty database — the ingest/query contract itself needed
+zero other code changes.
 
 ## Postgres — real pgvector, not a stand-in
 

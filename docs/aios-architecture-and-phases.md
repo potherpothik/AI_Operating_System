@@ -1,12 +1,13 @@
 # AI Operating System — Architecture & Phases (Consolidated)
 
-This document merges all phase design docs (Phases 1–24), the main lifecycle
+This document merges all phase design docs (Phases 1–25), the main lifecycle
 flow, and the Phases 12–21 roadmap into a single reference.
 
 **Also see:** [`architecture-vision.md`](architecture-vision.md) (vision/kernel map),
 [`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md) (borrowed patterns),
 [`aios-db-erd.md`](aios-db-erd.md) (database ERD),
-[`docs/README.md`](README.md) (doc index).
+[`docs/README.md`](README.md) (doc index),
+[`aios-forward-plan-phases-25-31.md`](aios-forward-plan-phases-25-31.md) (Phases 25–31 planning).
 
 ---
 
@@ -36,6 +37,7 @@ flow, and the Phases 12–21 roadmap into a single reference.
 - [Phase 22 — External Coding Agents](#phase-22-external-coding-agents)
 - [Phase 23 — Model Router](#phase-23-model-router)
 - [Phase 24 — Control UI (Web Shell)](#phase-24-control-ui-web-shell)
+- [Phase 25 — Model & Retrieval Quality](#phase-25-model-retrieval-quality)
 
 ---
 
@@ -5346,12 +5348,148 @@ Full detail: `services/control-ui/README.md`, `web/README.md`,
 
 ## Next
 
-Phase 23 — a full Model Router design (typed `ModelType` + priority-ordered
-handlers over Ollama, sketched in `architecture-vision.md` §3) when
-multi-model routing outgrows the current config-override approach. Within
-Phase 24's own remaining scope: a Settings page (§5.6), and Capability
-views (§5.5) once `services/extensibility/` gains a real view-manifest
-convention.
+Within Phase 24's own remaining scope: a Settings page (§5.6), and
+Capability views (§5.5) once `services/extensibility/` gains a real
+view-manifest convention. See Phase 25 below for what actually shipped
+next.
 
 Cross-reference: [`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md) §7,
 [`eliza-develop-technical-reference.md`](eliza-develop-technical-reference.md) §10.
+
+---
+
+# Phase 25 — Model & Retrieval Quality
+
+### Real semantic embeddings · a real coder-model comparison · no new hardware
+
+---
+
+## Built (real code, live-measured — not impression)
+
+Companion planning doc: `aios-forward-plan-phases-25-31.md` (Part 2, Phase
+25) — written before this phase ran, "nothing here is built yet." This
+section is what actually happened: both proposed changes were tested for
+real, against real measurements, and one of the two was adopted while the
+other was deliberately **not** adopted, based on real evidence rather than
+the plan's own assumption.
+
+## 1. Real semantic embeddings — adopted
+
+`nomic-embed-text` (274 MB) pulled via a real `ollama pull`, confirmed via
+`model_router.OllamaProvider().has_model("nomic-embed-text")` live. Phase
+3's `OllamaEmbedding` class (written since Phase 3, never live-tested
+against a real Ollama instance until now — this environment had no route
+to one back then) works correctly with **zero code changes**, confirming
+the design doc's own claim: "the ingestion contract was built for exactly
+this swap in Phase 3."
+
+**Real measurement, not impression** — three real ERP-domain documents
+(`sale.order` lifecycle, cutlist bin-packing, accounting approval
+workflow), queried with three paraphrases sharing zero or near-zero
+lexical overlap with their target document:
+
+| Query (paraphrased, not copied from the doc) | Hashing top-1 score | Hashing correct? | Ollama top-1 score | Ollama correct? |
+|---|---|---|---|---|
+| "How is a customer purchase order processed from quote to bill?" | 0.3948 | yes | 0.7651 | yes |
+| "How do you reduce material waste when cutting panels?" | 0.0891 | yes (weak) | 0.7577 | yes (strong) |
+| "Why can't the system post accounting entries automatically without a person checking them first?" | 0.1750 | **no — wrong doc ranked first** | 0.7477 | yes |
+
+Hashing embedding gets 2/3 right with a weak margin on one and an outright
+wrong top-1 result on the third (confirming `HashingEmbedding`'s own
+docstring: "no notion that 'car' and 'automobile' are related" — captures
+lexical overlap only, not paraphrase). Ollama gets 3/3 right, every score
+roughly double hashing's, including the case hashing got wrong. Real,
+reproducible, not cherry-picked — the raw queries and scores above are the
+actual `curl` output.
+
+**A real bug found by this measurement, not anticipated by the plan:**
+switching `EMBEDDING_BACKEND` on an already-populated SQLite database
+(hashing vectors, 512-dim) and querying it with the new backend (Ollama
+vectors, 768-dim) didn't error — Python's own `zip()` in
+`_cosine_similarity` silently truncates to the shorter vector, producing a
+real number that looks like a valid similarity score but is meaningless.
+Confirmed live: it even **inverted a real ranking** (the irrelevant
+document scored above the relevant one). Fixed with a real, minimal guard
+— `EmbeddingDimensionMismatch`, raised in `_cosine_similarity`
+(`services/knowledge/knowledge/vector_search/index.py`) and surfaced as a
+clean `409` at `POST /vector/query`
+(`services/knowledge/knowledge/vector_search/api.py`) instead of a raw 500
+or, worse, a silently wrong answer. Postgres/pgvector's own
+`cosine_distance` operator already fails loudly on a dimension mismatch —
+this closes the equivalent gap on the SQLite fallback path. Two new tests
+lock this in: `test_mismatched_dims_raise_instead_of_silently_truncating`
+(unit-level) and `test_query_raises_on_embedding_dimension_mismatch_sqlite`
+(through the real `index.query()` path). All 23 pre-existing knowledge
+tests still pass against both backends — 46 total live-test runs (23 ×
+hashing, 23 × Ollama), zero regressions.
+
+**Operational note, confirmed live:** switching backends requires a
+process restart — `_model = get_default_embedding_model()` is a
+module-level singleton, read once at import time, not re-read from the
+env var per request.
+
+## 2. Upgraded coder model — evaluated, NOT adopted as default
+
+`qwen2.5-coder:7b` (4.7 GB) pulled via a real `ollama pull`, confirmed via
+`has_model()` live. The plan's own framing ("upgrade the reasoning model
+within current RAM... keep the smaller model as the router's fallback
+candidate") assumed the larger coder-tuned model would be a straightforward
+upgrade. Real testing found a genuine trade-off, not a clean win:
+
+**Raw code quality — `qwen2.5-coder:7b` wins.** Same prompt ("write
+`merge_intervals`, return only the function code") sent directly to both
+models via `ollama_adapter.generate()`:
+- `qwen3.5:4b` (15.8s): produced working logic but left an unresolved,
+  rambling inline comment mid-function debating interval-boundary
+  semantics, and the response was cut off mid-`else`-branch — exactly the
+  kind of output that needs human cleanup before it's usable.
+- `qwen2.5-coder:7b` (12.9s): clean, complete, correctly-formatted
+  function, no stray commentary, respected the "no explanation"
+  instruction, and was **faster** despite being the larger model.
+
+**Structured-output reliability — `qwen3.5:4b` wins, decisively.** The
+same real coding task run through the actual agent pipeline
+(`python_agent`, full rendered prompt including the shared JSON-schema
+fragment, real retry loop) — not the raw single-shot prompt above:
+- `qwen2.5-coder:7b`: failed **twice, reproducibly**, exhausting all 6
+  retry iterations both times — `schema_invalid_output: not valid JSON`,
+  with two *different* real parse errors across the two runs (once a
+  fully empty response, once a truncated mid-string JSON document). A
+  manual single-shot call with the exact same rendered prompt (no retry
+  loop involved) succeeded once, suggesting the model's JSON-mode
+  reliability genuinely degrades somewhere in the real retry/longer-context
+  conditions this system's pipeline actually creates, not a fluke of one
+  bad sample.
+- `qwen3.5:4b`: succeeded on the **first** iteration both as the earlier
+  raw-prompt test and as a same-task control run immediately after
+  `qwen2.5-coder:7b`'s second failure — real, valid JSON, reasonable
+  proposed code, `awaiting_approval` status (the correct outcome for a
+  `propose_*` action).
+
+**Decision:** `default_local_model` stays `qwen3.5:4b`. `qwen2.5-coder:7b`
+remains pulled and available (`model_router.has_model()` confirms it live)
+as a documented, evaluated option — genuinely better at the raw coding
+task, genuinely less reliable at the structured-output contract every
+agent in this system depends on — not adopted as the default without
+first either (a) confirming the JSON-reliability gap is fixable (a
+prompting/format-constraint investigation, out of this phase's "Small
+(days)" scope) or (b) accepting a real regression in agent completion
+rate for a code-quality gain. This is exactly the outcome the plan's own
+"evidence, not impression" instruction exists to allow — a phase can
+measure something and correctly decide *not* to change the default.
+
+## 3. Explicitly Out of Scope (per the plan)
+
+No cloud provider activation. No new service. No change to
+`model_router.py`'s own code — Phase 23's `resolve_model()`/`has_model()`
+needed zero changes to correctly detect and evaluate two new models,
+confirming the router was built generally enough the first time.
+
+## Next
+
+Phase 26 — MCP Surface: a new small service exposing this system's
+governed agents/knowledge/approvals as MCP tools for IDEs (Claude Code,
+Cursor, VS Code+Continue, OpenCode), plus wiring the existing MCP client
+stub into the Reasoning Engine as a real tool source. See
+`aios-forward-plan-phases-25-31.md` for the full sequencing rationale
+(25→31).

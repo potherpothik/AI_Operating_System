@@ -1,6 +1,10 @@
+import json
+import pytest
 from knowledge.db import SessionLocal
 from knowledge.vector_search import index
 from knowledge.vector_search.chunking import chunk_text
+from knowledge.vector_search.index import EmbeddingDimensionMismatch
+from knowledge.vector_search.models import Chunk
 
 
 def test_chunking_respects_word_limit_with_overlap():
@@ -103,4 +107,27 @@ def test_stats_reports_counts_by_classification():
     index.ingest(db, source="b", content="confidential content here", project_id="proj-stats-2", classification="confidential")
     result = index.stats(db)
     assert result["by_classification"].get("confidential", 0) >= 1
+    db.close()
+
+
+def test_query_raises_on_embedding_dimension_mismatch_sqlite():
+    """
+    Phase 25: real bug found live-testing an EMBEDDING_BACKEND switch on
+    an already-populated SQLite database — a stored chunk from before the
+    switch has a different vector length than a fresh query embedding.
+    Simulates that real corpus state directly (corrupt one stored chunk's
+    dimension) rather than needing a second live Ollama process, and
+    confirms index.query() now raises instead of silently truncating.
+    """
+    db = SessionLocal()
+    result = index.ingest(db, source="dim-mismatch-doc", content="some real content to embed", project_id="proj-dimtest")
+    doc_id = result["document_id"]
+
+    chunk = db.query(Chunk).filter(Chunk.document_id == doc_id).first()
+    stored = json.loads(chunk.embedding)
+    chunk.embedding = json.dumps(stored + [0.0] * 100)  # simulate a longer-dim backend's leftover vector
+    db.commit()
+
+    with pytest.raises(EmbeddingDimensionMismatch):
+        index.query(db, "some real content to embed", namespace="proj-dimtest", top_k=5)
     db.close()
