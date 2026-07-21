@@ -1,7 +1,4 @@
-import os
-import httpx
-
-CAPABILITY_REGISTRY_URL = os.environ.get("CAPABILITY_REGISTRY_URL", "http://localhost:8008")
+from agents import clients
 
 
 class CapabilityRegistryUnavailable(Exception):
@@ -18,9 +15,7 @@ def fetch_capability_roster() -> list:
     registry").
     """
     try:
-        resp = httpx.get(f"{CAPABILITY_REGISTRY_URL}/capabilities", timeout=10.0)
-        resp.raise_for_status()
-        return resp.json()["capabilities"]
+        return clients.fetch_capability_roster()
     except Exception as e:  # noqa: BLE001
         raise CapabilityRegistryUnavailable(str(e))
 

@@ -1,4 +1,4 @@
-# Phase 5/7/8/10/14/15/16/17/18/22/23/25/26/27 — Reasoning Engine + twenty-three agents + Model Router + MCP client wiring + OpenAI shim's raw model access (working implementation)
+# Phase 5/7/8/10/14/15/16/17/18/22/23/25/26/27/28 — Reasoning Engine + twenty-three agents + Model Router + MCP client wiring + OpenAI shim's raw model access + adapter contracts/registry (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
@@ -249,15 +249,25 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live 8-service stack + live Ollama
 ```
 
-114 tests (110 as of Phase 26; 87 as of Phase 18, growing with Phase
-22/23/26/27's own test files — `test_phase22_agent.py`, `test_phase23_model_router.py`,
-`test_phase26_mcp_bridge.py`, `test_phase27_openai_shim.py`), all passing
-against real Postgres (genuine `TIMESTAMPTZ` columns, confirmed via
-direct schema inspection, under a deliberately non-UTC session) and a
-real live Ollama model — not mocked, except for deliberately-stubbed
+118 tests (114 as of Phase 27; 87 as of Phase 18, growing with Phase
+22/23/26/27/28's own test files — `test_phase22_agent.py`, `test_phase23_model_router.py`,
+`test_phase26_mcp_bridge.py`, `test_phase27_openai_shim.py`,
+`test_phase28_adapter_registry.py`, `test_adapter_boundary.py`), all
+passing against real Postgres (genuine `TIMESTAMPTZ` columns, confirmed
+via direct schema inspection, under a deliberately non-UTC session) and
+a real live Ollama model — not mocked, except for deliberately-stubbed
 tests (see below) used specifically where live-model phrasing would
 make a test non-deterministic without changing what's actually being
-verified. `test_phase27_openai_shim.py` (Phase 27) covers the new
+verified. `test_adapter_boundary.py` (Phase 28) is a real, static AST
+scan — not regex, not a convention documented and hoped for — that
+fails if any module under `agents/` outside three allowlisted adapter
+modules (`clients.py`, `model_router.py`, `ollama_adapter.py`) imports
+`httpx`/`requests` directly; confirmed to actually catch a violation
+(a throwaway test file), not just pass vacuously.
+`test_phase28_adapter_registry.py` covers the new `GET /reasoning/adapters`
+endpoint: real, live `is_configured()` status per model provider
+(`ollama: true`, the three cloud providers genuinely `false`), plus the
+real tool-adapter and IDE-surface listings. `test_phase27_openai_shim.py` (Phase 27) covers the new
 `/reasoning/available_models`, `/reasoning/raw_generate`, and
 `/reasoning/raw_generate_stream` endpoints against a real live Ollama
 instance: real generation with real, non-zero token-usage counts from
@@ -866,6 +876,19 @@ materializes as a real git document. One live-model smoke test each.
   a complete response chunked after the fact. Full detail in
   `docs/aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint`
   Section 2.
+- **Phase 28's `GET /reasoning/adapters` and `test_adapter_boundary.py`
+  are real enforcement, not aspirational documentation.** The registry
+  endpoint's `model_providers` entries call each provider's actual
+  `is_configured()` live, the same real check `/reasoning/available_models`
+  already relies on. The boundary test is a genuine AST scan (Python's
+  own `ast` module, not a regex heuristic) of every file under `agents/`
+  — verified live to actually flag a violation before being trusted, not
+  just asserted to pass. It found one real, previously-unenforced
+  inconsistency on its first run: `planner_bridge.py` called `httpx`
+  directly instead of going through `agents/clients.py` like every other
+  bridge — fixed by moving the call into a new
+  `clients.fetch_capability_roster()` function. Full detail in
+  `docs/aios-architecture-and-phases.md#phase-28-adapter-contracts`.
 
 ## What's a stub or simplified
 
@@ -1030,14 +1053,13 @@ materializes as a real git document. One live-model smoke test each.
 
 ## Next
 
-Phase 28 — Adapter Contracts (`docs/aios-forward-plan-phases-25-31.md`),
-now that three real, working implementations exist to generalize
-interface contracts from: Model Router (Phase 23), MCP Surface (Phase
-26), and the OpenAI-compatible shim (Phase 27, this service's own
-`/reasoning/raw_generate*` endpoints as the real model-access layer
-underneath it). Real cloud provider support (a second, genuinely
-configured `ModelProvider` in `model_router.py`) remains a product
-decision, not an engineering one
+Phase 29 — Tool Adapter Gaps (`docs/aios-forward-plan-phases-25-31.md`):
+real browser, live-Odoo, and live-Django adapters built under Phase 28's
+now-published contracts — the first genuine test of whether the
+`ToolAdapter` shape generalizes to new adapter types rather than just
+describing the four that already existed. Real cloud provider support
+(a second, genuinely configured `ModelProvider` in `model_router.py`)
+remains a product decision, not an engineering one
 (`docs/aios-architecture-and-phases.md#phase-23-model-router` Section 0).
 Revisiting `qwen2.5-coder:7b` as the AGENTIC pipeline's default is worth
 another look if its structured-output reliability gap turns out to be a

@@ -40,6 +40,7 @@ flow, and the Phases 12–21 roadmap into a single reference.
 - [Phase 25 — Model & Retrieval Quality](#phase-25-model-retrieval-quality)
 - [Phase 26 — MCP Surface](#phase-26-mcp-surface)
 - [Phase 27 — OpenAI-Compatible Endpoint](#phase-27-openai-compatible-endpoint)
+- [Phase 28 — Adapter Contracts](#phase-28-adapter-contracts)
 
 ---
 
@@ -5774,4 +5775,97 @@ Phase 28 — Adapter Contracts: publish versioned interface contracts in
 `docs/contracts/` (`ModelProvider`, `ToolAdapter`, `IDESurface`) extracted
 from three now-real, working implementations (Model Router, MCP Surface,
 this OpenAI shim) rather than invented in a vacuum. See
+`aios-forward-plan-phases-25-31.md` for the full sequencing rationale.
+
+
+---
+
+<!-- source: phase-28-adapter-contracts.md -->
+
+# Phase 28 — Adapter Contracts
+### Judgment and enforcement, not new runtime systems
+
+---
+
+## Built (real code, live-tested — not impression)
+
+The forward plan's own framing: by Phase 28, three real adapter families
+exist to generalize from — model providers (Phase 23), the MCP surface
+(26), the OpenAI-compatible surface (27). This phase extracts the shape
+they already share into versioned contracts, then enforces the one
+structural rule the requirements-alignment assessment named: **agents
+may not make bespoke third-party calls.**
+
+## 1. Three versioned contracts (`docs/contracts/`)
+
+`model-provider.md`, `tool-adapter.md`, `ide-surface.md` — each
+documents the real interface/shape an existing implementation already
+satisfies (`model_router.py`'s `ModelProvider` classes; Shell
+Executor/Git Manager/Database Connector/MCP Client's shared
+narrow-action-plus-governance-gate shape; MCP Surface/OpenAI shim's
+shared fixed-stub-actor-plus-structural-non-approval shape), not a new
+interface invented ahead of any implementation. v1 = the shape as of
+Phase 27; a breaking change gets a new version file, the same pattern
+`services/assembly/` already uses for prompt templates rather than
+silently rewriting history in place.
+
+## 2. Real, static enforcement — `services/agents/tests/test_adapter_boundary.py`
+
+The plan's own wording: "Security Layer denies outbound calls from agent
+code that don't go through a registered adapter. Policy + a lint/CI
+check, not convention." Security Layer has no way to observe a raw
+Python HTTP call before it happens — there's no process-level network
+interceptor in this system (Shell Executor sandboxes shell commands,
+Phase 6, but agent code itself runs unsandboxed Python). The real,
+honest enforcement mechanism here is **static**: an AST scan (not
+regex) of every `.py` file under `services/agents/agents/`, failing if
+any file outside three allowlisted adapter modules (`clients.py`,
+`model_router.py`, `ollama_adapter.py`) imports `httpx`/`requests`
+directly. Verified to actually catch violations, not just pass
+vacuously — a throwaway file with a bare `import httpx` was confirmed
+live to trip the check before being discarded.
+
+**A real, previously-unenforced inconsistency this check found on its
+first run:** `planner_bridge.py` imported `httpx` directly to call the
+Capability Registry — a genuine internal AIOS call (not a third party),
+but still a bypass of `agents/clients.py`'s own wrapper convention every
+other bridge has followed since Phase 8. Fixed by moving the call into a
+new `clients.fetch_capability_roster()` function and having
+`planner_bridge.py` call that instead — closing the one real exception
+to a rule this codebase had already been following by habit since Phase
+5, not by enforcement.
+
+## 3. Adapter registry — `GET /reasoning/adapters`
+
+"An adapter registry entry added to the capability registry so Planner
+and the ops UI can see what adapters exist, mirroring how agents are
+already visible" (the plan's own scope). `model_providers` is genuinely
+live — each provider's real `is_configured()` check, confirmed live:
+`ollama: true`, `openai`/`anthropic`/`gemini: false` (no API key ever
+set in this offline-first build, unchanged since Phase 23). `tool_adapters`
+and `ide_surfaces` are real but static: those are separate FastAPI
+services (`services/execution/`, `services/database/`,
+`services/extensibility/`, `services/mcp-surface/`,
+`services/platform-spine/`), not Python classes this process could
+introspect at runtime — listed honestly by name and real endpoint
+rather than fabricating a dynamic cross-service discovery mechanism
+this phase's own "little new runtime code" scope didn't call for.
+
+## 4. Explicitly Out of Scope
+
+Process-level network egress control (a real interceptor blocking an
+unauthorized outbound call at the OS/socket level) — a materially
+larger project than this phase's own "mostly judgment... little new
+runtime code" scope, and not yet necessary since every agent code path
+is fixed, human-written bridge modules, not model-generated code
+executing directly. Dynamic, live cross-service adapter discovery for
+`tool_adapters`/`ide_surfaces` — static-but-real for now, matching how
+`docs/README.md`'s own phase→service map is also maintained by hand,
+not generated.
+
+## Next
+
+Phase 29 — Tool Adapter Gaps: real browser, live-Odoo, and live-Django
+adapters, the first genuine test of whether this phase's contracts
+generalize to new adapter types built under them. See
 `aios-forward-plan-phases-25-31.md` for the full sequencing rationale.

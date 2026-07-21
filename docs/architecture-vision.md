@@ -146,7 +146,7 @@ already enforces.
 ## 4. Domain roadmap
 
 **Built today:** every phase in the original mandate, 1–24, plus Phases
-25–27 from the new Phases 25–31 forward plan (governance,
+25–28 from the new Phases 25–31 forward plan (governance,
 platform spine, memory,
 assembly, agents + Reasoning Engine, execution, database, planning,
 knowledge pipelines, extensibility/MCP, observability metrics/health,
@@ -154,7 +154,7 @@ costing/accounting/inventory agents, manufacturing/sales/PM agents,
 code-review/reverse-engineering/architecture agents, calculation/cutlist-
 optimization/AutoCAD agents, python/documentation/security/research agents,
 Coding Agent Gateway, Model Router, Control UI, MCP Surface, OpenAI-
-Compatible Endpoint), plus
+Compatible Endpoint, Adapter Contracts), plus
 real Phase 19 deployment artifacts (`Dockerfile`s, `docker-compose.yml`) —
 written to the real interface but genuinely unbuilt/unverified against a
 live Docker daemon, which doesn't exist in this environment; a different
@@ -217,15 +217,23 @@ the actual local model (`qwen3.5:4b`) a `public` classification ceiling
 instead of `confidential`, refusing a benign request live for the wrong
 reason — corrected at the source this time — see
 [`aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint`](aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint).
+Phase 28 (Adapter Contracts) adds no new service — three versioned
+interface contracts (`ModelProvider`, `ToolAdapter`, `IDESurface`) in
+[`docs/contracts/`](contracts/), extracted from Phases 23/26/27's real
+implementations, plus real, static enforcement of "agents may not make
+bespoke third-party calls": `services/agents/tests/test_adapter_boundary.py`
+AST-scans for it, live-verified to actually catch a violation, and
+found one real pre-existing exception (`planner_bridge.py` bypassing
+`agents/clients.py`) on its first run — see
+[`aios-architecture-and-phases.md#phase-28-adapter-contracts`](aios-architecture-and-phases.md#phase-28-adapter-contracts).
 See root [`README.md`](../README.md) status table for the
 authoritative phase → service map.
 
-**Designed, not built:** Phases 28–31 from the new forward plan
-(`aios-forward-plan-phases-25-31.md`) — enforced adapter contracts,
-browser/live-Odoo/Django tool adapters, declarative workflows, and
-team/GPU-day hardening, in that sequence. Real cloud-provider support
-for Model Router remains a product decision, not an engineering one,
-independent of that sequence.
+**Designed, not built:** Phases 29–31 from the new forward plan
+(`aios-forward-plan-phases-25-31.md`) — browser/live-Odoo/Django tool
+adapters, declarative workflows, and team/GPU-day hardening, in that
+sequence. Real cloud-provider support for Model Router remains a
+product decision, not an engineering one, independent of that sequence.
 
 Built-phase design docs worth re-reading before extending code:
 [`aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor`](aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor),
@@ -285,13 +293,13 @@ Before any implementation, follow the doc-reading protocol in
 
 ## Next
 
-Phase 28 (Adapter Contracts) is next per
-`aios-forward-plan-phases-25-31.md`'s own sequencing, now that three
-real, working implementations exist to generalize interface contracts
-from: Model Router (Phase 23), MCP Surface (Phase 26), and the
-OpenAI-compatible shim (Phase 27 —
-`aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint`).
-Narrower remaining scope within already-built phases: real cloud-provider
+Phase 29 (Tool Adapter Gaps — real browser, live-Odoo, and live-Django
+adapters) is next per `aios-forward-plan-phases-25-31.md`'s own
+sequencing, built under Phase 28's now-published contracts
+(`aios-architecture-and-phases.md#phase-28-adapter-contracts`) — the
+first genuine test of whether the `ToolAdapter` shape generalizes to
+new adapter types, not just three that already existed. Narrower
+remaining scope within already-built phases: real cloud-provider
 support for Model Router (a product decision, not an engineering one —
 `aios-architecture-and-phases.md#phase-23-model-router` §0), whether
 `qwen2.5-coder:7b`'s structured-output reliability gap is fixable for the

@@ -8,6 +8,7 @@ EXECUTION_URL = os.environ.get("EXECUTION_URL", "http://localhost:8006")
 DATABASE_CONNECTOR_URL = os.environ.get("DATABASE_CONNECTOR_URL", "http://localhost:8007")
 KNOWLEDGE_PIPELINES_URL = os.environ.get("KNOWLEDGE_PIPELINES_URL", "http://localhost:8009")
 EXTENSIBILITY_URL = os.environ.get("EXTENSIBILITY_URL", "http://localhost:8010")
+CAPABILITY_REGISTRY_URL = os.environ.get("CAPABILITY_REGISTRY_URL", "http://localhost:8008")
 GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "dev-odoo-agent-token")
 
 
@@ -78,6 +79,22 @@ def list_templates() -> list:
     resp = httpx.get(f"{ASSEMBLY_URL}/prompt/templates", timeout=10.0)
     resp.raise_for_status()
     return resp.json()
+
+
+def fetch_capability_roster() -> list:
+    """
+    Phase 28: moved here from planner_bridge.py's own direct httpx call
+    — the "no bespoke third-party calls outside a registered adapter"
+    rule this phase enforces (docs/contracts/README.md) means every
+    Reasoning Engine bridge reaches its target exclusively through this
+    module, planner_bridge.py included. Behavior unchanged: raises on
+    any failure, same as every other function here — the caller decides
+    what "unreachable" means for it (Planner fails closed rather than
+    reasoning against a stale roster, Phase 8 doc).
+    """
+    resp = httpx.get(f"{CAPABILITY_REGISTRY_URL}/capabilities", timeout=10.0)
+    resp.raise_for_status()
+    return resp.json()["capabilities"]
 
 
 def authorize(actor: str, action: str, resource: str, correlation_id: str = "") -> dict:

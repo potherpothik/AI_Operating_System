@@ -126,6 +126,44 @@ class RawGenerateRequest(BaseModel):
     model: Optional[str] = None
 
 
+@router.get("/adapters")
+def list_adapters():
+    """
+    Phase 28: the real adapter registry `docs/contracts/README.md`
+    promises — "so Planner and the ops UI can see what adapters exist,
+    mirroring how agents are already visible" via
+    capability_registry.load_all(). model_providers is genuinely live
+    (each provider's real is_configured() check, same as
+    /reasoning/available_models above); tool_adapters and ide_surfaces
+    are real but static — those are separate FastAPI services
+    (services/execution/, services/database/, services/extensibility/,
+    services/mcp-surface/, services/platform-spine/), not Python classes
+    this process could introspect, so this lists them honestly by name
+    and real endpoint rather than fabricating a dynamic discovery
+    mechanism the "Medium... little new runtime code" scope of this
+    phase didn't call for.
+    """
+    providers = [
+        model_router.OllamaProvider(),
+        model_router.OpenAIProvider(),
+        model_router.AnthropicProvider(),
+        model_router.GeminiProvider(),
+    ]
+    return {
+        "model_providers": [{"name": p.name, "configured": p.is_configured()} for p in providers],
+        "tool_adapters": [
+            {"name": "shell_executor", "service": "services/execution/", "actions": ["execute"]},
+            {"name": "git_manager", "service": "services/execution/", "actions": ["branch", "commit", "diff", "push", "open_mr"]},
+            {"name": "database_connector", "service": "services/database/", "actions": ["db.read", "db.dry_run", "db.propose_write", "db.propose_migration"]},
+            {"name": "mcp_client", "service": "services/extensibility/", "actions": ["mcp.invoke"]},
+        ],
+        "ide_surfaces": [
+            {"name": "mcp_surface", "service": "services/mcp-surface/", "protocol": "mcp-jsonrpc"},
+            {"name": "openai_shim", "service": "services/platform-spine/", "protocol": "openai-chat-completions"},
+        ],
+    }
+
+
 @router.get("/available_models")
 def available_models():
     """Real, currently-pulled Ollama tags, plus whichever one
