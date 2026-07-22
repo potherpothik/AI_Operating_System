@@ -110,6 +110,27 @@ def authorize(actor: str, action: str, resource: str, correlation_id: str = "") 
         return {"decision": "deny", "reason": f"security layer unreachable, failing closed: {e}"}
 
 
+def resolve_secret(target_db: str, capability: str, correlation_id: str = "") -> dict:
+    """
+    Phase 29: agents' own equivalent of services/database/database/clients.py's
+    resolve_secret() (Phase 7) — the same fail-closed credential-indirection
+    pattern, needed here because the Odoo live adapter (odoo_live_bridge.py)
+    has no dedicated backing microservice of its own to hold this instead,
+    unlike Database Connector. Never returns a fabricated connection string
+    on failure — the caller gets an honest ok=False.
+    """
+    try:
+        resp = httpx.post(
+            f"{SECURITY_LAYER_URL}/security/secrets/resolve",
+            json={"target_db": target_db, "capability": capability, "correlation_id": correlation_id},
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        return {"ok": True, "connection_string": resp.json()["connection_string"]}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
 def request_approval(action: str, requested_by: str, risk_tier: str = "medium", payload_ref: str = "") -> dict:
     try:
         resp = httpx.post(

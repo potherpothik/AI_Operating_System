@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from agents import clients
-from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge, review_bridge, reverse_eng_bridge, calc_bridge, cutlist_bridge, autocad_bridge, security_bridge, coding_gateway_bridge, model_router, mcp_bridge
+from agents.reasoning_engine import store, capability_registry, execution_bridge, database_bridge, shell_bridge, erp_bridge, planner_bridge, task_bridge, review_bridge, reverse_eng_bridge, calc_bridge, cutlist_bridge, autocad_bridge, security_bridge, coding_gateway_bridge, model_router, mcp_bridge, odoo_live_bridge, django_bridge, browser_bridge
 from agents.reasoning_engine.ollama_adapter import generate, OllamaUnavailable
 from agents.reasoning_engine.models import ReasoningExecution
 
@@ -259,6 +259,9 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
             or (parsed.get("audit_action") or "").strip()
         )
         has_fresh_mcp_request = bool((parsed.get("mcp_tool_name") or "").strip())
+        has_fresh_odoo_live_request = bool((parsed.get("odoo_model") or "").strip())
+        has_fresh_django_request = bool((parsed.get("manage_py_command") or "").strip())
+        has_fresh_browse_request = bool((parsed.get("target_url") or "").strip())
 
         if action in database_bridge.TOOL_ACTIONS and has_fresh_query:
             tool_result = database_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id, requester_ceiling=cap_def.classification_ceiling)
@@ -372,6 +375,45 @@ def execute(db: Session, task_id: str, task_description: str, agent_capability: 
                 f"Now produce your final structured response based on this real result — set action to {action} again "
                 f"but leave mcp_tool_name empty since you already have the result, unless you genuinely need to call "
                 f"another tool.]"
+            )
+            if iteration == max_iterations:
+                final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
+            continue
+
+        if action in odoo_live_bridge.TOOL_ACTIONS and has_fresh_odoo_live_request:
+            tool_result = odoo_live_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
+            store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, f"tool_call:{action}")
+            current_task_description = (
+                f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
+                f"Now produce your final structured response based on this real result — set action to {action} again "
+                f"but leave odoo_model empty since you already have the result, unless you genuinely need a different "
+                f"live query.]"
+            )
+            if iteration == max_iterations:
+                final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
+            continue
+
+        if action in django_bridge.TOOL_ACTIONS and has_fresh_django_request:
+            tool_result = django_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
+            store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, f"tool_call:{action}")
+            current_task_description = (
+                f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
+                f"Now produce your final structured response based on this real result — set action to {action} again "
+                f"but leave manage_py_command empty since you already have the result, unless you genuinely need to run "
+                f"a different check.]"
+            )
+            if iteration == max_iterations:
+                final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"
+            continue
+
+        if action in browser_bridge.TOOL_ACTIONS and has_fresh_browse_request:
+            tool_result = browser_bridge.handle_tool_call(parsed, agent_capability, task_id, correlation_id)
+            store.log_step(db, execution.id, iteration, rendered.get("render_log_id"), raw_response, parsed, f"tool_call:{action}")
+            current_task_description = (
+                f"{current_task_description}\n\n[System: result of your {action} request — {tool_result['summary']}. "
+                f"Now produce your final structured response based on this real page content — set action to {action} "
+                f"again but leave target_url empty since you already have the result, unless you genuinely need to "
+                f"browse a different internal page.]"
             )
             if iteration == max_iterations:
                 final_status, failure_reason = "failed", "iteration_limit_exceeded_during_tool_call"

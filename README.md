@@ -48,12 +48,13 @@ Long-term picture (ERP Brain + Coding Brain on one kernel):
 | 26 | MCP Surface | [`docs/aios-architecture-and-phases.md#phase-26-mcp-surface`](docs/aios-architecture-and-phases.md#phase-26-mcp-surface) | [`services/mcp-surface/`](services/mcp-surface/) — new service, real MCP JSON-RPC server (own isolated venv), 8 governed tools, 9 live tests, no approval-deciding tool anywhere. Plus `research_agent`'s new `research.invoke_mcp_tool` wiring the existing Phase 12 MCP client into Reasoning Engine for real, live-tested end to end. Found and fixed two real pre-existing bugs in `services/assembly/`'s template versioning along the way |
 | 27 | OpenAI-Compatible Endpoint | [`docs/aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint`](docs/aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint) | `services/platform-spine/platform_spine/gateway/openai_shim.py` — real `POST /v1/chat/completions` (+ live SSE streaming) and `GET /v1/models`, live-verified structural bar refusing confidential-classified content against an unrecognized model's ceiling before any model call, both outcomes provable in the real audit trail. Real model access added to `services/agents/` (`/reasoning/raw_generate*`). Found and fixed a real bug: a stale config value was silently giving the actual local model a `public` classification ceiling instead of `confidential` |
 | 28 | Adapter Contracts | [`docs/aios-architecture-and-phases.md#phase-28-adapter-contracts`](docs/aios-architecture-and-phases.md#phase-28-adapter-contracts) | [`docs/contracts/`](docs/contracts/) — three versioned interface contracts (`ModelProvider`, `ToolAdapter`, `IDESurface`) extracted from Phases 23/26/27's real implementations. Real, static enforcement: `services/agents/tests/test_adapter_boundary.py` AST-scans for bespoke third-party calls outside registered adapters — found and fixed one real pre-existing exception (`planner_bridge.py`). New `GET /reasoning/adapters` registry endpoint, live `is_configured()` status per model provider |
+| 29 | Tool Adapter Gaps | [`docs/aios-architecture-and-phases.md#phase-29-tool-adapter-gaps`](docs/aios-architecture-and-phases.md#phase-29-tool-adapter-gaps) | Three new real `ToolAdapter`s, three honest tiers: `odoo_live_bridge.py` — real XML-RPC, honestly unverified against a live instance (none exists here); `django_bridge.py` — real `manage.py check`/`showmigrations`, genuinely live-tested against a disposable Django project; `browser_bridge.py` — real Playwright automation, structural internal-only URL gate fully verified, but real page loads currently refused by this environment's own sandbox memory limit (same class of finding as Phase 22, confirmed by direct reproduction, not a code gap) |
 
 Twelve backend services plus a new BFF and web frontend are real, tested
 code today, now hosting every phase in the original 24-phase mandate plus
-Phases 25–28 from the new Phases 25–31 forward plan
+Phases 25–29 from the new Phases 25–31 forward plan
 (1–11 as their own dedicated design docs, 12–14 from the consolidated
-Phases 12–21 doc, 15/16/17/18/22/23/24/25/26/27/28 each from their own dedicated design
+Phases 12–21 doc, 15/16/17/18/22/23/24/25/26/27/28/29 each from their own dedicated design
 doc — written separately because each phase's core mechanism (PII scoping;
 approval-review attachment; real sandboxed deterministic execution; a
 real audit-trail tool call; a structural sandbox-backend safety gate; a
@@ -118,7 +119,17 @@ genuine AST scan, verified live to actually catch a violation, that
 found one real pre-existing exception (`planner_bridge.py` bypassing
 `agents/clients.py`) and fixed it. A new `GET /reasoning/adapters`
 registry endpoint reports real, live `is_configured()` status per model
-provider. Vision and ElizaOS study notes:
+provider. Phase 29 adds three new `ToolAdapter`s under Phase 28's
+contracts, each at a different honestly-named real tier: a live Odoo
+XML-RPC adapter (real code, no live Odoo 19 instance exists in this
+environment to verify a successful query against), a Django `manage.py`
+adapter (fully real and live-tested against a genuine disposable Django
+project), and a Playwright browser adapter (real code, structural
+internal-only URL gate fully verified, but real page loads currently
+refused by this environment's own sandboxed-subprocess memory limit —
+the same class of finding Phase 22 already established for external
+coding-agent CLIs, confirmed by direct reproduction, never worked around
+by weakening the sandbox). Vision and ElizaOS study notes:
 [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md). Doc
 index and mandatory read-before-code checklist: [`docs/README.md`](docs/README.md).

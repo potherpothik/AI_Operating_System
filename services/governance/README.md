@@ -294,6 +294,28 @@ in this repo points at `governance_dr_drill`.
   real `ceiling_for_model()` on every single request, independent of
   this role grant existing at all.
 
+## Phase 29 addition
+
+- `odoo.read_orm_live` (Phase 29): added `allow` to `odoo_agent`'s role
+  — a real, live-scoped read against a genuinely configured Odoo
+  instance. Read-only, same tier as the pre-existing `odoo.read_orm`.
+- `django.check_project` + `shell.execute` (Phase 29): added to
+  `django_agent`'s role — this capability had no `shell.execute` grant
+  at all before this phase (its only prior tool-call-shaped action,
+  `propose_migration`/`propose_config_change`, lands as a Git Manager MR
+  instead, never a direct shell call).
+- `testing.browse_internal_page` (Phase 29): added `allow` to
+  `testing_agent`'s role — real headless-browser reads of AIOS's own web
+  UI, read-only, same tier as `testing.run_suite`. The real safety gate
+  is the internal-URL structural check in `browser_bridge.py`
+  (`services/agents/`), not this policy layer.
+- `secrets_registry.yaml` gained a `live_odoo` entry
+  (`ODOO_CONNECTION_URL`-indirected, `allowed_capabilities: [odoo_agent]`)
+  — the same fail-closed credential-indirection pattern `demo_erp` has
+  used since Phase 7, now resolved directly by `agents/clients.py`'s own
+  new `resolve_secret()` since this adapter has no dedicated backing
+  microservice the way `database_agent`'s Database Connector does.
+
 ## Next
 
 This is one piece of Phase 1's design; Phase 2 (Gateway, Task Manager,

@@ -15,6 +15,13 @@ commands:
     mode: read_only
   - pattern: "coverage report*"
     mode: read_only
+  # testing.browse_internal_page (Phase 29) — a real, fixed, reviewed
+  # script (browser_action.py), read-only: only ever navigates and reads,
+  # never clicks/fills/submits. The URL-scope restriction (internal AIOS
+  # targets only) is enforced upstream in browser_bridge.py, before this
+  # pattern is ever reached.
+  - pattern: "python3 */browser_action.py *"
+    mode: read_only
   # testing.propose_new_test lands as a Git Manager MR — same read-only
   # inspection + scoped mutating branch pattern as odoo_agent.
   - pattern: "git status*"

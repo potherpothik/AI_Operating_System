@@ -1,0 +1,44 @@
+agent_capability: django_agent
+commands:
+  # django.check_project (Phase 29 doc) — declared read_only since none of
+  # these three subcommands have a real-world mutating effect: `check`
+  # validates without touching the database, `showmigrations` only lists
+  # state, and `test` runs Django's own test runner (which uses a
+  # throwaway test database it creates and destroys itself), same
+  # "read-only against a sandbox" posture testing_agent's own pytest
+  # entries already use.
+  - pattern: "python3 manage.py check*"
+    mode: read_only
+  - pattern: "python manage.py check*"
+    mode: read_only
+  - pattern: "python3 manage.py showmigrations*"
+    mode: read_only
+  - pattern: "python manage.py showmigrations*"
+    mode: read_only
+  - pattern: "python3 manage.py test*"
+    mode: read_only
+  - pattern: "python manage.py test*"
+    mode: read_only
+  # django.propose_migration/propose_config_change land as Git Manager
+  # MRs — same read-only inspection + scoped mutating branch pattern
+  # every other propose_* agent's own allowlist already uses.
+  - pattern: "git status*"
+    mode: read_only
+  - pattern: "git diff*"
+    mode: read_only
+  - pattern: "git log*"
+    mode: read_only
+  - pattern: "git show*"
+    mode: read_only
+  - pattern: "git rev-parse*"
+    mode: read_only
+  - pattern: "git branch*"
+    mode: read_only
+  - pattern: "git checkout -b django-agent/*"
+    mode: mutating
+  - pattern: "git add *"
+    mode: mutating
+  - pattern: "git commit *"
+    mode: mutating
+  - pattern: "git push origin django-agent/*"
+    mode: mutating

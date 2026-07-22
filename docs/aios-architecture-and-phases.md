@@ -41,6 +41,7 @@ flow, and the Phases 12–21 roadmap into a single reference.
 - [Phase 26 — MCP Surface](#phase-26-mcp-surface)
 - [Phase 27 — OpenAI-Compatible Endpoint](#phase-27-openai-compatible-endpoint)
 - [Phase 28 — Adapter Contracts](#phase-28-adapter-contracts)
+- [Phase 29 — Tool Adapter Gaps](#phase-29-tool-adapter-gaps)
 
 ---
 
@@ -5869,3 +5870,163 @@ Phase 29 — Tool Adapter Gaps: real browser, live-Odoo, and live-Django
 adapters, the first genuine test of whether this phase's contracts
 generalize to new adapter types built under them. See
 `aios-forward-plan-phases-25-31.md` for the full sequencing rationale.
+
+
+---
+
+<!-- source: phase-29-tool-adapter-gaps.md -->
+
+# Phase 29 — Tool Adapter Gaps
+### Browser, live Odoo, live Django — three real ToolAdapters, three real honesty tiers
+
+---
+
+## Built (real code, live-tested where real infrastructure exists — not impression)
+
+The forward plan's own framing: these three are "the rows in the
+proposed `tool_adapters/` list that are genuinely missing rather than
+renamed," built under Phase 28's now-published `ToolAdapter` contract —
+the first real test of whether that shape generalizes to new adapter
+types. It does, structurally, for all three — but this environment's own
+real infrastructure gaps (no live Odoo 19 instance, no Docker daemon)
+mean the three land at three genuinely different honesty tiers, named
+honestly rather than smoothed over.
+
+## 1. Odoo live adapter — real code, honestly unverified against a live instance
+
+`services/agents/agents/reasoning_engine/odoo_live_bridge.py` — a new
+`odoo.read_orm_live` action (`odoo_agent`'s existing `odoo.read_orm`
+stays exactly as it was: cached-schema reads, untouched), using Python's
+own `xmlrpc.client` against Odoo's real, documented external API
+(`/xmlrpc/2/common` for `authenticate`, `/xmlrpc/2/object` for
+`execute_kw`). Credentials resolve through governance's real secrets
+registry (a new `live_odoo` entry, `ODOO_CONNECTION_URL`-indirected, same
+fail-closed pattern Database Connector's own Phase 7 secrets ever since)
+via a new `clients.resolve_secret()` — agents' own equivalent of
+`services/database/database/clients.py`'s function, since this adapter
+has no dedicated backing microservice of its own the way `odoo.read_orm`'s
+sibling `database_agent` does.
+
+**No live Odoo 19 instance exists in this environment** (confirmed
+directly — nothing listens on 8069, no `odoo-bin` on PATH), so the real,
+honest limit of what's live-verifiable here is the MECHANISM, not a
+successful query: three real, live-confirmed behaviors —
+(1) malformed JSON input is rejected before any network call,
+(2) an unpermitted capability gets a real 403 from governance's real
+`/security/secrets/resolve`, confirmed live, not asserted from the YAML,
+and (3) a genuinely configured-but-unreachable Odoo address produces a
+real `ConnectionRefusedError` from a real socket connection attempt —
+`Odoo instance at '...' unreachable: [Errno 111] Connection refused`,
+never a fabricated result. Same honesty tier as Phase 19's Docker
+artifacts: written to the real interface, structurally correct, unbuilt/
+unverified against the one piece of infrastructure that genuinely
+doesn't exist here.
+
+## 2. Django adapter — real code, genuinely live-tested
+
+`services/agents/agents/reasoning_engine/django_bridge.py` — a new
+`django.check_project` action on `django_agent` (`check`,
+`showmigrations`, `test` — exactly the plan's own named scope), routed
+through Shell Executor's existing allowlist mechanism (a new
+`services/execution/execution/shell_executor/allowlists/django_agent.yaml`
+— django_agent had no `shell.execute` grant at all before this phase).
+Unlike Odoo, a real Django project is genuinely cheap to stand up for
+testing — `django-admin startproject`, the same "real, disposable,
+throwaway" pattern this codebase already uses for git repos
+(`disposable_bare_repo_for_bridge`) and `demo_erp` rows, not a mock.
+Live-confirmed: `manage.py check` returns the real
+`"System check identified no issues (0 silenced)."`, and
+`manage.py showmigrations` returns the real, unedited list of Django's
+own built-in app migrations (`admin`, `auth`, `contenttypes`,
+`sessions`) — genuine subprocess output, not fabricated.
+
+**A real environment gap found live, the same class Phase 17 already
+documented for `ezdxf`:** Shell Executor's sandboxed subprocess resolves
+`python3` from its own process's `PATH`, not necessarily the venv these
+new dependencies (`django`, `playwright`) were pip-installed into —
+confirmed live: `manage.py check` failed with `ModuleNotFoundError: No
+module named 'django'` until `django`/`playwright` were also installed
+into the system interpreter Shell Executor's unactivated venv invocation
+actually resolves `python3` to. Same fix, same root cause, second
+occurrence.
+
+## 3. Browser adapter — real code, structurally refused by this environment's sandbox
+
+`services/execution/execution/shell_executor/scripts/browser_action.py`
+(a new deterministic script, same trust tier as `dxf_parse.py`) — real
+headless Chromium automation via Playwright, read-only (navigate, read
+title/text, screenshot — no click/fill/submit exists anywhere in this
+script). `services/agents/agents/reasoning_engine/browser_bridge.py`
+adds a new `testing.browse_internal_page` action, scoped to Testing
+Agent only (a deliberate decision, not an oversight — see Section 4).
+The internal/external URL scope restriction is structural and checked
+BEFORE any browser is ever launched: confirmed live, an external URL
+(`https://example.com`) is refused with zero subprocess ever spawned.
+
+**A real, live-confirmed structural finding, not a guess — the same
+class Phase 22 already established for the `claude`/`opencode` CLIs
+under this identical sandbox backend:** Playwright's own Node.js driver
+process needs more virtual address space to even initialize than
+`SubprocessSandbox`'s 512MB `RLIMIT_AS` cap allows (Phase 6's own
+deliberate resource limit). Reproduced directly, not inferred: applying
+the identical `RLIMIT_AS` outside the sandbox crashes Playwright's own
+driver with `Connection.init: Connection closed while reading from the
+driver` before Chromium ever launches. This was NOT worked around by
+raising the global memory cap — that would weaken the sandbox for every
+other capability using `shell.execute`, not just this one adapter, the
+same reasoning Phase 22 already applied when it declined to accept an
+unsafe backend rather than loosen a real safety boundary. The real fix
+is the same one already named since Phase 6/19: a Docker sandbox
+backend, which doesn't exist in this environment. `test_adapter_boundary`-style
+honesty, not silence: the code is real, correctly wired, and reports
+this exact failure honestly every time it's actually invoked here — the
+one thing it must never do is fabricate a successful page load.
+
+## 4. A deliberate scope decision, not an oversight: Testing Agent only, never Research Agent
+
+The forward plan says the browser adapter "feeds Research Agent and
+Testing Agent." Research Agent's own template has repeatedly and
+explicitly declared zero external web access as a hard architectural
+invariant since Phase 18 ("this system has no external web-access tool
+anywhere in its history... you cannot actually fetch anything from the
+internet"), reinforced again by Phase 26's MCP tool docs. Wiring a live
+browser tool into Research Agent — even one restricted to internal
+targets — would be a real, material change to that invariant, not an
+implementation detail. Confirmed with the user before building rather
+than decided unilaterally: this adapter is internal-targets-only and
+Testing-Agent-only. Research Agent's own posture is completely
+unchanged by this phase.
+
+## 5. Two real, previously latent template-versioning triggers, same root cause as Phase 26
+
+`odoo_agent`, `django_agent`, and `testing_agent` all had their own
+`template.md` changed in place for the first time since their original
+creation (Phase 5, Phase 10, Phase 10 respectively) — the same situation
+Phase 26 first hit for `research_agent`, and the same fix applies:
+`ensure_template_registered()`'s body-diff check (added to all three
+`register.py` files this phase) correctly detected the stale active
+version and registered a real new one through the same approval flow.
+The other half of that same Phase 26 lesson recurred too: every test
+file stubbing an `odoo_agent`/`django_agent`/`testing_agent` model
+response needed its shared `_stub()` base dict (or raw JSON literal)
+updated with the 3 new schema fields these agents' `EXPECTED_OUTPUT_SCHEMA`
+now requires present — `assembly`'s `schema_validate.py` treats "the key
+is absent" and "the key is present but null" as different things, and
+only the second one is valid for an `optional_str` field.
+
+## 6. Explicitly Out of Scope
+
+A real Odoo 19 instance to test the live adapter's success path against
+— genuinely out of proportion to stand up in this environment, unlike
+the disposable Django project. Live browser testing of Control UI itself
+(`web/`) — blocked on the sandbox limitation above, not a missing
+feature; the adapter is ready the moment a Docker backend exists.
+Raising `SubprocessSandbox`'s `RLIMIT_AS` — a real security boundary,
+not a bug, left exactly as Phase 6 set it.
+
+## Next
+
+Phase 30 — Declarative Workflows: multi-agent orchestration as data
+(`workflows/` YAML), not code, per the forward plan's own naming of this
+as "a real missing layer." See `aios-forward-plan-phases-25-31.md` for
+the full sequencing rationale.

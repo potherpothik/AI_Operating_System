@@ -1,4 +1,4 @@
-# Phase 5/7/8/10/14/15/16/17/18/22/23/25/26/27/28 — Reasoning Engine + twenty-three agents + Model Router + MCP client wiring + OpenAI shim's raw model access + adapter contracts/registry (working implementation)
+# Phase 5/7/8/10/14/15/16/17/18/22/23/25/26/27/28/29 — Reasoning Engine + twenty-three agents + Model Router + MCP client wiring + OpenAI shim's raw model access + adapter contracts/registry + live Odoo/Django/browser tool adapters (working implementation)
 
 Real, tested code. This is the first phase that actually calls a model:
 Reasoning Engine is the shared execution loop every agent runs through.
@@ -249,21 +249,30 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live 8-service stack + live Ollama
 ```
 
-118 tests (114 as of Phase 27; 87 as of Phase 18, growing with Phase
-22/23/26/27/28's own test files — `test_phase22_agent.py`, `test_phase23_model_router.py`,
+128 tests (118 as of Phase 28; 87 as of Phase 18, growing with Phase
+22/23/26/27/28/29's own test files — `test_phase22_agent.py`, `test_phase23_model_router.py`,
 `test_phase26_mcp_bridge.py`, `test_phase27_openai_shim.py`,
-`test_phase28_adapter_registry.py`, `test_adapter_boundary.py`), all
-passing against real Postgres (genuine `TIMESTAMPTZ` columns, confirmed
-via direct schema inspection, under a deliberately non-UTC session) and
-a real live Ollama model — not mocked, except for deliberately-stubbed
-tests (see below) used specifically where live-model phrasing would
-make a test non-deterministic without changing what's actually being
-verified. `test_adapter_boundary.py` (Phase 28) is a real, static AST
-scan — not regex, not a convention documented and hoped for — that
-fails if any module under `agents/` outside three allowlisted adapter
-modules (`clients.py`, `model_router.py`, `ollama_adapter.py`) imports
-`httpx`/`requests` directly; confirmed to actually catch a violation
-(a throwaway test file), not just pass vacuously.
+`test_phase28_adapter_registry.py`, `test_adapter_boundary.py`,
+`test_phase29_tool_adapters.py`), all passing against real Postgres
+(genuine `TIMESTAMPTZ` columns, confirmed via direct schema inspection,
+under a deliberately non-UTC session) and a real live Ollama model — not
+mocked, except for deliberately-stubbed tests (see below) used
+specifically where live-model phrasing would make a test
+non-deterministic without changing what's actually being verified.
+`test_phase29_tool_adapters.py` (Phase 29) covers all three new tool
+adapters at whatever their real, honest tier actually is: Odoo's
+malformed-input rejection, real governance permission denial, and a real
+connection attempt with an honest non-fabricated failure (no live Odoo
+instance exists here); Django's real `manage.py check`/`showmigrations`
+against a genuine disposable project; and the browser adapter's real
+external-URL structural refusal plus an honest report of the real
+sandbox-memory-limit finding (see below) rather than a fabricated
+successful page load. `test_adapter_boundary.py` (Phase 28) is a real,
+static AST scan — not regex, not a convention documented and hoped for —
+that fails if any module under `agents/` outside three allowlisted
+adapter modules (`clients.py`, `model_router.py`, `ollama_adapter.py`)
+imports `httpx`/`requests` directly; confirmed to actually catch a
+violation (a throwaway test file), not just pass vacuously.
 `test_phase28_adapter_registry.py` covers the new `GET /reasoning/adapters`
 endpoint: real, live `is_configured()` status per model provider
 (`ollama: true`, the three cloud providers genuinely `false`), plus the
@@ -568,6 +577,31 @@ materializes as a real git document. One live-model smoke test each.
   itself is now `default_local_model: qwen3.5:4b`,
   `fallback_local_model: qwen2.5-coder:7b` — not just routed around
   again. Full detail in `docs/aios-architecture-and-phases.md` Phase 27,
+  Section 3.
+- **Phase 29: the same environment gap Phase 17 already documented for
+  `ezdxf`, second occurrence, this time for `django` and `playwright`.**
+  Shell Executor's sandboxed subprocess resolves `python3` from its own
+  process's `PATH`, not necessarily the venv these new dependencies were
+  pip-installed into — confirmed live: `manage.py check` failed with
+  `ModuleNotFoundError: No module named 'django'` until both packages
+  were also installed into the system interpreter Shell Executor's
+  unactivated venv invocation actually resolves `python3` to. Same root
+  cause, same fix, second occurrence.
+- **Phase 29: a real, live-confirmed structural finding for the browser
+  adapter, the same class Phase 22 already established for the `claude`/
+  `opencode` CLIs under this identical sandbox backend.** Playwright's
+  own Node.js driver process needs more virtual address space to even
+  initialize than `SubprocessSandbox`'s 512MB `RLIMIT_AS` cap allows
+  (Phase 6's own deliberate resource limit) — reproduced directly, not
+  inferred: applying the identical `RLIMIT_AS` outside the sandbox
+  crashes Playwright's own driver with `Connection.init: Connection
+  closed while reading from the driver` before Chromium ever launches.
+  Not worked around by raising the global memory cap — that would weaken
+  the sandbox for every capability using `shell.execute`, not just this
+  one adapter, the same reasoning Phase 22 already applied. The real fix
+  is the one already named since Phase 6/19: a Docker sandbox backend,
+  which doesn't exist in this environment. Full detail in
+  `docs/aios-architecture-and-phases.md#phase-29-tool-adapter-gaps`
   Section 3.
 
 ## What's real
@@ -889,6 +923,28 @@ materializes as a real git document. One live-model smoke test each.
   bridge — fixed by moving the call into a new
   `clients.fetch_capability_roster()` function. Full detail in
   `docs/aios-architecture-and-phases.md#phase-28-adapter-contracts`.
+- **Phase 29's three new `ToolAdapter`s (`odoo_live_bridge.py`,
+  `django_bridge.py`, `browser_bridge.py`) each land at a different,
+  honestly-named real tier — none of them fabricate a result they didn't
+  actually get.** `odoo_live_bridge.py` genuinely attempts a real
+  `xmlrpc.client` connection (real credential resolution through
+  governance's real secrets registry, real socket connection attempt,
+  real `ConnectionRefusedError` when nothing answers — no live Odoo 19
+  instance exists in this environment, honestly documented, not
+  simulated). `django_bridge.py` is fully live-tested: real
+  `manage.py check`/`showmigrations` output against a genuine disposable
+  Django project (`django-admin startproject`, the same "real,
+  throwaway" pattern this codebase already uses for git repos and
+  `demo_erp` rows). `browser_bridge.py`'s internal/external URL scope
+  restriction is structural and fully real — an external URL is refused
+  before any browser is ever launched — but an internal URL's real page
+  load is currently, honestly, refused by this environment's own
+  `SubprocessSandbox` memory limit (see "Real bugs found" above), not a
+  gap in the adapter's own code. Deliberately scoped to Testing Agent
+  only, never Research Agent — confirmed with the user before building,
+  since Research Agent's own template has repeatedly and explicitly
+  declared zero external web access as a hard invariant since Phase 18.
+  Full detail in `docs/aios-architecture-and-phases.md#phase-29-tool-adapter-gaps`.
 
 ## What's a stub or simplified
 
@@ -1053,11 +1109,15 @@ materializes as a real git document. One live-model smoke test each.
 
 ## Next
 
-Phase 29 — Tool Adapter Gaps (`docs/aios-forward-plan-phases-25-31.md`):
-real browser, live-Odoo, and live-Django adapters built under Phase 28's
-now-published contracts — the first genuine test of whether the
-`ToolAdapter` shape generalizes to new adapter types rather than just
-describing the four that already existed. Real cloud provider support
+Phase 30 — Declarative Workflows (`docs/aios-forward-plan-phases-25-31.md`):
+multi-agent orchestration as data (`workflows/` YAML), now that Phase
+29's three tool adapters prove the `ToolAdapter` contract genuinely
+generalizes to new adapter types, not just the four that already
+existed. A real Odoo 19 instance to test `odoo_live_bridge.py`'s success
+path against, and a Docker sandbox backend to unblock
+`browser_bridge.py`'s real page loads, both remain out of proportion to
+stand up in this environment — named honestly as real gaps, not silently
+assumed away (Phase 29, Sections 1 and 3). Real cloud provider support
 (a second, genuinely configured `ModelProvider` in `model_router.py`)
 remains a product decision, not an engineering one
 (`docs/aios-architecture-and-phases.md#phase-23-model-router` Section 0).

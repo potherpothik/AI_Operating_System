@@ -16,7 +16,7 @@ reading order.
 |---|---|
 | [`installation-guide.md`](installation-guide.md) | **First-time setup** — prerequisites, Ollama, start services, Web UI |
 | [`command.txt`](command.txt) | Copy-paste terminal commands (ports, curl, tests) |
-| [`aios-architecture-and-phases.md`](aios-architecture-and-phases.md) | **Primary reference** — lifecycle flow, Phases 1–28 design (TOC with anchors), API/DB index (Phase 21), deployment, backup |
+| [`aios-architecture-and-phases.md`](aios-architecture-and-phases.md) | **Primary reference** — lifecycle flow, Phases 1–29 design (TOC with anchors), API/DB index (Phase 21), deployment, backup |
 | [`architecture-vision.md`](architecture-vision.md) | Long-term vision, two brains, kernel map, roadmap |
 | [`aios-db-erd.md`](aios-db-erd.md) | Logical database ERD across all services |
 | [`aios-forward-plan-phases-25-31.md`](aios-forward-plan-phases-25-31.md) | Planning doc for Phases 25–31 — sequencing rationale, scope, what was rejected and why |
@@ -73,6 +73,7 @@ phase design docs before implementation.
 | `services/mcp-surface/` (new) + `research_agent`'s `mcp_bridge.py` | 26 | [`aios-architecture-and-phases.md#phase-26-mcp-surface`](aios-architecture-and-phases.md#phase-26-mcp-surface) | yes (real MCP JSON-RPC server, own isolated venv, 9 live tests; existing Phase 12 MCP client wired into Reasoning Engine, live-tested end to end; found + fixed 2 real pre-existing bugs in `services/assembly/`'s template versioning) |
 | `services/platform-spine/`'s `openai_shim.py` + `services/agents/`'s `/reasoning/raw_generate*` | 27 | [`aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint`](aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint) | yes (real `/v1/chat/completions` + `/v1/models`, live SSE streaming, structural classification-ceiling bar confirmed live via the real audit trail; found + fixed a real bug in the ceiling gate's local-model recognition) |
 | `docs/contracts/` (new) + `services/agents/`'s `/reasoning/adapters` + `test_adapter_boundary.py` | 28 | [`aios-architecture-and-phases.md#phase-28-adapter-contracts`](aios-architecture-and-phases.md#phase-28-adapter-contracts) | yes (3 versioned interface contracts extracted from real Phase 23/26/27 code; real static AST-scan enforcement of "no bespoke third-party calls," verified live to catch a violation; found + fixed one real pre-existing exception) |
+| `services/agents/`'s `odoo_live_bridge.py`/`django_bridge.py`/`browser_bridge.py` + `services/execution/`'s `browser_action.py` | 29 | [`aios-architecture-and-phases.md#phase-29-tool-adapter-gaps`](aios-architecture-and-phases.md#phase-29-tool-adapter-gaps) | yes, at three honest tiers (real XML-RPC code unverified against a live Odoo instance; real, fully live-tested Django `manage.py` adapter; real Playwright browser adapter whose structural URL gate is verified but whose real page loads are currently refused by this environment's own sandbox memory limit) |
 
 Agent capabilities live under `services/agents/agents/<name>/` — read the
 phase doc for that agent batch, plus [`agent-capability-schema`](../.cursor/rules/agent-capability-schema.mdc).

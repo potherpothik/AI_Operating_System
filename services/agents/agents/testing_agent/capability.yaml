@@ -3,6 +3,7 @@ allowed_actions:
   - testing.run_suite
   - testing.propose_new_test
   - testing.report_coverage
+  - testing.browse_internal_page
 forbidden_actions:
   - testing.run_against_prod
   - testing.direct_ci_change

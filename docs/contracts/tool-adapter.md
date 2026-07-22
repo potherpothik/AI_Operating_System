@@ -49,14 +49,35 @@ live-Odoo/live-Django adapters) is built to the same shape from day one.
 | Git Manager | `branch`, `commit`, `diff`, `push`, `open_mr` | `open_mr` is the human review point |
 | Database Connector | `db.read`, `db.dry_run`, `db.propose_write`, `db.propose_migration` | `propose_write` requires a prior `dry_run` in the same execution |
 | MCP Client | `mcp.invoke` against an already-registered server | Registration itself is unconditionally approval-gated (Phase 12) |
+| Odoo Live Adapter (Phase 29) | `odoo.read_orm_live` (real XML-RPC) | Read-only; no live Odoo 19 instance exists in this environment, so this is real code, honestly unverified against a successful query — see its own honesty-tier note below |
+| Django Adapter (Phase 29) | `django.check_project` (`check`/`showmigrations`/`test`, via Shell Executor) | Read-only; genuinely live-tested against a real disposable Django project |
+| Browser Adapter (Phase 29) | `testing.browse_internal_page` (real Playwright, via Shell Executor) | Read-only, internal-targets-only structurally; currently refused by this environment's own sandbox memory limit (a real, live-confirmed finding, not a code gap) |
 
 ## Consumers (v1)
 
 Every Reasoning Engine bridge (`services/agents/agents/reasoning_engine/*_bridge.py`)
 — `database_bridge.py`, `shell_bridge.py`, `execution_bridge.py`,
-`mcp_bridge.py`, and the deterministic-script bridges (`calc_bridge.py`,
-`cutlist_bridge.py`, `autocad_bridge.py`) — all reach their target
-adapter exclusively through `agents/clients.py`'s wrapper functions.
+`mcp_bridge.py`, `odoo_live_bridge.py`, `django_bridge.py`,
+`browser_bridge.py`, and the deterministic-script bridges
+(`calc_bridge.py`, `cutlist_bridge.py`, `autocad_bridge.py`) — all reach
+their target adapter exclusively through `agents/clients.py`'s wrapper
+functions (or, for `shell_bridge.py`/`django_bridge.py`/`browser_bridge.py`/
+`autocad_bridge.py`/`calc_bridge.py`/`cutlist_bridge.py`, Shell
+Executor's own real sandboxed subprocess mechanism).
+
+## A real note on honesty tiers (Phase 29)
+
+Three new adapters, three genuinely different tiers, named explicitly
+rather than smoothed into one "it works" claim: the Odoo adapter is real
+code with no live instance to verify success against; the Django adapter
+is fully real and live-tested; the browser adapter is real code
+structurally correct but currently refused by this environment's own
+`SubprocessSandbox` memory limit (Phase 6's own deliberate `RLIMIT_AS`
+cap, not raised to make a test pass — see
+`docs/aios-architecture-and-phases.md#phase-29-tool-adapter-gaps`
+Section 3). This contract does not require every implementation to be
+fully live-verified — it requires every implementation to report its
+REAL outcome honestly, whatever tier that outcome actually is.
 
 ## Versioning
 

@@ -26,6 +26,7 @@ def _stub(action, **overrides):
     base = {
         "reasoning": "test reasoning", "answer_or_proposal": "test answer", "confidence": 0.9,
         "provenance": [], "risk_classification": "informational", "delegate_to": None, "action": action,
+        "odoo_model": None, "odoo_domain_json": None, "odoo_fields_json": None,
     }
     base.update(overrides)
     return json.dumps(base)

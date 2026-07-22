@@ -1,4 +1,4 @@
-# Phase 6/17 — Shell Executor & Git Manager (working implementation)
+# Phase 6/17/29 — Shell Executor & Git Manager (working implementation)
 
 Real, tested code. The highest-stakes phase so far — the first time the
 system can make a real, if contained, change on disk. Shell Executor is
@@ -106,6 +106,22 @@ that, not a bare rlimit. Locked in as a permanent regression test
 
 ## What's real
 
+- **Phase 29 addition:** a fourth real, reviewed, deterministic script —
+  `browser_action.py`, real headless Chromium automation via Playwright
+  (navigate, read title/text, screenshot; no click/fill/submit exists
+  anywhere in it). New allowlist entries for `django_agent` (a brand new
+  `django_agent.yaml` — this capability had no `shell.execute` grant at
+  all before this phase) and `testing_agent` (`python3 */browser_action.py *`,
+  read_only). Same real environment gap `ezdxf` already surfaced in
+  Phase 17, second occurrence: `django`/`playwright` needed installing
+  into the SYSTEM interpreter, not just this service's own venv, since
+  Shell Executor's sandboxed subprocess resolves `python3` from its own
+  process's `PATH`. A real, live-confirmed structural finding, not a
+  code gap: Playwright's own Node.js driver needs more virtual address
+  space than `SubprocessSandbox`'s 512MB `RLIMIT_AS` cap allows —
+  reproduced directly by applying the identical rlimit outside the
+  sandbox. Full detail in `services/agents/README.md`'s Phase 29
+  section and `docs/aios-architecture-and-phases.md#phase-29-tool-adapter-gaps`.
 - **Phase 17 addition:** three new real, reviewed, deterministic scripts
   under `shell_executor/scripts/` — `eval_formula.py` (a restricted
   `ast`-based arithmetic evaluator, structurally incapable of anything

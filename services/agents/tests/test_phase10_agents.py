@@ -30,6 +30,7 @@ def _stub(action, **overrides):
         "reasoning": "test reasoning", "answer_or_proposal": "test answer", "confidence": 0.9,
         "provenance": [], "risk_classification": "medium", "delegate_to": None, "action": action,
         "target_platform": None, "shell_command": None, "shell_args_json": None, "resolved_environment": None,
+        "manage_py_command": None, "target_url": None,
     }
     base.update(overrides)
     return json.dumps(base)
@@ -47,7 +48,7 @@ def test_all_four_new_capabilities_discovered_with_correct_boundaries():
         assert cap_name in loaded
 
     django = capability_registry.get_capability(db, "django_agent")
-    assert django.allowed_actions == ["django.explain_structure", "django.propose_migration", "django.propose_config_change"]
+    assert django.allowed_actions == ["django.explain_structure", "django.check_project", "django.propose_migration", "django.propose_config_change"]
     assert capability_registry.local_precheck(django, "django.propose_migration") == "require_approval"
     assert capability_registry.local_precheck(django, "django.direct_deploy") == "deny"
 

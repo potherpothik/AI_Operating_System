@@ -4,6 +4,12 @@ roles:
     - action: "odoo.read_orm"
       resource: "*"
       effect: allow
+    # Phase 29: real, live-scoped reads against an actually-configured
+    # Odoo instance — still read-only, still allow (no approval needed
+    # for a read), same tier as odoo.read_orm above.
+    - action: "odoo.read_orm_live"
+      resource: "*"
+      effect: allow
     - action: "odoo.explain_rule"
       resource: "*"
       effect: allow
@@ -167,6 +173,19 @@ roles:
 
   django_agent:
     - action: "django.explain_structure"
+      resource: "*"
+      effect: allow
+    # Phase 29: a real, read-only manage.py invocation (check/
+    # showmigrations/test) through Shell Executor — no approval needed
+    # for a read, same tier as django.explain_structure above. Needs its
+    # own shell.execute grant below since django_agent never had one
+    # until this phase (its only prior tool-call-shaped action,
+    # propose_migration/propose_config_change, lands as a Git Manager MR
+    # instead).
+    - action: "django.check_project"
+      resource: "*"
+      effect: allow
+    - action: "shell.execute"
       resource: "*"
       effect: allow
     - action: "django.propose_migration"
@@ -341,6 +360,13 @@ roles:
       resource: "*"
       effect: require_approval
     - action: "testing.report_coverage"
+      resource: "*"
+      effect: allow
+    # Phase 29: real headless-browser reads of AIOS's own web UI —
+    # read-only, no approval needed, same tier as testing.run_suite
+    # above. The real safety gate is the internal-URL structural check
+    # in browser_bridge.py, not this policy layer.
+    - action: "testing.browse_internal_page"
       resource: "*"
       effect: allow
     - action: "testing.run_against_prod"

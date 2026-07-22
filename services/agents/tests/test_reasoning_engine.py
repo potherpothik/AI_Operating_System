@@ -168,6 +168,7 @@ def test_model_claiming_forbidden_action_is_denied_not_trusted(full_stack, monke
             "risk_classification": "informational",  # even a maximally understated risk claim must not bypass this
             "delegate_to": None,
             "action": "odoo.write_orm",
+            "odoo_model": None, "odoo_domain_json": None, "odoo_fields_json": None,
         })
 
     monkeypatch.setattr(loop, "generate", fake_generate)
@@ -195,6 +196,7 @@ def test_list_executions_filters_by_status_and_capability(full_stack, monkeypatc
             "reasoning": "informational", "answer_or_proposal": "answer", "confidence": 0.9,
             "provenance": [], "risk_classification": "informational", "delegate_to": None,
             "action": "odoo.read_orm",
+            "odoo_model": None, "odoo_domain_json": None, "odoo_fields_json": None,
         })
 
     monkeypatch.setattr(loop, "generate", fake_generate)

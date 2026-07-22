@@ -51,6 +51,7 @@ def test_approved_propose_change_materializes_as_real_branch_commit_push(
             "risk_classification": "medium",
             "delegate_to": None,
             "action": "odoo.propose_change",
+            "odoo_model": None, "odoo_domain_json": None, "odoo_fields_json": None,
         })
 
     monkeypatch.setattr(loop, "generate", fake_generate)

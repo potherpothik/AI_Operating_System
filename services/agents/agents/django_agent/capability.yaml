@@ -1,6 +1,7 @@
 capability: django_agent
 allowed_actions:
   - django.explain_structure
+  - django.check_project
   - django.propose_migration
   - django.propose_config_change
 forbidden_actions:

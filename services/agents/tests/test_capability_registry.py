@@ -7,7 +7,7 @@ def test_load_all_discovers_odoo_agent():
     loaded = capability_registry.load_all(db)
     assert "odoo_agent" in loaded
     cap = capability_registry.get_capability(db, "odoo_agent")
-    assert cap.allowed_actions == ["odoo.read_orm", "odoo.explain_rule", "odoo.propose_change"]
+    assert cap.allowed_actions == ["odoo.read_orm", "odoo.read_orm_live", "odoo.explain_rule", "odoo.propose_change"]
     assert cap.forbidden_actions == ["odoo.write_orm", "odoo.execute_migration"]
     assert cap.requires_approval == ["odoo.propose_change"]
     assert cap.template_id == "odoo_agent"

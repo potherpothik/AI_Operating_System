@@ -1,6 +1,7 @@
 capability: odoo_agent
 allowed_actions:
   - odoo.read_orm
+  - odoo.read_orm_live
   - odoo.explain_rule
   - odoo.propose_change
 forbidden_actions:
