@@ -99,6 +99,20 @@ def execute_reasoning(task_id: str, task_description: str, agent_capability: str
     return resp.json()
 
 
+def resume_reasoning(execution_id: str) -> dict:
+    """Phase 30: the real continuation call for a subtask that dispatched
+    into awaiting_approval and has since been approved — the same
+    /reasoning/{id}/resume endpoint Control UI's approvals inbox itself
+    would need to call to actually continue an execution (Phase 24 never
+    wired that call site; deciding an approval there only flips
+    governance's own record, per that service's own README). Not a new
+    mechanism — real wiring of an existing one, same posture as Phase
+    26's MCP client wiring."""
+    resp = httpx.post(f"{AGENTS_URL}/reasoning/{execution_id}/resume", timeout=300.0)
+    resp.raise_for_status()
+    return resp.json()
+
+
 def create_subtask(title: str, description: str, correlation_id: str = "", parent_task_id: str = None) -> dict:
     try:
         resp = httpx.post(

@@ -30,13 +30,14 @@ def _text(result):
     return json.loads(result.content[0].text) if result.content else None
 
 
-async def test_advertises_exactly_the_eight_real_tools(mcp_server_url):
+async def test_advertises_exactly_the_nine_real_tools(mcp_server_url):
     async with _session(mcp_server_url) as session:
         tools = await session.list_tools()
         names = {t.name for t in tools.tools}
         assert names == {
             "submit_task", "get_task_status", "ask_agent", "search_knowledge",
             "get_erp_schema", "list_pending_approvals", "get_audit_trail", "list_capabilities",
+            "trigger_workflow",
         }
 
 
@@ -100,3 +101,23 @@ async def test_search_knowledge_calls_real_vector_search(mcp_server_url):
     async with _session(mcp_server_url) as session:
         body = _text(await session.call_tool("search_knowledge", {"query": "test", "top_k": 3}))
         assert "hits" in body
+
+
+async def test_trigger_workflow_dispatches_a_real_run(mcp_server_url):
+    """Phase 30: a real round trip through the real code_review_pipeline.yaml
+    workflow — trigger_workflow must return a real task_graph_id and the
+    review step (no depends_on) must already have been dispatched."""
+    async with _session(mcp_server_url) as session:
+        result = await session.call_tool("trigger_workflow", {"name": "code_review_pipeline"})
+        assert result.isError is False
+        run = _text(result)
+        assert run["task_graph_id"]
+        assert run["workflow"] == "code_review_pipeline"
+        review = next(s for s in run["subtasks"] if s["subtask_id"] == "review")
+        assert review["status"] in ("done", "awaiting_approval", "failed")
+
+
+async def test_trigger_workflow_for_unknown_name_is_a_real_tool_error(mcp_server_url):
+    async with _session(mcp_server_url) as session:
+        result = await session.call_tool("trigger_workflow", {"name": "definitely-not-a-real-workflow"})
+        assert result.isError is True

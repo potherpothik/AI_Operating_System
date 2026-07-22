@@ -316,6 +316,18 @@ in this repo points at `governance_dr_drill`.
   new `resolve_secret()` since this adapter has no dedicated backing
   microservice the way `database_agent`'s Database Connector does.
 
+## Phase 30 addition
+
+- `mcp_surface.trigger_workflow` (Phase 30): added `allow` to the
+  `mcp_surface` role — its 9th real action grant, an IDE can now start a
+  real, saved declarative workflow (`services/planning/planning/workflows/`)
+  by name. Not a new gate mechanism: each dispatched step's own
+  `authorize()` call is still keyed on that step's own `agent_capability`
+  role, exactly as if it had been called directly — this grant only
+  covers the trigger call itself, same posture as `mcp_surface.ask_agent`
+  covering only the act of asking, never the asked capability's own
+  scope.
+
 ## Next
 
 This is one piece of Phase 1's design; Phase 2 (Gateway, Task Manager,

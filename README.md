@@ -27,7 +27,7 @@ Long-term picture (ERP Brain + Coding Brain on one kernel):
 | 5 | Reasoning Engine, Odoo Agent | [`docs/aios-architecture-and-phases.md#phase-5-first-live-agent`](docs/aios-architecture-and-phases.md#phase-5-first-live-agent) | [`services/agents/`](services/agents/) — 27 tests |
 | 6 | Shell Executor, Git Manager | [`docs/aios-architecture-and-phases.md#phase-6-execution-layer`](docs/aios-architecture-and-phases.md#phase-6-execution-layer) | [`services/execution/`](services/execution/) — 72 tests |
 | 7 | Database Connector, Database Agent | [`docs/aios-architecture-and-phases.md#phase-7-data-execution-layer`](docs/aios-architecture-and-phases.md#phase-7-data-execution-layer) | [`services/database/`](services/database/) — 54 tests (Database Agent itself lives in `services/agents/agents/database_agent/`) |
-| 8 | Planner, Capability Registry | [`docs/aios-architecture-and-phases.md#phase-8-automatic-routing`](docs/aios-architecture-and-phases.md#phase-8-automatic-routing) | [`services/planning/`](services/planning/) — 27 tests (Planner itself lives in `services/agents/agents/planner/`) |
+| 8 | Planner, Capability Registry | [`docs/aios-architecture-and-phases.md#phase-8-automatic-routing`](docs/aios-architecture-and-phases.md#phase-8-automatic-routing) | [`services/planning/`](services/planning/) — 38 tests (Planner itself lives in `services/agents/agents/planner/`; 11 of the 38 are Phase 30's own workflow dispatch tests) |
 | 9 | Documentation Engine, ERP Knowledge Engine | [`docs/aios-architecture-and-phases.md#phase-9-knowledge-ingestion`](docs/aios-architecture-and-phases.md#phase-9-knowledge-ingestion) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 27 tests |
 | 10 | Django, DevOps, Docker, Testing Agents | [`docs/aios-architecture-and-phases.md#phase-10-engineering-platform-agents`](docs/aios-architecture-and-phases.md#phase-10-engineering-platform-agents) | [`services/agents/`](services/agents/) — 38 tests (all four agents live in `services/agents/agents/{django_agent,devops_agent,docker_agent,testing_agent}/`) |
 | 11 | Code Analysis Engine | [`docs/aios-architecture-and-phases.md#phase-11-structural-code-understanding`](docs/aios-architecture-and-phases.md#phase-11-structural-code-understanding) | [`services/knowledge_pipelines/`](services/knowledge_pipelines/) — 53 tests (Code Analysis Engine itself lives in `services/knowledge_pipelines/knowledge_pipelines/code_analysis_engine/`) |
@@ -49,6 +49,7 @@ Long-term picture (ERP Brain + Coding Brain on one kernel):
 | 27 | OpenAI-Compatible Endpoint | [`docs/aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint`](docs/aios-architecture-and-phases.md#phase-27-openai-compatible-endpoint) | `services/platform-spine/platform_spine/gateway/openai_shim.py` — real `POST /v1/chat/completions` (+ live SSE streaming) and `GET /v1/models`, live-verified structural bar refusing confidential-classified content against an unrecognized model's ceiling before any model call, both outcomes provable in the real audit trail. Real model access added to `services/agents/` (`/reasoning/raw_generate*`). Found and fixed a real bug: a stale config value was silently giving the actual local model a `public` classification ceiling instead of `confidential` |
 | 28 | Adapter Contracts | [`docs/aios-architecture-and-phases.md#phase-28-adapter-contracts`](docs/aios-architecture-and-phases.md#phase-28-adapter-contracts) | [`docs/contracts/`](docs/contracts/) — three versioned interface contracts (`ModelProvider`, `ToolAdapter`, `IDESurface`) extracted from Phases 23/26/27's real implementations. Real, static enforcement: `services/agents/tests/test_adapter_boundary.py` AST-scans for bespoke third-party calls outside registered adapters — found and fixed one real pre-existing exception (`planner_bridge.py`). New `GET /reasoning/adapters` registry endpoint, live `is_configured()` status per model provider |
 | 29 | Tool Adapter Gaps | [`docs/aios-architecture-and-phases.md#phase-29-tool-adapter-gaps`](docs/aios-architecture-and-phases.md#phase-29-tool-adapter-gaps) | Three new real `ToolAdapter`s, three honest tiers: `odoo_live_bridge.py` — real XML-RPC, honestly unverified against a live instance (none exists here); `django_bridge.py` — real `manage.py check`/`showmigrations`, genuinely live-tested against a disposable Django project; `browser_bridge.py` — real Playwright automation, structural internal-only URL gate fully verified, but real page loads currently refused by this environment's own sandbox memory limit (same class of finding as Phase 22, confirmed by direct reproduction, not a code gap) |
+| 30 | Declarative Workflows | [`docs/aios-architecture-and-phases.md#phase-30-declarative-workflows`](docs/aios-architecture-and-phases.md#phase-30-declarative-workflows) | [`services/planning/planning/workflows/`](services/planning/planning/workflows/) — real workflow YAML discovery (reuses Phase 8's own `TaskGraph`/`Subtask` schema, no second graph model), an explicit `dispatch_ready_subtasks()`/`advance()` dispatcher (never a background poller — this project has never had one, confirmed by exhaustive grep), 4 new endpoints, MCP Surface's 9th tool (`trigger_workflow`). 11 live tests including one genuine end-to-end trigger of the real, checked-in [`workflows/code_review_pipeline.yaml`](workflows/code_review_pipeline.yaml) |
 
 Twelve backend services plus a new BFF and web frontend are real, tested
 code today, now hosting every phase in the original 24-phase mandate plus
@@ -129,7 +130,20 @@ internal-only URL gate fully verified, but real page loads currently
 refused by this environment's own sandboxed-subprocess memory limit —
 the same class of finding Phase 22 already established for external
 coding-agent CLIs, confirmed by direct reproduction, never worked around
-by weakening the sandbox). Vision and ElizaOS study notes:
+by weakening the sandbox). Phase 30 adds Declarative Workflows: saved,
+re-triggerable multi-agent flows as YAML data
+([`workflows/code_review_pipeline.yaml`](workflows/code_review_pipeline.yaml)),
+reusing Phase 8's own task-graph schema rather than inventing a second
+one. The real discovery that shaped this phase: this system has never
+had a background task or approval dispatcher anywhere in 29 prior
+phases — `platform-spine`'s Task Manager `dequeue()` has zero callers,
+and Control UI's own approval decision never resumes a paused
+execution — so workflow dispatch and continuation are explicit calls
+(`POST /workflows/{name}/trigger`, `POST /workflows/runs/{id}/advance`),
+matching Reasoning Engine's own `resume()` philosophy rather than adding
+this project's first scheduler. A workflow batches orchestration, never
+consent: every step still authorizes through its own capability's real
+governance gate when it dispatches. Vision and ElizaOS study notes:
 [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md). Doc
 index and mandatory read-before-code checklist: [`docs/README.md`](docs/README.md).

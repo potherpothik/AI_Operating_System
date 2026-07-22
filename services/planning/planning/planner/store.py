@@ -28,6 +28,21 @@ def add_subtask(db: Session, task_graph_id: str, subtask_id: str, description: s
     return row
 
 
+def update_subtask_status(db: Session, subtask_row_id: str, status: str, reasoning_execution_id: str = None) -> Subtask | None:
+    """Phase 30: the real status-transition function this table never
+    needed before — every subtask created since Phase 8 stayed exactly
+    at its "planned" default forever, since nothing dispatched them."""
+    row = db.query(Subtask).filter(Subtask.id == subtask_row_id).first()
+    if not row:
+        return None
+    row.status = status
+    if reasoning_execution_id is not None:
+        row.reasoning_execution_id = reasoning_execution_id
+    db.commit()
+    db.refresh(row)
+    return row
+
+
 def get_graph(db: Session, graph_id: str) -> TaskGraph | None:
     return db.query(TaskGraph).filter(TaskGraph.id == graph_id).first()
 

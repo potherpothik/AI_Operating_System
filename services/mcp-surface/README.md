@@ -48,19 +48,21 @@ export PLATFORM_URL=http://localhost:8002       # task submission (Gateway)
 export AGENTS_URL=http://localhost:8005         # ask_agent
 export KNOWLEDGE_URL=http://localhost:8003      # search_knowledge, get_erp_schema
 export KNOWLEDGE_PIPELINES_URL=http://localhost:8009
-export PLANNING_URL=http://localhost:8008
+export PLANNING_URL=http://localhost:8008       # list_capabilities, trigger_workflow
 .venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8025
 ```
 
 The MCP endpoint is `http://localhost:8025/mcp` (streamable HTTP — the
 `mcp` SDK's own default path). `GET /healthz` is a plain liveness check.
 
-## The 8 real tools
+## The 9 real tools
 
 `submit_task`, `get_task_status`, `ask_agent`, `search_knowledge`,
 `get_erp_schema`, `list_pending_approvals`, `get_audit_trail`,
-`list_capabilities` — see `mcp_surface/server.py` for each tool's real
-docstring (the SDK surfaces these to the connecting IDE directly).
+`list_capabilities`, `trigger_workflow` (Phase 30 — starts a real, saved
+declarative workflow by name) — see `mcp_surface/server.py` for each
+tool's real docstring (the SDK surfaces these to the connecting IDE
+directly).
 
 ## Test it
 
@@ -68,7 +70,7 @@ docstring (the SDK surfaces these to the connecting IDE directly).
 .venv/bin/python -m pytest tests/ -v
 ```
 
-9 real tests — genuine `initialize`/`tools/list`/`tools/call` MCP JSON-RPC
+11 real tests — genuine `initialize`/`tools/list`/`tools/call` MCP JSON-RPC
 round trips via the official `mcp` SDK's own client
 (`mcp.client.streamable_http.streamablehttp_client` + `mcp.ClientSession`)
 against the real running server and real backing services (governance,

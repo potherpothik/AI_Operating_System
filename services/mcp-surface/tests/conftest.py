@@ -75,7 +75,38 @@ def platform_url(governance_url):
 
 
 @pytest.fixture(scope="session")
-def mcp_server_url(governance_url, platform_url):
+def agents_url(governance_url, platform_url):
+    url, proc = _ensure_service(
+        "AGENTS_URL", "http://localhost:8005", "PHASE5_PATH", 8005,
+        extra_env={"SECURITY_LAYER_URL": governance_url, "PLATFORM_URL": platform_url},
+    )
+    yield url
+    if proc:
+        proc.terminate()
+        proc.wait(timeout=5)
+
+
+@pytest.fixture(scope="session")
+def planning_url(governance_url, agents_url, platform_url):
+    """Phase 30: trigger_workflow needs a real Planning service — same
+    WORKFLOWS_DIR convention planning/tests/test_phase30_workflows.py
+    itself uses, pointed at the repo's real workflows/ directory."""
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    url, proc = _ensure_service(
+        "PLANNING_URL", "http://localhost:8008", "PHASE8_PATH", 8008,
+        extra_env={
+            "SECURITY_LAYER_URL": governance_url, "AGENTS_URL": agents_url, "PLATFORM_URL": platform_url,
+            "WORKFLOWS_DIR": os.environ.get("WORKFLOWS_DIR", os.path.join(repo_root, "workflows")),
+        },
+    )
+    yield url
+    if proc:
+        proc.terminate()
+        proc.wait(timeout=5)
+
+
+@pytest.fixture(scope="session")
+def mcp_server_url(governance_url, platform_url, planning_url):
     """The mcp-surface server itself, started from ITS OWN isolated venv
     (sys.executable — this test process already runs inside it)."""
     url = "http://localhost:8025"
@@ -89,6 +120,7 @@ def mcp_server_url(governance_url, platform_url):
     env = dict(os.environ)
     env["SECURITY_LAYER_URL"] = governance_url
     env["PLATFORM_URL"] = platform_url
+    env["PLANNING_URL"] = planning_url
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8025"],
         cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))), env=env,

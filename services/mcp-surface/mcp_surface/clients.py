@@ -115,3 +115,19 @@ def list_capabilities() -> dict:
     resp = httpx.get(f"{PLANNING_URL}/capabilities", timeout=10.0)
     resp.raise_for_status()
     return resp.json()
+
+
+def trigger_workflow(name: str, correlation_id: str) -> dict:
+    """Phase 30: the real dispatch call for a saved workflow definition —
+    Planning's own /workflows/{name}/trigger, which creates the real
+    TaskGraph/Subtask rows and dispatches whatever steps are ready right
+    now. Every step still runs through its own real governance gate when
+    it dispatches; this tool only starts the run, same as ask_agent only
+    starts one execution rather than granting anything."""
+    resp = httpx.post(
+        f"{PLANNING_URL}/workflows/{name}/trigger",
+        json={"correlation_id": correlation_id},
+        timeout=300.0,  # a real workflow's first wave of steps can complete synchronously inline
+    )
+    resp.raise_for_status()
+    return resp.json()

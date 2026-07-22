@@ -1168,15 +1168,15 @@ roles:
       effect: allow
 
   mcp_surface:
-    # Phase 26: real actions for the 8 real MCP tools this role exists
-    # for — every one "allow", every one still authorize()+audit_log()
-    # gated per call, same defense-in-depth posture as mcp.invoke's own
-    # role grants since Phase 12. Deliberately NO
-    # "approval.decide"-shaped action anywhere in this role — an
-    # AI-driven IDE session must never be able to approve its own risky
-    # actions (Phase 26 doc, Section 0's own explicit requirement).
-    # Structural, not just an omission: there is no tool in
-    # services/mcp-surface/ that could even call one.
+    # Phase 26: real actions for the real MCP tools this role exists
+    # for (9, as of Phase 30's trigger_workflow) — every one "allow",
+    # every one still authorize()+audit_log() gated per call, same
+    # defense-in-depth posture as mcp.invoke's own role grants since
+    # Phase 12. Deliberately NO "approval.decide"-shaped action anywhere
+    # in this role — an AI-driven IDE session must never be able to
+    # approve its own risky actions (Phase 26 doc, Section 0's own
+    # explicit requirement). Structural, not just an omission: there is
+    # no tool in services/mcp-surface/ that could even call one.
     - action: "mcp_surface.submit_task"
       resource: "*"
       effect: allow
@@ -1207,6 +1207,9 @@ roles:
       resource: "*"
       effect: allow
     - action: "mcp_surface.list_capabilities"
+      resource: "*"
+      effect: allow
+    - action: "mcp_surface.trigger_workflow"
       resource: "*"
       effect: allow
 

@@ -238,13 +238,32 @@ finding Phase 22 already established for external coding-agent CLIs
 under this identical sandbox, confirmed by direct reproduction, never
 worked around by weakening the sandbox) — see
 [`aios-architecture-and-phases.md#phase-29-tool-adapter-gaps`](aios-architecture-and-phases.md#phase-29-tool-adapter-gaps).
+Phase 30 (Declarative Workflows) adds `services/planning/planning/workflows/` —
+saved, re-triggerable multi-agent flows as YAML data
+([`workflows/code_review_pipeline.yaml`](../workflows/code_review_pipeline.yaml)),
+deliberately reusing Phase 8's own `TaskGraph`/`Subtask` schema rather
+than inventing a second graph model. Before writing any dispatch code,
+an exhaustive grep across the whole codebase confirmed a real,
+previously-undocumented architectural fact: this system has never had a
+background task or approval dispatcher anywhere in 29 prior phases —
+Task Manager's `dequeue()` has zero callers, and Control UI's own
+approval decision never resumes a paused execution. Workflow dispatch
+and continuation are therefore built as explicit calls
+(`dispatch_ready_subtasks()`, `advance()`), matching Reasoning Engine's
+own `resume()` philosophy rather than adding this project's first
+scheduler. A workflow batches orchestration, never consent — each
+step's own governance gate is exactly the same one a non-workflow call
+to that capability already needs. MCP Surface gained a 9th tool,
+`trigger_workflow` — see
+[`aios-architecture-and-phases.md#phase-30-declarative-workflows`](aios-architecture-and-phases.md#phase-30-declarative-workflows).
 See root [`README.md`](../README.md) status table for the
 authoritative phase → service map.
 
-**Designed, not built:** Phases 30–31 from the new forward plan
-(`aios-forward-plan-phases-25-31.md`) — declarative workflows and
-team/GPU-day hardening, in that sequence. Real cloud-provider support for Model Router remains a
-product decision, not an engineering one, independent of that sequence.
+**Designed, not built:** Phase 31 from the new forward plan
+(`aios-forward-plan-phases-25-31.md`) — team/GPU-day hardening, the
+final phase in that sequence. Real cloud-provider support for Model
+Router remains a product decision, not an engineering one, independent
+of that sequence.
 
 Built-phase design docs worth re-reading before extending code:
 [`aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor`](aios-architecture-and-phases.md#phase-13-metrics-dashboard-health-monitor),
@@ -304,24 +323,26 @@ Before any implementation, follow the doc-reading protocol in
 
 ## Next
 
-Phase 30 (Declarative Workflows) is next per
-`aios-forward-plan-phases-25-31.md`'s own sequencing, now that Phase 29
-confirmed the `ToolAdapter` contract genuinely generalizes to new
-adapter types
-(`aios-architecture-and-phases.md#phase-29-tool-adapter-gaps`). Narrower
-remaining scope within already-built phases: a real Odoo 19 instance to
-test `odoo_live_bridge.py`'s success path against, and a Docker sandbox
-backend to unblock `browser_bridge.py`'s real page loads — both named
-honestly as real gaps in Phase 29 rather than assumed away; real
-cloud-provider support for Model Router (a product decision, not an
-engineering one — `aios-architecture-and-phases.md#phase-23-model-router`
+Phase 31 (Team & GPU-Day Hardening) is next and last per
+`aios-forward-plan-phases-25-31.md`'s own sequencing, now that Phase 30
+closed the declarative-workflows gap
+(`aios-architecture-and-phases.md#phase-30-declarative-workflows`).
+Narrower remaining scope within already-built phases: a real Odoo 19
+instance to test `odoo_live_bridge.py`'s success path against, and a
+Docker sandbox backend to unblock `browser_bridge.py`'s real page loads
+— both named honestly as real gaps in Phase 29 rather than assumed
+away; real cloud-provider support for Model Router (a product decision,
+not an engineering one — `aios-architecture-and-phases.md#phase-23-model-router`
 §0), whether `qwen2.5-coder:7b`'s structured-output reliability gap is
 fixable for the AGENTIC pipeline specifically
 (`aios-architecture-and-phases.md#phase-25-model-retrieval-quality`
 §2 — it's already live as Phase 27's real chat-completions fallback,
 where that gap doesn't apply), real per-user auth for both MCP Surface
 and the OpenAI shim's `ide_client` actor (deferred to Phase 31 —
-`aios-architecture-and-phases.md#phase-26-mcp-surface`), and within
-Control UI's own remaining scope, a settings page (§5.6) and capability
-views (§5.5, blocked on a real view-manifest convention landing on
+`aios-architecture-and-phases.md#phase-26-mcp-surface`), a real
+workflow-runs view in `web/` and wiring Control UI's approval decision
+to auto-advance a paused workflow step (both named honestly as gaps in
+Phase 30 rather than assumed away), and within Control UI's own
+remaining scope, a settings page (§5.6) and capability views (§5.5,
+blocked on a real view-manifest convention landing on
 `services/extensibility/` first).

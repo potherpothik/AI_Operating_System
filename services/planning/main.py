@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from planning.db import Base, engine
 from planning.capability_registry.api import router as capability_router
 from planning.planner.api import router as planner_router
+from planning.workflows.api import router as workflows_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -13,13 +14,14 @@ app = FastAPI(
 
 app.include_router(capability_router)
 app.include_router(planner_router)
+app.include_router(workflows_router)
 
 
 @app.get("/healthz")
 def healthz():
-    return {"status": "ok", "phase": 8}
+    return {"status": "ok", "phase": 30}
 
 
 @app.get("/")
 def root():
-    return {"status": "ok", "phase": 8, "modules": ["capability_registry", "planner"]}
+    return {"status": "ok", "phase": 30, "modules": ["capability_registry", "planner", "workflows"]}

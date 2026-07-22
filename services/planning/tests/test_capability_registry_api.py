@@ -31,7 +31,7 @@ def test_synced_entry_matches_real_capability_yaml_content(governance_url, agent
     loader.sync_from_agents(db)
     entry = store.get_active(db, "odoo_agent")
     db.close()
-    assert entry.allowed_actions == ["odoo.read_orm", "odoo.explain_rule", "odoo.propose_change"]
+    assert entry.allowed_actions == ["odoo.read_orm", "odoo.read_orm_live", "odoo.explain_rule", "odoo.propose_change"]
     assert entry.classification_ceiling == "internal"
 
 

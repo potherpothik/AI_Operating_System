@@ -1,0 +1,35 @@
+# Phase 30 — a real, working example workflow, not a placeholder.
+# The forward plan's own motivating case: "on MR open: code_review_agent
+# -> testing_agent -> summarize to approvals." Reuses Phase 8's own
+# TaskGraph/Subtask schema (subtask_id, description, agent_capability,
+# depends_on) — this file's `steps:` list is structurally identical to
+# what Planner itself already produces dynamically; this one is just
+# saved and human-authored instead of produced by a model each time.
+workflow: code_review_pipeline
+description: >
+  Reviews a branch for code-quality concerns, then runs its test suite,
+  then has Architecture Agent summarize both results for the human
+  approvals queue. Every step below still goes through its own real,
+  independent governance gate when it dispatches — this file only saves
+  the shape of the flow, never a batch of pre-granted consent.
+steps:
+  - subtask_id: review
+    description: >
+      Review the target branch for real code-quality concerns using
+      review.check_callers/review.fetch_diff — flag anything a human
+      merge-approver should know about before this branch is tested.
+    agent_capability: code_review_agent
+    depends_on: []
+  - subtask_id: test
+    description: >
+      Run the real test suite against the same branch code_review_agent
+      just reviewed, and report the real pass/fail result.
+    agent_capability: testing_agent
+    depends_on: [review]
+  - subtask_id: summarize
+    description: >
+      Summarize the real review findings and the real test result above
+      into one plain-language recommendation for the human deciding
+      whether to approve this branch.
+    agent_capability: architecture_agent
+    depends_on: [review, test]

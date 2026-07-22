@@ -1,4 +1,4 @@
-# Phase 8 — Planner & Capability Registry (working implementation)
+# Phase 8/30 — Planner & Capability Registry + Declarative Workflows (working implementation)
 
 Real, tested code. The first phase where `agent_capability` stops being a
 given input — Planner decomposes a raw task and routes each piece to a
@@ -9,6 +9,14 @@ shared infrastructure" pattern every agent has followed since Odoo Agent
 — its capability declaration and prompt template live in
 `services/agents/agents/planner/`, not here.
 
+Phase 30 added `planning/workflows/` — saved, re-triggerable multi-agent
+flows (YAML, reusing this same `TaskGraph`/`Subtask` schema) instead of
+Planner's own one-shot dynamic decomposition. See
+`docs/aios-architecture-and-phases.md`'s Phase 30 section for the full
+design rationale (the core discovery: this system has never had a
+background dispatcher anywhere, so dispatch/advance are explicit calls,
+never an ambient poller).
+
 ## Run it
 
 ```bash
@@ -16,7 +24,16 @@ pip install -r requirements.txt
 export SECURITY_LAYER_URL=http://localhost:8000
 export AGENTS_URL=http://localhost:8005     # Capability Registry syncs from here; Planner calls back into it
 export PLATFORM_URL=http://localhost:8002    # real Task Manager subtasks land here
+export WORKFLOWS_DIR=$(pwd)/../../workflows  # Phase 30: real *.yaml workflow definitions, no default
 uvicorn main:app --port 8008
+```
+
+Trigger a real, saved workflow (Phase 30):
+
+```bash
+curl -X POST localhost:8008/workflows/code_review_pipeline/trigger
+curl localhost:8008/workflows/runs/<task_graph_id>
+curl -X POST localhost:8008/workflows/runs/<task_graph_id>/advance   # after a paused step's approval is decided
 ```
 
 Capability Registry doesn't auto-sync on startup (unlike template
@@ -46,10 +63,17 @@ SECURITY_LAYER_URL=http://localhost:8000 AGENTS_URL=http://localhost:8005 PLATFO
 pytest tests/ -v   # full suite against the live stack + live Ollama
 ```
 
-27 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+38 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a non-UTC
 session), a real live 3-capability roster (`odoo_agent`, `database_agent`,
 `planner` itself), and a real live model producing an actual routed plan.
+`tests/test_phase30_workflows.py` (11 of the 38) covers the real,
+checked-in `code_review_pipeline.yaml` — synchronous full-chain dispatch,
+a paused-step case proving dependents correctly stay `"planned"` rather
+than being batch-dispatched, `advance()` resuming an approved step and
+dispatching what it newly unblocks in the same call, `advance()` on a
+still-undecided approval being a verified no-op, and one genuine live
+trigger of the real workflow against real capability executions.
 
 ## Real bugs found by live testing, not the test suite
 
@@ -124,6 +148,17 @@ session), a real live 3-capability roster (`odoo_agent`, `database_agent`,
   a re-plan creates a new `task_graph` row and marks the old one's
   `superseded_by` — both remain queryable, so "why was this restructured"
   stays answerable, per the Phase 8 doc's logging requirement.
+- **(Phase 30) A saved workflow dispatches through the exact same
+  governance-gated `execute_reasoning()` call as every non-workflow
+  execution** — confirmed live, a step's own capability role grant is
+  what authorizes it, not a workflow-level bypass; there is no code path
+  that pre-answers or skips a step's own gate.
+- **(Phase 30) `advance()` is genuinely safe to call speculatively at any
+  time** — confirmed live and by test, calling it before a paused step's
+  approval has been decided is a verified no-op (mirrors
+  `reasoning_engine/loop.py`'s own `resume()` semantics), and calling it
+  after approval both flips that step to `"done"` and dispatches
+  whatever it unblocks in the same call.
 
 ## What's a stub or simplified
 
@@ -144,6 +179,22 @@ session), a real live 3-capability roster (`odoo_agent`, `database_agent`,
   live-model judgment, not a routing bug; the mechanism (real roster,
   real subtask creation, real dependency tracking) is what's verified,
   not that a small local model always makes the objectively best call.
+- **(Phase 30) No workflow-runs view in the web UI.** `web/` has no page
+  that lists tasks generically — `Approvals.tsx` already surfaces any
+  workflow step paused `awaiting_approval` (same `/approval/pending`
+  endpoint every other execution uses), but there is no dedicated
+  timeline for a workflow *run* as a whole.
+- **(Phase 30) Approving a step in Control UI does not auto-continue its
+  workflow.** This compounds a Phase 24 gap named honestly at the
+  time: `decide_approval()` never called `loop.resume()` for any single
+  execution, and it still doesn't call the new `/workflows/runs/{id}/advance`
+  for a workflow step either. An operator, IDE, or script must call it
+  explicitly.
+- **(Phase 30) No workflow definition versioning.** A `*.yaml` file
+  changing on disk changes every future trigger immediately — unlike
+  `assembly`'s prompt templates or Capability Registry entries, there is
+  no version history or approval gate on the workflow definition itself,
+  only on what each dispatched step's own capability does.
 
 ## Next
 

@@ -134,3 +134,16 @@ def list_capabilities() -> dict:
     Registry, Phase 8) — what an IDE can legitimately ask_agent about."""
     _gate("mcp_surface.list_capabilities", "*")
     return clients.list_capabilities()
+
+
+@mcp.tool()
+def trigger_workflow(name: str) -> dict:
+    """Trigger a real, saved AIOS workflow (Phase 30 Declarative Workflows
+    — e.g. code_review_pipeline) by name. Starts a real multi-step run:
+    creates the task graph, dispatches whatever steps have no
+    dependencies right now, and returns the run's real task_graph_id for
+    checking status later via Planning's GET /workflows/runs/{id}. Every
+    step still goes through its own independent governance gate when it
+    dispatches — this tool never pre-grants consent for the whole run."""
+    correlation_id = _gate("mcp_surface.trigger_workflow", name)
+    return clients.trigger_workflow(name, correlation_id)

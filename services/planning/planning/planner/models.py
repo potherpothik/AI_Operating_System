@@ -36,5 +36,14 @@ class Subtask(Base):
     description = Column(Text, nullable=False)
     agent_capability = Column(String, nullable=False)
     depends_on = Column(JSON, nullable=False, default=list)  # list of subtask_id strings
-    status = Column(String, default="planned")  # planned | queued | in_progress | done | failed
+    status = Column(String, default="planned")  # planned | awaiting_approval | done | failed
     platform_task_id = Column(String, nullable=True)  # the real Task Manager task this subtask became
+    # Phase 30: the real ReasoningExecution this subtask dispatched as, once
+    # it has one — needed to check/resume an awaiting_approval subtask
+    # later. Nullable: a subtask that hasn't been dispatched yet (still
+    # waiting on its own depends_on) has none. New column on an
+    # already-live table — no migration framework in this project
+    # (Phase 24's own precedent): `ALTER TABLE subtask ADD COLUMN
+    # reasoning_execution_id VARCHAR;` for anyone running this against an
+    # already-populated Postgres instance.
+    reasoning_execution_id = Column(String, nullable=True)
