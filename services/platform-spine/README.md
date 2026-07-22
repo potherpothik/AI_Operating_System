@@ -37,8 +37,9 @@ that need it skip cleanly rather than failing confusingly — everything else
 still runs. With it set, conftest.py starts a real Phase 1 instance for the
 test session and tears it down afterward.
 
-37 tests total (23 as of Phase 2; Phase 24's conversation/SSE gap-fill and
-Phase 27's OpenAI shim added the rest): layered config resolution and
+42 tests total (23 as of Phase 2; Phase 24's conversation/SSE gap-fill,
+Phase 27's OpenAI shim, and Phase 31's real OIDC auth wiring added the
+rest): layered config resolution and
 security-tagged override gating, the task state machine's valid and
 invalid transitions, enqueue/dequeue/list behavior, Gateway's auth, rate
 limiting, and end-to-end task creation — the last of which makes a real
@@ -143,14 +144,33 @@ that in). `psycopg2-binary` is in `requirements.txt`.
 export DATABASE_URL="postgresql://user:pass@host:5432/platform"
 ```
 
+## Phase 31 addition — real per-user auth (`AUTH_MODE=oidc`)
+
+`platform_spine/gateway/auth.py`'s `tokens.yaml` mapping is no longer
+the only option: `AUTH_MODE=oidc` resolves a bearer token as a real
+OIDC access token, verified against `services/identity/` (Phase 31's
+new self-hosted provider) via governance's own `/security/verify_token`.
+`resolve_actor()` returns the token's real per-user `sub` (not a shared
+stub name); `resolve_raw_token_if_oidc()` — a new dependency, `None`
+under the default `AUTH_MODE=stub` — lets `authorize()` call sites pass
+the raw token through so governance can verify it itself and authorize
+by the token's real `role` claim rather than trusting `actor` as a
+policy role unverified. Confirmed live: `POST /api/v1/tasks` with a real
+OIDC token creates a task whose `requested_by` is the real `sub`
+(`human-admin-001`), and `openai_shim.py`'s `GET /v1/models` (it shares
+this same `auth.py`) works identically under the same real token.
+Default stays `AUTH_MODE=stub` — every prior phase's tests and tokens
+keep working unchanged.
+
 ## What's a stub
 
-`platform_spine/gateway/auth.py` maps bearer tokens to actor names via a
-local YAML file (`tokens.yaml`) — explicitly a placeholder for real SSO/LDAP
-integration, labeled as such in the code. Rate limiting is in-memory and
-per-process; fine for a single instance, won't coordinate across multiple
-Gateway replicas without a shared store (Redis or similar) — noted as a
-future extension, not built here.
+Rate limiting is in-memory and per-process; fine for a single instance,
+won't coordinate across multiple Gateway replicas without a shared
+store (Redis or similar) — noted as a future extension, not built here.
+`AUTH_MODE=stub` (the default) still maps bearer tokens to actor names
+via a local YAML file (`tokens.yaml`) — real per-user auth exists now
+(`AUTH_MODE=oidc`, above), but stub stays the default so nothing built
+against it across 30 phases breaks.
 
 ## What's next
 

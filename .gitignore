@@ -9,3 +9,4 @@ eliza-develop/
 .claude/settings.local.json
 node_modules/
 dist/
+services/identity/identity/keys/

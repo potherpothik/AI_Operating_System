@@ -1,0 +1,12 @@
+# Phase 31: real, statically-registered OIDC clients — same "static
+# YAML config, not a database row" convention as Shell Executor's
+# allowlists and governance's secrets_registry.yaml. Single-operator/
+# self-hosted deployment: the 4 real consumers (Gateway, Control UI, MCP
+# Surface, the OpenAI shim) share one registered client, matching how
+# they already share one Security Layer.
+clients:
+  aios-web:
+    client_secret: "aios-web-dev-secret"
+    redirect_uris:
+      - "http://localhost:5173/auth/callback"
+      - "http://localhost:8888/callback"

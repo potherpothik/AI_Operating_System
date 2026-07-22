@@ -26,7 +26,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from platform_spine.gateway.auth import resolve_actor
+from platform_spine.gateway.auth import resolve_actor, resolve_raw_token_if_oidc
 from platform_spine.gateway.rate_limit import check_rate_limit
 from platform_spine.security_client import authorize, classify, audit_log
 
@@ -95,10 +95,10 @@ def _gate_and_resolve_model(actor: str, correlation_id: str, req: ChatCompletion
 
 
 @router.get("/models")
-def list_models(actor: str = Depends(resolve_actor)):
+def list_models(actor: str = Depends(resolve_actor), raw_token: str = Depends(resolve_raw_token_if_oidc)):
     check_rate_limit(actor)
     correlation_id = str(uuid.uuid4())
-    decision = authorize(actor=actor, action="model.list", resource="*", correlation_id=correlation_id)
+    decision = authorize(actor=actor, action="model.list", resource="*", correlation_id=correlation_id, token=raw_token)
     if decision["decision"] == "deny":
         raise HTTPException(status_code=403, detail=decision["reason"])
 
@@ -112,11 +112,11 @@ def list_models(actor: str = Depends(resolve_actor)):
 
 
 @router.post("/chat/completions")
-def chat_completions(req: ChatCompletionRequest, actor: str = Depends(resolve_actor)):
+def chat_completions(req: ChatCompletionRequest, actor: str = Depends(resolve_actor), raw_token: str = Depends(resolve_raw_token_if_oidc)):
     check_rate_limit(actor)
     correlation_id = str(uuid.uuid4())
 
-    decision = authorize(actor=actor, action="model.generate", resource="*", correlation_id=correlation_id)
+    decision = authorize(actor=actor, action="model.generate", resource="*", correlation_id=correlation_id, token=raw_token)
     if decision["decision"] == "deny":
         raise HTTPException(status_code=403, detail=decision["reason"])
 

@@ -6,7 +6,7 @@ from governance.db import get_db
 from governance.models import TestExecutionTarget
 from governance.security.policy_engine import PolicyEngine
 from governance.security.classifier import classify_content
-from governance.security import secrets, environments
+from governance.security import secrets, environments, oidc
 from governance.audit.store import log_event
 
 router = APIRouter(prefix="/security", tags=["security"])
@@ -19,6 +19,17 @@ class AuthorizeRequest(BaseModel):
     action: str
     resource: str
     correlation_id: str = ""
+    # Phase 31: optional real OIDC bearer token — when present, this is
+    # the actual authority for the decision, not `actor` above. Every
+    # prior-phase caller omits this and gets identical behavior to
+    # before (role lookup by literal `actor` string); a caller running
+    # under AUTH_MODE=oidc passes its raw token here so governance can
+    # verify it itself and authorize by the token's real `role` claim
+    # while still recording the token's real per-user `sub` as the
+    # audit actor — "who did it" and "what were they allowed to do"
+    # resolved from the one real, signed source, not trusted blind from
+    # whatever string a caller happens to send as `actor`.
+    token: str = None
 
 
 class ClassifyRequest(BaseModel):
@@ -38,10 +49,32 @@ class VerifyEnvironmentRequest(BaseModel):
     correlation_id: str = ""
 
 
+class VerifyTokenRequest(BaseModel):
+    token: str
+
+
 @router.post("/authorize")
 def authorize(req: AuthorizeRequest, db: Session = Depends(get_db)):
+    role = req.actor
+    actor_id = req.actor
+    actor_type = req.actor_type
+
+    if req.token:
+        claims = oidc.verify_token(req.token)
+        if not claims:
+            result = {"decision": "deny", "reason": "invalid or expired OIDC token"}
+            log_event(db, actor_id=req.actor, actor_type=req.actor_type, action=req.action, resource=req.resource, decision=result["decision"], reason=result["reason"], correlation_id=req.correlation_id)
+            return result
+        # Phase 31: the token is the real authority once present — role
+        # comes from its own verified `role` claim, never from the
+        # caller-supplied `actor` string, and the audit trail records
+        # the token's own real per-user `sub`, not a shared name.
+        role = claims.get("role", req.actor)
+        actor_id = claims.get("sub", req.actor)
+        actor_type = "human"
+
     try:
-        result = _engine.authorize(role=req.actor, action=req.action, resource=req.resource)
+        result = _engine.authorize(role=role, action=req.action, resource=req.resource)
     except Exception as e:  # noqa: BLE001 — deliberately broad: fail closed on ANY error, never fail open
         result = {"decision": "deny", "reason": f"policy engine error, failing closed: {e}"}
 
@@ -49,8 +82,8 @@ def authorize(req: AuthorizeRequest, db: Session = Depends(get_db)):
     # an unlogged authorization is equivalent to no authorization (Phase 1).
     log_event(
         db,
-        actor_id=req.actor,
-        actor_type=req.actor_type,
+        actor_id=actor_id,
+        actor_type=actor_type,
         action=req.action,
         resource=req.resource,
         decision=result["decision"],
@@ -133,6 +166,31 @@ def verify_environment(req: VerifyEnvironmentRequest, db: Session = Depends(get_
         raise HTTPException(status_code=403, detail=result["reason"])
 
     return {"is_sandbox": True, "verified": "allow", "reason": result["reason"]}
+
+
+@router.post("/verify_token")
+def verify_token(req: VerifyTokenRequest):
+    """
+    Phase 31: real verification of a real OIDC identity token issued by
+    services/identity/ — governance is the single place every one of the
+    4 real consumer services (Gateway, Control UI, MCP Surface, the
+    OpenAI shim) already calls for authorize()/audit_log(), so token
+    verification lives here too rather than each consumer independently
+    fetching and caching its own JWKS copy. Not itself an authorize()
+    call — a caller still calls /security/authorize separately using the
+    real per-user identity this returns, same two-step shape
+    resolve-identity-then-authorize already has for stub tokens.
+    """
+    claims = oidc.verify_token(req.token)
+    if not claims:
+        return {"valid": False}
+    return {
+        "valid": True,
+        "sub": claims["sub"],
+        "email": claims.get("email"),
+        "role": claims.get("role"),
+        "preferred_username": claims.get("preferred_username"),
+    }
 
 
 @router.get("/policy/{role}")

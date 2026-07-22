@@ -6,14 +6,20 @@ PLATFORM_URL = os.environ.get("PLATFORM_URL", "http://localhost:8002")
 OBSERVABILITY_URL = os.environ.get("OBSERVABILITY_URL", "http://localhost:8013")
 
 
-def authorize(actor: str, action: str, resource: str, correlation_id: str = "") -> dict:
+def authorize(actor: str, action: str, resource: str, correlation_id: str = "", token: str = None) -> dict:
     """Same fail-closed pattern every other service's own client uses
     (platform-spine, extensibility) — the BFF makes no allow/deny
-    decision of its own, same posture as Gateway."""
+    decision of its own, same posture as Gateway. Phase 31: `token`,
+    passed under AUTH_MODE=oidc, lets governance verify it itself and
+    authorize by its real `role` claim rather than trusting `actor`
+    (a real per-user sub under oidc mode) as a policy role directly."""
     try:
+        body = {"actor": actor, "actor_type": "human", "action": action, "resource": resource, "correlation_id": correlation_id}
+        if token:
+            body["token"] = token
         resp = httpx.post(
             f"{SECURITY_LAYER_URL}/security/authorize",
-            json={"actor": actor, "actor_type": "human", "action": action, "resource": resource, "correlation_id": correlation_id},
+            json=body,
             timeout=5.0,
         )
         resp.raise_for_status()

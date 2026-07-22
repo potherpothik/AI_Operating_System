@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from control_ui import clients, bootstrap, timeline
-from control_ui.auth import resolve_actor, resolve_bearer_token
+from control_ui.auth import resolve_actor, resolve_bearer_token, resolve_raw_token_if_oidc
 
 router = APIRouter(prefix="/ui", tags=["control-ui"])
 
@@ -66,9 +66,9 @@ class ApprovalDecide(BaseModel):
 
 
 @router.post("/approvals/{approval_id}/decide")
-def decide_approval(approval_id: str, body: ApprovalDecide, actor: str = Depends(resolve_actor)):
+def decide_approval(approval_id: str, body: ApprovalDecide, actor: str = Depends(resolve_actor), raw_token: str = Depends(resolve_raw_token_if_oidc)):
     correlation_id = str(uuid.uuid4())
-    decision = clients.authorize(actor=actor, action="approval.decide", resource=approval_id, correlation_id=correlation_id)
+    decision = clients.authorize(actor=actor, action="approval.decide", resource=approval_id, correlation_id=correlation_id, token=raw_token)
     if decision["decision"] == "deny":
         clients.audit_log(
             actor_id=actor, action="approval.decide", resource=approval_id,

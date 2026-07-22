@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from platform_spine.db import get_db, SessionLocal
 from platform_spine.security_client import authorize
 from platform_spine.task_manager import store, conversations
-from platform_spine.gateway.auth import resolve_actor, resolve_actor_for_stream
+from platform_spine.gateway.auth import resolve_actor, resolve_actor_for_stream, resolve_raw_token_if_oidc
 from platform_spine.gateway.rate_limit import check_rate_limit
 
 router = APIRouter(prefix="/api/v1", tags=["gateway"])
@@ -85,13 +85,16 @@ def get_conversation_endpoint(conversation_id: str, db: Session = Depends(get_db
 
 
 @router.post("/tasks")
-def create_task(body: TaskCreate, db: Session = Depends(get_db), actor: str = Depends(resolve_actor)):
+def create_task(body: TaskCreate, db: Session = Depends(get_db), actor: str = Depends(resolve_actor), raw_token: str = Depends(resolve_raw_token_if_oidc)):
     check_rate_limit(actor)
     correlation_id = str(uuid.uuid4())
 
     # AuthZ is delegated entirely to Security Layer (Phase 1) — Gateway
-    # makes no allow/deny decision of its own.
-    decision = authorize(actor=actor, action="task.create", resource="*", correlation_id=correlation_id)
+    # makes no allow/deny decision of its own. Phase 31: raw_token is
+    # non-None only under AUTH_MODE=oidc, letting governance verify the
+    # real role itself instead of trusting `actor` (a real per-user sub
+    # under oidc mode, not a role name) as a policy role directly.
+    decision = authorize(actor=actor, action="task.create", resource="*", correlation_id=correlation_id, token=raw_token)
     if decision["decision"] == "deny":
         raise HTTPException(status_code=403, detail=decision["reason"])
 

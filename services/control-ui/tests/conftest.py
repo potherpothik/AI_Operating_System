@@ -66,6 +66,19 @@ def platform_url(governance_url):
         proc.wait(timeout=5)
 
 
+@pytest.fixture(scope="session")
+def identity_url(governance_url):
+    """Phase 31: AUTH_MODE=oidc tests need a real identity token."""
+    url, proc = _ensure_service(
+        "IDENTITY_URL", "http://localhost:8011", "PHASE31_PATH", 8011,
+        extra_env={"IDENTITY_ISSUER": "http://localhost:8011"},
+    )
+    yield url
+    if proc:
+        proc.terminate()
+        proc.wait(timeout=5)
+
+
 @pytest.fixture
 def full_stack(governance_url, platform_url, monkeypatch):
     from control_ui import clients

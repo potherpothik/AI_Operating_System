@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -8,6 +10,16 @@ from governance.approval import store
 from governance.audit.store import log_event
 
 router = APIRouter(prefix="/approval", tags=["approval"])
+
+# Phase 31: "approver != requester enforcement becomes meaningful with
+# real users" (forward plan's own wording) — off by default. Every prior
+# phase's tests and dev workflow decide their own request as the single
+# shared "human_admin" stub actor (AUTH_MODE=stub, Phase 2); enforcing
+# self-approval rejection unconditionally would break all of that for a
+# rule that's only meaningful once real, distinct per-user identities
+# exist (AUTH_MODE=oidc). A real deployment running Phase 31's real auth
+# sets this true.
+ENFORCE_APPROVER_NOT_REQUESTER = os.environ.get("ENFORCE_APPROVER_NOT_REQUESTER", "false").lower() == "true"
 
 
 class ApprovalCreate(BaseModel):
@@ -144,6 +156,16 @@ def attach_review(request_id: str, body: AttachReview, db: Session = Depends(get
 
 @router.post("/{request_id}/decide")
 def decide(request_id: str, body: ApprovalDecision, db: Session = Depends(get_db)):
+    if ENFORCE_APPROVER_NOT_REQUESTER:
+        existing = db.query(ApprovalRequest).filter(ApprovalRequest.id == request_id).first()
+        if existing and existing.requested_by == body.decided_by:
+            log_event(
+                db, actor_id=body.decided_by, actor_type="human",
+                action="approval_decision", resource=request_id,
+                decision="deny", reason="approver must not be the same identity as the requester",
+            )
+            return {"error": "approver must not be the same identity as the requester"}
+
     r = store.decide(db, request_id, body.decided_by, body.approve, body.comment)
     if not r:
         return {"error": "not found"}

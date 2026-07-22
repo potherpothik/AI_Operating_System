@@ -78,6 +78,21 @@ def security_layer_url():
 
 
 @pytest.fixture(scope="session")
+def identity_url(security_layer_url):
+    """Phase 31: AUTH_MODE=oidc tests need a real identity token — this
+    just needs identity reachable directly (governance calls it
+    independently for /security/verify_token)."""
+    url, proc = _ensure_service(
+        "IDENTITY_URL", "http://localhost:8011", "PHASE31_PATH", 8011,
+        extra_env={"IDENTITY_ISSUER": "http://localhost:8011"},
+    )
+    yield url
+    if proc:
+        proc.terminate()
+        proc.wait(timeout=5)
+
+
+@pytest.fixture(scope="session")
 def assembly_url(security_layer_url):
     """
     Phase 27: the OpenAI shim's real classification-ceiling check

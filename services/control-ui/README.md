@@ -35,6 +35,12 @@ authorize, really forward to governance, and really change that approval's
 status (checked independently against governance's own `GET /approval/{id}`
 afterward, not just trusting the BFF's own response).
 
+**Phase 31 addition:** 2 more tests (`test_phase31_auth.py`) — a real
+end-to-end decide-approval round trip under `AUTH_MODE=oidc`, confirming
+governance's own record shows `decided_by` as the real per-user `sub`
+from a real, live-issued OIDC token, not the shared `"human_admin"`
+stub name.
+
 ## Try it live
 
 ```bash
@@ -55,10 +61,20 @@ governance, reachability checks through live HTTP calls, not assumed.
 decision either way, and only forwards to governance's own
 `POST /approval/{id}/decide` on `allow` — confirmed live end to end.
 
+**Phase 31 addition — real per-user auth:** `AUTH_MODE=oidc` (default
+stays `stub`) resolves a bearer token as a real OIDC access token,
+verified against `services/identity/` via governance's own
+`/security/verify_token` — `POST /ui/approvals/{id}/decide` under this
+mode records the real per-user identity as `decided_by`, not a shared
+stub name, confirmed live. See
+`docs/aios-architecture-and-phases.md#phase-31-team-and-gpu-day-hardening`.
+
 **Stubbed / deliberately out of scope this phase:**
-- **Auth is a stub YAML token file** (`control_ui/tokens.yaml`), same
-  convention as Gateway's own `platform_spine/gateway/tokens.yaml` — not
-  real SSO/LDAP. The two files are independent (matching this project's
+- **`AUTH_MODE=stub` (the default) is still a local YAML token file**
+  (`control_ui/tokens.yaml`), same convention as Gateway's own
+  `platform_spine/gateway/tokens.yaml` — real per-user auth exists now
+  (`AUTH_MODE=oidc`, above), but stub stays the default so nothing built
+  against it breaks. The two files are independent (matching this project's
   established pattern of per-service authorization data — allowlists, PII
   registries — rather than one shared store), but share the same token
   strings for the dev-admin path so a browser session's one token works

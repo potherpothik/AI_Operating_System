@@ -18,7 +18,7 @@ uvicorn main:app --reload
 pytest tests/ -v
 ```
 
-47 tests, all passing (grown from the original 11 across every phase
+54 tests, all passing (grown from the original 11 across every phase
 since — secrets resolution, environment verification, the Phase 13
 general approval listing, Phase 16's approval-review attachment, and
 Phase 18's `correlation_id` audit filter are the most recent additions):
@@ -315,6 +315,33 @@ in this repo points at `governance_dr_drill`.
   used since Phase 7, now resolved directly by `agents/clients.py`'s own
   new `resolve_secret()` since this adapter has no dedicated backing
   microservice the way `database_agent`'s Database Connector does.
+
+## Phase 31 addition — real per-user auth via `services/identity/`
+
+- **`governance/security/oidc.py`** — real RS256 signature verification
+  against a real, live-fetched JWKS from `services/identity/` (Phase
+  31's new real, self-hosted OIDC provider). `POST /security/verify_token`
+  exposes this directly; more importantly, `POST /security/authorize`
+  itself now accepts an optional `token` field — when present,
+  governance verifies it and authorizes by the token's own real `role`
+  claim (never trusting the caller-supplied `actor` string as a policy
+  role unverified), and records the token's real `sub` as the audit
+  actor. Every prior-phase caller omits `token` and gets byte-identical
+  behavior to before — additive, not a breaking change to any of the 30
+  phases of existing `/security/authorize` call sites.
+- **`ENFORCE_APPROVER_NOT_REQUESTER`** (default `false`) — real
+  self-approval rejection in `POST /approval/{id}/decide`, meaningless
+  under shared stub auth (every request and decision is `"human_admin"`)
+  but genuinely enforceable once `AUTH_MODE=oidc` gives real, distinct
+  per-user identities. Confirmed live both ways: refused with a named
+  reason when a decision's `decided_by` matches its own `requested_by`
+  and the flag is on; a different real approver's decision still
+  succeeds; the default (off) leaves every prior phase's stub-auth
+  workflow completely unaffected.
+- 7 new tests (`tests/test_phase31_identity.py`) — a real, live
+  Authorization Code round trip against the real running identity
+  service, real token verification (accept/reject), and both
+  self-approval enforcement scenarios.
 
 ## Phase 30 addition
 

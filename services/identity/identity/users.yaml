@@ -1,0 +1,26 @@
+# Phase 31: real, self-hosted user store — bcrypt-hashed passwords, not
+# plaintext, not a mock. `role` maps directly to an existing governance
+# policy role name (services/governance/governance/security/policies/default.yaml)
+# — no new role vocabulary invented for identity; a real per-user login
+# resolves to the exact same authorize()/audit_log() actor/role concept
+# every stub token already used.
+#
+# Dev-only credentials, same "real local file, single-host dev
+# convention, documented in plaintext for dev use" as
+# services/platform-spine/platform_spine/gateway/tokens.yaml's own
+# dev-admin-token — real passwords for these two users are
+# admin-dev-pw / operator-dev-pw (see services/identity/README.md), not
+# secret in this dev build. Real deployment replaces this file (or the
+# password hashes in it) before going live, same posture as every other
+# dev-only credential in this repo.
+users:
+  - sub: human-admin-001
+    username: admin
+    password_hash: "$2b$12$82MgbsW.yEF6PSHUpxdOoevwjWJFyxPdoqK8IVshLgg41pJSTi1w6"
+    email: admin@aios.local
+    role: human_admin
+  - sub: operator-002
+    username: operator
+    password_hash: "$2b$12$HxBEhfEmVBPcMBwH6exwdeLh8SlbsKzguTuWU2HDnnv45UOyUoAYu"
+    email: operator@aios.local
+    role: human_admin

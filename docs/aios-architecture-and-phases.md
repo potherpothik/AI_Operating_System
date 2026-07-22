@@ -6211,3 +6211,156 @@ test run surfaced it.
 Phase 31 — Team & GPU-Day Hardening: the final phase in this forward
 plan. See `aios-forward-plan-phases-25-31.md` for the full sequencing
 rationale.
+
+---
+
+<!-- source: phase-31-team-and-gpu-day-hardening.md -->
+
+# Phase 31 — Team & GPU-Day Hardening
+### The final phase: real auth, real per-user audit, a rehearsed GPU-day checklist
+
+---
+
+## Built (real code, live-tested — not impression)
+
+## 1. A real, self-hosted OIDC identity provider — `services/identity/`
+
+Not a third-party dependency and not a mock: `services/identity/` is a
+real, spec-shaped OpenID Connect Authorization Code provider, hand-built
+on `pyjwt` + `cryptography` rather than a heavier framework — a real RSA
+keypair generated once and persisted to disk (`identity/keys.py`), a
+real bcrypt-hashed user store (`identity/users.yaml`), real single-use
+expiring authorization codes (`identity/codes.py`), and real RS256-signed
+JWTs (`identity/tokens.py`) whose signature, issuer, and audience are
+independently verifiable by anyone holding the real public JWKS this
+service exposes at `/.well-known/jwks.json`. Confirmed live: a full
+login → authorization code → token exchange → `/userinfo` round trip
+with the real dev credentials, a real 401 on a wrong password, and a
+real 400 on replaying an already-redeemed authorization code (single-use
+codes are popped from the store whether or not they validate, so a
+replay can never succeed twice).
+
+## 2. Governance verifies real tokens, not a caller's word
+
+`services/governance/governance/security/oidc.py`'s `verify_token()` —
+real signature verification against the real, live-fetched JWKS (RS256,
+`kid`-matched, `iss` checked), returning the real claims or `None` on
+any failure, one uniform fail-closed path. Exposed at
+`POST /security/verify_token` for any consumer that just needs to check
+a token (e.g. a future UI's own session check), and — the load-bearing
+piece — built directly into `/security/authorize` itself: `AuthorizeRequest`
+gained an optional `token` field; when present, governance verifies it
+itself and authorizes by the token's own real `role` claim, and records
+its real `sub` as the audit actor — never trusting a caller-supplied
+`actor` string as a policy role unverified. Every prior-phase caller
+omits `token` and gets byte-identical behavior to before; this is
+additive, not a breaking change to 30 phases of existing authorize()
+call sites.
+
+## 3. `AUTH_MODE`: additive, not a replacement
+
+`AUTH_MODE=stub` (default, unchanged) keeps Phase 2's original local
+`tokens.yaml`→actor map working exactly as it always has — every prior
+phase's tests and dev workflows are untouched. `AUTH_MODE=oidc` is the
+new, real path, wired into three of the four real consumer surfaces
+named in the forward plan:
+
+- **Gateway** (`platform_spine/gateway/auth.py`, `api.py`) — `POST /api/v1/tasks`
+  confirmed live: a real OIDC bearer token creates a real task whose
+  `requested_by` is the token's own real per-user `sub`
+  (`human-admin-001`), not a shared stub name.
+- **The OpenAI-compatible endpoint** (`openai_shim.py`, Phase 27) — shares
+  Gateway's own `auth.py` module, so it inherited the same toggle for
+  free; only needed its own `authorize()` calls threaded with the real
+  token, confirmed live against `GET /v1/models`.
+- **Control UI** (`control_ui/auth.py`, `api.py`) — `POST /ui/approvals/{id}/decide`
+  confirmed live: a real OIDC token decides a real approval, and
+  governance's own record shows `decided_by="human-admin-001"`, not
+  `"human_admin"`.
+
+**MCP Surface is the one named exception, honestly deferred, not silently
+skipped**: its tools run through the `mcp` SDK's `FastMCP` decorator,
+which doesn't expose a request's raw `Authorization` header to a
+`@mcp.tool()` function as simply as a FastAPI route's own `Header()`
+dependency does — real per-request identity there needs the SDK's own
+`Context`/`request_context` object threaded through deliberately and
+tested against a real MCP client round trip, not a guess under time
+pressure applied to a real security surface. `services/mcp-surface/`'s
+`ACTOR` stays the fixed stub actor from Phase 26, unchanged, for now.
+
+## 4. Real per-user audit trail, real approver ≠ requester enforcement
+
+Governance's `/security/authorize` change (above) means every governed
+action taken through an `AUTH_MODE=oidc` surface is now audited under
+the real individual's `sub`, not a shared role name — the audit chain
+itself needed no schema change, since `actor_id` was always just a
+string; what changed is what real value flows into it. Built on top of
+that: `ENFORCE_APPROVER_NOT_REQUESTER` (off by default, same additive
+posture as `AUTH_MODE`) rejects an approval decision whose `decided_by`
+equals its own `requested_by` — meaningless under shared stub auth
+(every request and every decision is `"human_admin"`), genuinely
+enforceable once distinct real users exist. Confirmed live both ways: a
+self-decision is refused with a named reason when the flag is on, and a
+different real approver's decision succeeds normally; the default
+(flag off) leaves every prior phase's stub-auth self-decision workflow
+completely unaffected.
+
+## 5. The GPU-day playbook — `docs/gpu-day-playbook.md`
+
+A real, config-only checklist, not new code — matching the forward
+plan's own framing of this phase as hardening, not feature work. Every
+step names a real, already-existing config key or endpoint
+(`OLLAMA_URL`, `reasoning_engine.yaml`'s `default_local_model`, assembly's
+`ceiling_for_model()`, the Phase 27 endpoint, Phase 25's embedding
+backend) — moving to a GPU host is a config change with a checklist,
+exactly because Phases 25/27 were built to make it one.
+
+## 6. `docker-compose.yml` review found a real, pre-existing gap
+
+Not an auth gap, but a real deployment-topology one this phase's own
+review surfaced: `services/mcp-surface/` (Phase 26) and
+`services/control-ui/` + `web/` (Phase 24) had no `Dockerfile` and no
+`docker-compose.yml` entry at all — both were built after Phase 19 wrote
+this file and nothing ever came back to add them. Fixed as part of this
+phase's own "fills docker-compose's named honesty-gaps" scope: real
+Dockerfiles for all four new/missing services (`identity`, `mcp-surface`,
+`control-ui`, `web` — the last a real 2-stage Node build, not a stub),
+real compose entries with correct real ports, and a named
+`identity-keys` volume for the real persisted signing key.
+
+## 7. Explicitly Out of Scope — named honestly, not hidden
+
+- **MCP Surface's own per-request OIDC wiring** (Section 3) — the fixed
+  stub actor stays until the SDK's own request-context access is
+  wired and tested properly, a real, scoped follow-up.
+- **No real IdP admin UI.** `services/identity/identity/users.yaml` is a
+  real, git-tracked file, edited by hand — same "real local file,
+  single-host dev convention" as `tokens.yaml`/`secrets_registry.yaml`.
+  A real deployment provisioning many users would want a real
+  add-user script or admin endpoint; out of this phase's own scope.
+- **In-memory authorization codes** (`identity/codes.py`) — real,
+  single-use, short-lived, but not persisted across a process restart
+  or shared across multiple identity-service replicas. Honest for this
+  phase's real deployment target ("a shared Ubuntu server," one
+  process, not a horizontally-scaled cluster); a real gap for anyone
+  running more than one identity-service instance.
+- **No LDAP option built**, only OIDC — the forward plan named both as
+  acceptable self-hosted choices; OIDC was chosen since every consumer
+  here already speaks bearer-token HTTP, and a hand-rolled OIDC provider
+  needed no new protocol client library any consumer didn't already
+  have (`httpx`).
+- **The GPU-day playbook is unrehearsed against a real GPU** — no GPU
+  exists in this environment (same honest limitation Phase 19's
+  `docker-compose.yml` already names for its own commented-out GPU
+  reservation block). Every step is real and traceable to existing
+  code, but "rehearsed" in the forward plan's own wording means
+  something this environment cannot literally perform.
+
+## Next
+
+This is the final phase in `aios-forward-plan-phases-25-31.md`'s own
+sequencing. Remaining real gaps across the whole system, consolidated:
+MCP Surface's own per-user auth (Section 3 above), a real Odoo 19
+instance and a Docker sandbox backend (Phase 29), real cloud-provider
+support for Model Router (a product decision, not an engineering one —
+Phase 23 §0), and a real workflow-runs view in `web/` (Phase 30).

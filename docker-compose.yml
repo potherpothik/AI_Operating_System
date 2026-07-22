@@ -29,7 +29,40 @@ services:
       # the application code itself has no _FILE-suffix convention built
       # in yet — a real, named hardening gap, not silently solved here.
       DEMO_ERP_DATABASE_URL: ${DEMO_ERP_DATABASE_URL:-}
+      # Phase 31: governance/security/oidc.py's real JWKS fetch target —
+      # unused unless a consumer service actually calls
+      # /security/verify_token, which only happens under AUTH_MODE=oidc.
+      IDENTITY_URL: http://identity:8011
+      # Phase 31: default false — every prior phase's stub-auth workflow
+      # decides its own request as the shared "human_admin" actor; this
+      # only becomes meaningful once real, distinct per-user identities
+      # exist (AUTH_MODE=oidc below). Set true in a real team deployment.
+      ENFORCE_APPROVER_NOT_REQUESTER: ${ENFORCE_APPROVER_NOT_REQUESTER:-false}
     depends_on: [postgres]
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------
+  # Identity — Phase 31's real, self-hosted OIDC provider. No
+  # dependencies of its own (same as governance) — everything that
+  # verifies a token calls governance's /security/verify_token, which
+  # calls here, rather than every consumer holding its own JWKS client.
+  # ---------------------------------------------------------------------
+  identity:
+    build:
+      context: .
+      dockerfile: services/identity/Dockerfile
+    networks: [internal, data-net]
+    environment:
+      IDENTITY_ISSUER: http://identity:8011
+      # Real RSA signing key, persisted across restarts — a named volume,
+      # not baked into the image (same posture as pg-data/sandbox-data).
+      # Mounted under /app/keys, not a top-level /keys, so the
+      # Dockerfile's existing `chown -R appuser:appuser /app` already
+      # covers it — a bare top-level volume mount would be root-owned by
+      # default and the non-root appuser couldn't write its key to it.
+      IDENTITY_KEYS_DIR: /app/identity/keys
+    volumes:
+      - identity-keys:/app/identity/keys
     restart: unless-stopped
 
   # ---------------------------------------------------------------------
@@ -44,6 +77,10 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/platform
       SECURITY_LAYER_URL: http://governance:8000
+      # Phase 31: default stub (Phase 2's original token→actor map,
+      # unchanged) — set AUTH_MODE=oidc for real per-user auth once
+      # services/identity/ has real accounts provisioned.
+      AUTH_MODE: ${AUTH_MODE:-stub}
     depends_on: [governance, postgres]
     restart: unless-stopped
 
@@ -219,6 +256,57 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------
+  # MCP Surface (Phase 26) and Control UI + web (Phase 24) — real
+  # services that predate this file's own last edit (Phase 19) and were
+  # never added here until Phase 31's docker-compose review found the
+  # gap. `mcp-surface` needs no host-published port for typical use (an
+  # MCP-speaking IDE on the same host reaches it via the `public`
+  # network the same way Gateway is reached); `control-ui`/`web` do,
+  # since they're the operator-facing surfaces.
+  # ---------------------------------------------------------------------
+  mcp-surface:
+    build:
+      context: .
+      dockerfile: services/mcp-surface/Dockerfile
+    networks: [internal, public, data-net]
+    ports: ["8025:8025"]
+    environment:
+      SECURITY_LAYER_URL: http://governance:8000
+      PLATFORM_URL: http://platform-spine:8002
+      AGENTS_URL: http://agents:8005
+      KNOWLEDGE_URL: http://knowledge:8003
+      KNOWLEDGE_PIPELINES_URL: http://knowledge_pipelines:8009
+      PLANNING_URL: http://planning:8008
+    depends_on: [governance, platform-spine, agents, knowledge, planning]
+    restart: unless-stopped
+
+  control-ui:
+    build:
+      context: .
+      dockerfile: services/control-ui/Dockerfile
+    networks: [internal, public, data-net]
+    ports: ["8024:8024"]
+    environment:
+      SECURITY_LAYER_URL: http://governance:8000
+      PLATFORM_URL: http://platform-spine:8002
+      OBSERVABILITY_URL: http://observability:8013
+      # Phase 31: default stub, same posture as Gateway's own AUTH_MODE —
+      # flip to oidc for a real team deployment once services/identity/
+      # is populated with real per-user accounts.
+      AUTH_MODE: ${AUTH_MODE:-stub}
+    depends_on: [governance, platform-spine, observability]
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    networks: [public]
+    ports: ["5173:5173"]
+    depends_on: [control-ui]
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------
   # Local inference — model-net only, reached by `agents` alone.
   # ---------------------------------------------------------------------
   ollama:
@@ -262,3 +350,4 @@ volumes:
   pg-data:
   ollama-models:
   sandbox-data:
+  identity-keys:

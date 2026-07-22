@@ -50,6 +50,7 @@ Long-term picture (ERP Brain + Coding Brain on one kernel):
 | 28 | Adapter Contracts | [`docs/aios-architecture-and-phases.md#phase-28-adapter-contracts`](docs/aios-architecture-and-phases.md#phase-28-adapter-contracts) | [`docs/contracts/`](docs/contracts/) — three versioned interface contracts (`ModelProvider`, `ToolAdapter`, `IDESurface`) extracted from Phases 23/26/27's real implementations. Real, static enforcement: `services/agents/tests/test_adapter_boundary.py` AST-scans for bespoke third-party calls outside registered adapters — found and fixed one real pre-existing exception (`planner_bridge.py`). New `GET /reasoning/adapters` registry endpoint, live `is_configured()` status per model provider |
 | 29 | Tool Adapter Gaps | [`docs/aios-architecture-and-phases.md#phase-29-tool-adapter-gaps`](docs/aios-architecture-and-phases.md#phase-29-tool-adapter-gaps) | Three new real `ToolAdapter`s, three honest tiers: `odoo_live_bridge.py` — real XML-RPC, honestly unverified against a live instance (none exists here); `django_bridge.py` — real `manage.py check`/`showmigrations`, genuinely live-tested against a disposable Django project; `browser_bridge.py` — real Playwright automation, structural internal-only URL gate fully verified, but real page loads currently refused by this environment's own sandbox memory limit (same class of finding as Phase 22, confirmed by direct reproduction, not a code gap) |
 | 30 | Declarative Workflows | [`docs/aios-architecture-and-phases.md#phase-30-declarative-workflows`](docs/aios-architecture-and-phases.md#phase-30-declarative-workflows) | [`services/planning/planning/workflows/`](services/planning/planning/workflows/) — real workflow YAML discovery (reuses Phase 8's own `TaskGraph`/`Subtask` schema, no second graph model), an explicit `dispatch_ready_subtasks()`/`advance()` dispatcher (never a background poller — this project has never had one, confirmed by exhaustive grep), 4 new endpoints, MCP Surface's 9th tool (`trigger_workflow`). 11 live tests including one genuine end-to-end trigger of the real, checked-in [`workflows/code_review_pipeline.yaml`](workflows/code_review_pipeline.yaml) |
+| 31 | Team & GPU-Day Hardening | [`docs/aios-architecture-and-phases.md#phase-31-team-and-gpu-day-hardening`](docs/aios-architecture-and-phases.md#phase-31-team-and-gpu-day-hardening) | [`services/identity/`](services/identity/) — new service, a real hand-built self-hosted OIDC provider (real RSA-signed JWTs, real bcrypt users, real single-use auth codes). `AUTH_MODE=oidc` (additive, default stays `stub`) wires real per-user auth into Gateway, the OpenAI shim, and Control UI, verified through governance's new `/security/verify_token` and token-aware `/security/authorize`. Real `ENFORCE_APPROVER_NOT_REQUESTER` self-approval rejection, a real config-only [`docs/gpu-day-playbook.md`](docs/gpu-day-playbook.md), and real Dockerfiles/compose entries for 4 services (including 2 pre-existing gaps — `mcp-surface` and `control-ui`/`web` — found and fixed in passing). MCP Surface's own per-request OIDC wiring honestly named as remaining work, not silently skipped |
 
 Twelve backend services plus a new BFF and web frontend are real, tested
 code today, now hosting every phase in the original 24-phase mandate plus
@@ -143,7 +144,25 @@ execution — so workflow dispatch and continuation are explicit calls
 matching Reasoning Engine's own `resume()` philosophy rather than adding
 this project's first scheduler. A workflow batches orchestration, never
 consent: every step still authorizes through its own capability's real
-governance gate when it dispatches. Vision and ElizaOS study notes:
+governance gate when it dispatches. Phase 31, the final phase in the
+forward plan, adds Team & GPU-Day Hardening: `services/identity/`, a
+new, thirteenth backend service and a real, hand-built self-hosted OIDC
+provider (real RSA-signed JWTs, real bcrypt passwords, real single-use
+authorization codes — not a mock and not a third-party dependency).
+`AUTH_MODE=oidc` is additive (default stays `stub`, so nothing built
+across the prior 30 phases breaks) and wires real per-user identity into
+Gateway, the OpenAI-compatible endpoint, and Control UI, verified
+through governance's new token-aware `/security/authorize` — confirmed
+live, a real OIDC-authenticated task's `requested_by` and a real
+OIDC-authenticated approval's `decided_by` both show the real per-user
+identity, not a shared stub name. A new `ENFORCE_APPROVER_NOT_REQUESTER`
+flag makes self-approval rejection real once distinct users exist. A
+docker-compose review found a real, pre-existing gap — `mcp-surface`
+(Phase 26) and `control-ui`/`web` (Phase 24) never got Dockerfiles or
+compose entries at all — fixed in passing. MCP Surface's own per-request
+OIDC wiring is honestly named as remaining work, not silently skipped:
+the `mcp` SDK's request-context access needs its own careful pass, not a
+rushed change to a live security surface. Vision and ElizaOS study notes:
 [`docs/architecture-vision.md`](docs/architecture-vision.md),
 [`docs/elizaos-borrowed-ideas.md`](docs/elizaos-borrowed-ideas.md). Doc
 index and mandatory read-before-code checklist: [`docs/README.md`](docs/README.md).
@@ -174,7 +193,11 @@ it's the one service every other service doesn't need to know exists.
 submission), `agents` (`ask_agent`), and `knowledge` — it needs its own
 isolated venv, never the shared one (see
 [`services/mcp-surface/README.md`](services/mcp-surface/README.md) for
-why); no other service ever calls back into it.
+why); no other service ever calls back into it. `identity` (Phase 31)
+has no dependencies of its own — `governance` calls it (real JWKS
+fetch, `AUTH_MODE=oidc` only), and nothing calls back into it; every
+other service still defaults to `AUTH_MODE=stub` and never touches it
+at all.
 
 ```bash
 # terminal 1 — DEMO_ERP_DATABASE_URL is only needed once you're using Phase 7;
