@@ -2,6 +2,7 @@ import httpx
 from assembly.db import SessionLocal
 from assembly.prompt_builder import templates as template_store
 from assembly.prompt_builder.render import render, NoActiveTemplate, PromptTooLarge
+from assembly.prompt_builder.shared_fragments import REFUSE_DELEGATE_APPROVAL_FRAGMENT
 
 SCHEMA = {
     "reasoning": "str", "answer_or_proposal": "str", "confidence": "float",
@@ -51,6 +52,33 @@ def test_render_wraps_context_in_untrusted_delimiters_and_injects_shared_fragmen
     assert "risk_classification" in result["rendered_prompt"]  # shared fragment's schema description
     assert result["expected_output_schema"] == SCHEMA
     db.close()
+
+
+def test_render_includes_the_self_verification_operating_discipline(governance_url):
+    """The operating-discipline addendum (self-check before finalizing,
+    honest confidence calibration, never state an unverified fact) lives
+    in the one shared fragment every agent's template already embeds via
+    {shared_fragment} — confirming it reaches every rendered prompt
+    without any per-agent template.md change."""
+    db = SessionLocal()
+    template, outcome = template_store.register_template(db, "odoo_agent_discipline_test", TEMPLATE_BODY, SCHEMA, created_by="human_admin")
+    _approve_and_reconcile(db, template, governance_url)
+
+    result = render(db, {"id": "ctx-2"}, [], "explain sale.order", "odoo_agent_discipline_test", "qwen-coder")
+    db.close()
+
+    assert "check it once against the task" in result["rendered_prompt"]
+    assert "not verified" in result["rendered_prompt"]
+    assert "genuinely reflect that uncertainty" in result["rendered_prompt"]
+
+
+def test_shared_fragment_still_contains_the_real_json_schema_instruction():
+    """Regression guard: the operating-discipline addendum was inserted
+    ABOVE the hard "Respond ONLY with a JSON object" instruction, not
+    instead of it — the format contract every agent's structured output
+    depends on must survive this real edit to the fragment's content."""
+    assert "Respond ONLY with a JSON object" in REFUSE_DELEGATE_APPROVAL_FRAGMENT
+    assert REFUSE_DELEGATE_APPROVAL_FRAGMENT.index("check it once against the task") < REFUSE_DELEGATE_APPROVAL_FRAGMENT.index("Respond ONLY with a JSON object")
 
 
 def test_render_with_no_active_template_raises():

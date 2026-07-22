@@ -28,8 +28,9 @@ PHASE3_PATH=/path/to/knowledge \
 pytest tests/ -v    # full suite, all three auto-started if not already running
 ```
 
-29 tests (26 as of Phase 4; Phase 26 adds a version-ordering regression
-test — see below). All passed on the first full run against all three real
+31 tests (26 as of Phase 4; Phase 26 adds a version-ordering regression
+test, Phase 33 adds 2 for the shared operating-discipline fragment — see
+below). All passed on the first full run against all three real
 dependent services — the earlier phases' lessons (timezone-aware columns,
 conftest respecting `DATABASE_URL`, fail-closed on unreachable services)
 held up rather than needing to be rediscovered. One real bug *was* found
@@ -92,6 +93,27 @@ and locked in as a permanent regression test
   render instead of the real, newer version 10. Fixed by ordering on
   `created_at` instead of `version` in both places. Full detail in
   `docs/aios-architecture-and-phases.md` Phase 26, Section 3.
+
+## Phase 33 addition — operating discipline for the local model
+
+`prompt_builder/shared_fragments.py`'s `REFUSE_DELEGATE_APPROVAL_FRAGMENT`
+gained a short, structured-output-safe addendum: check the answer once
+against the task before finalizing, never state a fact you haven't
+verified from context or your own declared capability, and set
+`confidence` to genuinely reflect real uncertainty rather than a default
+high value. Since every agent's `template.md` already embeds this exact
+fragment via `{shared_fragment}` (Phase 4's own original design), this
+reaches all 25+ agents' rendered prompts with **zero per-agent template
+changes** — the fragment is the single injection point.
+
+Deliberately NOT the full multi-page operating manual this was distilled
+from (`.cursor/rules/operating-discipline.mdc`, which governs Claude
+Code/Cursor when working ON this repo, where token budget isn't a real
+constraint). Phase 25 already found, live and measured, that this
+project's local 4B-class model's structured-JSON-output reliability gets
+*worse* with more verbose prompting, not better — dumping the whole
+manual into every agent call here would fight that finding directly, so
+this addendum is a few sentences, not a section-by-section transplant.
 
 ## What's a stub or simplified
 

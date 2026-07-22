@@ -6573,3 +6573,70 @@ phase. Future work follows this project's own established discipline:
 a real gap, found by checking against actual code rather than assumed
 from a file listing, closed with real, live-tested code, one phase at a
 time.
+
+---
+
+<!-- source: phase-33-operating-discipline.md -->
+
+# Phase 33 — Operating Discipline
+### One rule set, two audiences: the agent building AIOS, and the local model AIOS itself runs
+
+---
+
+## Built (real code, live-tested — not impression)
+
+A user-supplied operating manual (self-review discipline for interpreting
+requests, planning, fact-verification, hard reasoning, code, prose,
+formatting, and a final gate before every answer) needed to apply in two
+genuinely different places, at two genuinely different token budgets —
+distinguishing between them was the actual design work this phase did.
+
+## 1. Governing Claude Code / Cursor while working on this repo
+
+`.cursor/rules/operating-discipline.mdc` (new, `alwaysApply: true`,
+imported from `CLAUDE.md` alongside the existing six rule files) carries
+the manual close to verbatim — trimmed only of its "Fable 5" launch
+framing, not its substance. No token-budget concern here: this governs a
+large, capable model (Claude, or whatever model Cursor is configured
+with) operating with this repo's own large context window, not a
+request/response an agent template has to fit in a few thousand words.
+
+## 2. Reaching AIOS's own local model, without fighting Phase 25's own finding
+
+The second audience — the actual Ollama-backed local model every one of
+this system's 25+ agents calls through Reasoning Engine — needed a
+different answer entirely. `services/assembly/assembly/prompt_builder/shared_fragments.py`'s
+`REFUSE_DELEGATE_APPROVAL_FRAGMENT` (Phase 4's original design: the one
+shared instruction block every agent's `template.md` already embeds via
+`{shared_fragment}`) gained a short, distilled addendum — self-check
+before finalizing, never state an unverified fact, calibrate `confidence`
+honestly — mapped onto the schema fields (`reasoning`, `confidence`)
+those 25+ agents already return, not new fields requiring a schema
+migration across every agent's test stubs (the exact disruption Phase 26
+first documented and this phase deliberately avoided repeating).
+
+Deliberately NOT a full transplant of the 8-section manual: Phase 25's
+own real, measured finding — `qwen2.5-coder:7b` was evaluated and
+rejected specifically because more verbose prompting made this system's
+structured-JSON-output contract *less* reliable, not more — is a hard
+constraint a naive "add the whole manual to every agent prompt" approach
+would have fought directly. The single shared-fragment injection point
+means every one of the 25+ agents' rendered prompts changed with **zero
+per-agent `template.md` edits** — confirmed via `render()`'s own real
+prompt assembly, not by inspecting the fragment string in isolation.
+
+## 2 new tests, all passing
+
+`services/assembly/tests/test_prompt_builder.py` — a real rendered-prompt
+assertion that the self-check/honesty language reaches the actual output
+of `render()` (not just the fragment constant), and a regression guard
+confirming the addendum was inserted *before* the hard "Respond ONLY with
+a JSON object" instruction, never displacing the format contract every
+agent's structured output depends on. Full assembly suite: 31 tests,
+passing against the real running stack.
+
+## Next
+
+No new gap opened by this phase. The same real, individually-named gaps
+from Phase 31's own "Next" section remain the honest list of what's
+actually left.

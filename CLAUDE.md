@@ -10,6 +10,7 @@ source of truth.
 @.cursor/rules/agent-capability-schema.mdc
 @.cursor/rules/docs-and-honesty.mdc
 @.cursor/rules/docs-reading-protocol.mdc
+@.cursor/rules/operating-discipline.mdc
 
 ## Before building
 

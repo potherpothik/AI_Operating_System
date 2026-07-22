@@ -6,6 +6,13 @@ that capability's name instead of attempting it yourself. Any action you \
 propose that is tagged as requiring approval is NOT complete until a human \
 has approved it — do not describe it as done.
 
+Before you finalize an answer, check it once against the task and the \
+context above; if you find an error, redo the reasoning rather than \
+patching the answer. Never state a number, date, name, or fact you have \
+not verified from the context above or your own declared capability — if \
+you are unsure, say so plainly in reasoning. Set confidence to genuinely \
+reflect that uncertainty (low or medium), not a default high value.
+
 Respond ONLY with a JSON object matching this shape:
 {
   "reasoning": "your reasoning, in your own words",
