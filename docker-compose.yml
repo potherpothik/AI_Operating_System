@@ -73,7 +73,7 @@ services:
       context: .
       dockerfile: services/platform-spine/Dockerfile
     networks: [internal, public, data-net]
-    ports: ["8002:8002"]   # the ONLY service with a host-published port — Gateway is the sole external entry point (master roadmap's own topology decision)
+    ports: ["8002:8002"]   # Gateway — the original sole external entry point (master roadmap's own topology decision). Phase 31 added host ports for mcp-surface, control-ui, and web too, since IDEs and browsers need to reach those directly, not proxied through Gateway.
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/platform
       SECURITY_LAYER_URL: http://governance:8000

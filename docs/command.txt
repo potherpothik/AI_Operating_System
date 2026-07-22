@@ -21,7 +21,7 @@ cd /home/saadi/Documents/AI_Operating_System
 python3.12 -m venv .venv          # ~/.local/bin/python3.12 if needed
 source .venv/bin/activate
 pip install --upgrade pip
-for s in governance platform-spine knowledge assembly agents execution database planning knowledge_pipelines extensibility observability control-ui; do
+for s in governance platform-spine knowledge assembly agents execution database planning knowledge_pipelines extensibility observability control-ui identity; do
   pip install -r "services/$s/requirements.txt"
 done
 mkdir -p /tmp/ai_os_sandbox /tmp/ai_os_plugins
@@ -80,13 +80,19 @@ cd services/knowledge_pipelines && SECURITY_LAYER_URL=http://localhost:8000 KNOW
 # 10 extensibility :8010
 cd services/extensibility && SECURITY_LAYER_URL=http://localhost:8000 ASSEMBLY_URL=http://localhost:8004 AGENTS_URL=http://localhost:8005 PLUGIN_CAPABILITIES_DIR=/tmp/ai_os_plugins uvicorn main:app --port 8010
 
-# 11 observability :8013  (8013 matches web/vite proxy; root README uses 8011)
+# 11 observability :8013
 cd services/observability && GOVERNANCE_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 KNOWLEDGE_URL=http://localhost:8003 ASSEMBLY_URL=http://localhost:8004 AGENTS_URL=http://localhost:8005 EXECUTION_URL=http://localhost:8006 DATABASE_CONNECTOR_URL=http://localhost:8007 PLANNING_URL=http://localhost:8008 KNOWLEDGE_PIPELINES_URL=http://localhost:8009 EXTENSIBILITY_URL=http://localhost:8010 uvicorn main:app --port 8013
 
 # 12 control-ui BFF :8024
 cd services/control-ui && SECURITY_LAYER_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 OBSERVABILITY_URL=http://localhost:8013 uvicorn main:app --port 8024
 
-# 13 web UI :3000
+# 13 identity (Phase 31, real self-hosted OIDC) :8011 -- optional, only needed for AUTH_MODE=oidc
+cd services/identity && IDENTITY_ISSUER=http://localhost:8011 uvicorn main:app --port 8011
+
+# 14 mcp-surface (Phase 26, own isolated venv -- see services/mcp-surface/README.md) :8025
+cd services/mcp-surface && SECURITY_LAYER_URL=http://localhost:8000 PLATFORM_URL=http://localhost:8002 AGENTS_URL=http://localhost:8005 KNOWLEDGE_URL=http://localhost:8003 KNOWLEDGE_PIPELINES_URL=http://localhost:8009 PLANNING_URL=http://localhost:8008 .venv/bin/python -m uvicorn main:app --port 8025
+
+# 15 web UI :3000
 cd web && npm run dev
 
 # Open: http://localhost:3000  |  Sign in: dev-admin-token

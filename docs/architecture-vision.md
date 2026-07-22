@@ -342,9 +342,11 @@ Before any implementation, follow the doc-reading protocol in
 
 ## Next
 
-All 31 phases in `aios-forward-plan-phases-25-31.md`'s own sequencing
-are now built. What remains is a set of real, individually-named gaps
-within already-built phases, not a queued next phase:
+All 31 phases in the forward plan's own sequencing are now built (the
+plan itself is merged into `aios-architecture-and-phases.md`'s own
+"Forward Plan" section, above Phase 25). What remains is a set of real,
+individually-named gaps within already-built phases, not a queued next
+phase:
 
 - **MCP Surface's own per-request OIDC wiring** (Phase 31) — the `mcp`
   SDK's request-context access needs its own careful, tested pass; its

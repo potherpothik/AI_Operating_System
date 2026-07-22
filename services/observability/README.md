@@ -38,7 +38,7 @@ export EXTENSIBILITY_URL=http://localhost:8010
 # SSO/LDAP. Defaults to the admin token; override if your deployment adds
 # a dedicated viewer token.
 export GATEWAY_TOKEN=dev-admin-token
-uvicorn main:app --port 8011
+uvicorn main:app --port 8013
 ```
 
 ## Test it

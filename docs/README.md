@@ -16,10 +16,10 @@ reading order.
 |---|---|
 | [`installation-guide.md`](installation-guide.md) | **First-time setup** — prerequisites, Ollama, start services, Web UI |
 | [`command.txt`](command.txt) | Copy-paste terminal commands (ports, curl, tests) |
-| [`aios-architecture-and-phases.md`](aios-architecture-and-phases.md) | **Primary reference** — lifecycle flow, Phases 1–29 design (TOC with anchors), API/DB index (Phase 21), deployment, backup |
+| [`aios-architecture-and-phases.md`](aios-architecture-and-phases.md) | **Primary reference** — lifecycle flow, Phases 1–31 design (TOC with anchors), API/DB index (Phase 21), the Forward Plan's own restructure review and sequencing rationale (merged in above Phase 25), deployment, backup |
 | [`architecture-vision.md`](architecture-vision.md) | Long-term vision, two brains, kernel map, roadmap |
 | [`aios-db-erd.md`](aios-db-erd.md) | Logical database ERD across all services |
-| [`aios-forward-plan-phases-25-31.md`](aios-forward-plan-phases-25-31.md) | Planning doc for Phases 25–31 — sequencing rationale, scope, what was rejected and why |
+| [`gpu-day-playbook.md`](gpu-day-playbook.md) | Real, config-only checklist for moving the reasoning model to a GPU host (Phase 31) |
 | [`contracts/`](contracts/) | Versioned `ModelProvider`/`ToolAdapter`/`IDESurface` interface contracts (Phase 28) — read before building a new adapter of any of these three kinds |
 
 ---

@@ -525,7 +525,8 @@ materializes as a real git document. One live-model smoke test each.
   actually running the candidate upgrade model through the real
   pipeline, not just prompting it once.** `qwen2.5-coder:7b` was pulled
   and evaluated as a `default_local_model` upgrade candidate
-  (`docs/aios-forward-plan-phases-25-31.md`'s own Phase 25 scope).
+  (`docs/aios-architecture-and-phases.md`'s own Forward Plan section's
+  Phase 25 scope).
   Single-shot, prompt-only comparison favored it clearly — cleaner code,
   faster (12.9s vs 15.8s), no stray commentary. Run through the real
   `python_agent` pipeline (full rendered prompt, real retry loop) it
@@ -1109,23 +1110,24 @@ materializes as a real git document. One live-model smoke test each.
 
 ## Next
 
-Phase 30 — Declarative Workflows (`docs/aios-forward-plan-phases-25-31.md`):
-multi-agent orchestration as data (`workflows/` YAML), now that Phase
-29's three tool adapters prove the `ToolAdapter` contract genuinely
-generalizes to new adapter types, not just the four that already
-existed. A real Odoo 19 instance to test `odoo_live_bridge.py`'s success
-path against, and a Docker sandbox backend to unblock
-`browser_bridge.py`'s real page loads, both remain out of proportion to
-stand up in this environment — named honestly as real gaps, not silently
-assumed away (Phase 29, Sections 1 and 3). Real cloud provider support
-(a second, genuinely configured `ModelProvider` in `model_router.py`)
-remains a product decision, not an engineering one
-(`docs/aios-architecture-and-phases.md#phase-23-model-router` Section 0).
-Revisiting `qwen2.5-coder:7b` as the AGENTIC pipeline's default is worth
-another look if its structured-output reliability gap turns out to be a
-fixable prompting/format-constraint issue rather than an inherent model
-limitation — not investigated this phase (Phase 25, Section 2); it's
-already the real `fallback_local_model` for Phase 27's raw chat
-completions, where that gap doesn't apply. Real per-user auth for MCP
-Surface and the OpenAI shim's `ide_client` actor both stay deferred to
-Phase 31, per the forward plan's own sequencing.
+All 31 phases in the forward plan (merged into
+`docs/aios-architecture-and-phases.md`'s own "Forward Plan" section,
+above Phase 25) are now built, including Phase 30 (Declarative
+Workflows, `services/planning/planning/workflows/`) and Phase 31 (Team &
+GPU-Day Hardening, `services/identity/` + `AUTH_MODE=oidc`). What
+remains is a set of real, individually-named gaps within already-built
+phases, not a queued next phase: a real Odoo 19 instance to test
+`odoo_live_bridge.py`'s success path against, and a Docker sandbox
+backend to unblock `browser_bridge.py`'s real page loads, both out of
+proportion to stand up in this environment (Phase 29, Sections 1 and 3);
+real cloud provider support (a second, genuinely configured
+`ModelProvider` in `model_router.py`), a product decision, not an
+engineering one (`docs/aios-architecture-and-phases.md#phase-23-model-router`
+Section 0); revisiting `qwen2.5-coder:7b` as the AGENTIC pipeline's
+default, worth another look if its structured-output reliability gap
+turns out to be a fixable prompting/format-constraint issue rather than
+an inherent model limitation (Phase 25, Section 2) — it's already the
+real `fallback_local_model` for Phase 27's raw chat completions, where
+that gap doesn't apply; and MCP Surface's own per-request OIDC wiring,
+honestly deferred in Phase 31 since the `mcp` SDK's request-context
+access needs its own careful, tested pass.

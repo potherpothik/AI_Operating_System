@@ -271,7 +271,7 @@ KNOWLEDGE_URL=http://localhost:8003 ASSEMBLY_URL=http://localhost:8004 \
 AGENTS_URL=http://localhost:8005 EXECUTION_URL=http://localhost:8006 \
 DATABASE_CONNECTOR_URL=http://localhost:8007 PLANNING_URL=http://localhost:8008 \
 KNOWLEDGE_PIPELINES_URL=http://localhost:8009 EXTENSIBILITY_URL=http://localhost:8010 \
-uvicorn main:app --port 8011
+uvicorn main:app --port 8013
 
 # terminal 12 — Phase 26: own isolated venv, NOT the shared repo .venv
 # (installing the mcp SDK there breaks every FastAPI service — see the README)

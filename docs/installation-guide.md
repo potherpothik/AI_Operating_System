@@ -271,7 +271,7 @@ docker compose build
 docker compose up -d
 ```
 
-**Honesty:** Compose covers eleven backend services; **control-ui** and **web** still run manually until added to Compose. Compose was written to the real interface but may be unverified on your machine until you run `docker compose up`.
+**Honesty:** Compose covers all backend services as of Phase 31, including **control-ui**, **web**, **mcp-surface**, and **identity** (a real, pre-existing gap for the first three — found and fixed during Phase 31's own docker-compose review, since they were built after this file was first written and nothing came back to add them). Compose was written to the real interface but may be unverified on your machine until you run `docker compose up`.
 
 Backup/restore scripts: `deploy/backup.sh`, `deploy/restore.sh` — see [`aios-architecture-and-phases.md#phase-20-backup-strategy-disaster-recovery`](aios-architecture-and-phases.md#phase-20-backup-strategy-disaster-recovery).
 
@@ -323,13 +323,12 @@ curl -X POST http://localhost:8003/vector/query \
 
 | Topic | Dev reality |
 |---|---|
-| **Auth** | Stub token file, not SSO/LDAP |
+| **Auth** | Default is still the Phase 2 stub token file (`AUTH_MODE=stub`); a real self-hosted OIDC option exists (`AUTH_MODE=oidc`, Phase 31 — `services/identity/`) but isn't the default, and MCP Surface's own per-request wiring is honestly deferred |
 | **Sandbox** | Subprocess fallback without Docker — not full isolation |
 | **Cloud LLMs** | Model Router interfaces exist; providers return `not_configured` unless you add API keys + governance approval |
 | **MCP** | Simplified HTTP invoke stub — not full MCP protocol in agent loop |
 | **External coding agents** | Phase 22 gateway refuses unsafe live sessions without Docker sandbox |
-| **UI** | Capability views and Settings page not built yet |
-| **Observability port** | Root README uses 8011; Web UI expects **8013** — use 8013 with the UI |
+| **UI** | Capability views and Settings page not built yet; no workflow-runs view (Phase 30) |
 
 Service-level honesty: each `services/<name>/README.md`.
 

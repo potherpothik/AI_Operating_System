@@ -7,7 +7,7 @@ flow, and the Phases 12–21 roadmap into a single reference.
 [`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md) (borrowed patterns),
 [`aios-db-erd.md`](aios-db-erd.md) (database ERD),
 [`docs/README.md`](README.md) (doc index),
-[`aios-forward-plan-phases-25-31.md`](aios-forward-plan-phases-25-31.md) (Phases 25–31 planning).
+the "Forward Plan" section further down this document (Phases 25–31 planning, merged in once all seven were built).
 
 ---
 
@@ -3815,7 +3815,10 @@ Phase 19–21: Deployment Architecture, Backup Strategy/Disaster Recovery, and a
 | `knowledge_pipelines` | `services/knowledge_pipelines/` | 8009 | governance, knowledge, database, assembly, platform-spine, postgres |
 | `extensibility` | `services/extensibility/` | 8010 | governance, assembly, agents, postgres |
 | `agents` | `services/agents/` | 8005 | governance, platform-spine, knowledge, assembly, execution, database, knowledge_pipelines, ollama, postgres |
-| `observability` | `services/observability/` | 8011 | every other service (read-only GETs), postgres |
+| `observability` | `services/observability/` | 8013 | every other service (read-only GETs), postgres |
+| `control-ui` | `services/control-ui/` | 8024 | governance, platform-spine, observability (Phase 24) |
+| `mcp-surface` | `services/mcp-surface/` | 8025 | governance, platform-spine, agents, knowledge, planning (Phase 26) |
+| `identity` | `services/identity/` | 8011 | none — governance calls it, `AUTH_MODE=oidc` only (Phase 31) |
 | `postgres` | `pgvector/pgvector:pg16` | 5432 | — |
 | `ollama` | `ollama/ollama:latest` | 11434 | — |
 
@@ -5362,6 +5365,116 @@ Cross-reference: [`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md) §7,
 
 ---
 
+<!-- source: aios-forward-plan-phases-25-31.md (merged in — all 7 phases below are now built) -->
+
+# The Forward Plan — Review of the Proposed Restructure, and Phases 25–31
+
+### Companion to the Phase 21 consolidated reference · originally a separate planning document, merged in once all 7 phases below were built
+
+---
+
+At the end of Phase 24, a separately-proposed repo restructure
+(`aios_core / model_adapters / ide_adapters / agent_framework /
+tool_adapters / memory / knowledge / workflows / security / plugins`)
+was reviewed against this codebase's actual state before any of Phases
+25–31 were planned. The review and its two adopted ideas are preserved
+here as real architectural reasoning, not duplicated anywhere else in
+this document — the per-phase sections below (Phase 25 onward) describe
+what was actually built, which sometimes differs in detail from what
+this plan originally scoped.
+
+## Review of the proposed structure
+
+The proposed layout is a **good conceptual taxonomy and a costly
+physical migration**. The distinction matters: the value of that
+structure is the *idea* that models, IDEs, and tools are replaceable
+adapters behind stable contracts — not where files sit on disk.
+`requirements-alignment-assessment.md` already asked for exactly this
+("codify adapter interfaces for IDE/SCM/MCP so new integrations can't
+bypass them"), and that is an interface-contract problem, not a folder
+problem.
+
+### Mapping: proposed folder → what actually existed at the time
+
+| Proposed | Reality in the repo at the time | Verdict |
+|---|---|---|
+| `aios_core/` | `services/platform-spine` + `assembly` + `planning` + `knowledge` — the kernel | Exists. Keep as services |
+| `model_adapters/ollama,openai,anthropic,gemini` | `services/agents/.../model_router.py` — provider classes already written | Exists as code. Document, don't move |
+| `ide_adapters/vscode,cursor,continue,opencode` | Nothing — the genuine gap | **New — but NOT as per-IDE code** (see below) |
+| `agent_framework/` (6 agents) | `services/agents/` — 23 agents, each `capability.yaml` + `template.md` + `register.py` | Exists, richer than proposed |
+| `tool_adapters/git,terminal` | `services/execution/` (Phase 6, sandboxed) | Exists |
+| `tool_adapters/mysql,postgresql` | `services/database/` (Phase 7, dry-run-gated) | Exists |
+| `tool_adapters/browser,odoo,django,docker` | Partial or missing — odoo was knowledge-level not live; browser didn't exist | **Genuine gaps → Phase 29** |
+| `memory/`, `knowledge/` | `services/knowledge/` + `knowledge_pipelines/` | Exists |
+| `workflows/` | Task manager + planner existed; no declarative multi-step workflow layer | **Genuine gap → Phase 30** |
+| `security/` | `services/governance/` — the most complete part of the whole system | Exists |
+| `plugins/` | `services/extensibility/` — shell existed, MCP client unwired | Exists as shell → wired in Phase 26 |
+| *(not in proposal)* | `assembly`, `observability`, `control-ui` + `web/`, audit hash chain, approval inbox | The proposal silently dropped these — they had to survive any reorganization |
+
+### What was adopted from the proposal
+
+1. **The adapter framing as enforced contracts** — a published
+   `ModelProvider` / `ToolAdapter` / `IDESurface` interface set, with a
+   rule that agents may not call third parties except through a
+   registered adapter. Became Phase 28.
+2. **`workflows/` as a first-class concept** — declarative multi-agent
+   workflows as a real missing layer. Became Phase 30.
+3. **The `future_models/` signal** — extensibility by declaration.
+   Already how the model router was shaped; Phase 28 formalized it.
+
+### What was rejected, and why
+
+1. **The big-bang restructure.** Moving 12+ tested services into a new
+   tree rewrites every import, test path, deploy script,
+   docker-compose entry, and doc link — weeks of churn, zero new
+   capability, high breakage risk. A physical move, if ever wanted,
+   happens opportunistically per-service when that service is already
+   being touched, never as a project of its own.
+2. **Per-IDE adapter folders** (`ide_adapters/vscode/`, `cursor/`, ...).
+   That implies bespoke integration code per editor, and it ages
+   badly — every new editor means a new folder. The chosen
+   architecture is **one MCP server + one OpenAI-compatible endpoint =
+   every IDE**, since VS Code (Continue), Cursor, OpenCode, and Claude
+   Code all already speak those two protocols. Per-IDE material
+   reduces to a config recipe of a few lines each
+   (`docs/ide-recipes/`), not code.
+3. **"aios_core is the only permanent part."** In this architecture the
+   invariant is **governance** — authorize → audit → approve is what
+   everything routes through and what nothing may bypass. The better
+   mental model is concentric rings: governance + kernel (permanent) →
+   agents (configuration) → adapters (replaceable) → external
+   tools/models/IDEs (plugged in).
+
+## Sequencing logic
+
+Consistent with how Phases 1–24 were ordered: fix quality of what
+exists before adding surface area (25); build the two concrete IDE
+surfaces before abstracting their contract (26–27 before 28 — the same
+"don't design interfaces against zero implementations" rule used in
+Phases 4–5); contracts before more adapters (28 before 29);
+orchestration UX once the surfaces exist (30); team hardening last,
+before anyone else touches it (31).
+
+## Summary — all 7 phases now built
+
+| Phase | Delivered | Built section |
+|---|---|---|
+| 25 | Real semantic retrieval + a measured local coder-model comparison | [Phase 25 — Model & Retrieval Quality](#phase-25-model-retrieval-quality) |
+| 26 | MCP surface (all four IDEs) + the existing MCP client wired for real | [Phase 26 — MCP Surface](#phase-26-mcp-surface) |
+| 27 | The OpenAI-compatible endpoint (the GPU-day switch) | [Phase 27 — OpenAI-Compatible Endpoint](#phase-27-openai-compatible-endpoint) |
+| 28 | Enforced adapter contracts | [Phase 28 — Adapter Contracts](#phase-28-adapter-contracts) |
+| 29 | Browser / live-Odoo / Django tool adapters | [Phase 29 — Tool Adapter Gaps](#phase-29-tool-adapter-gaps) |
+| 30 | Saved declarative workflows | [Phase 30 — Declarative Workflows](#phase-30-declarative-workflows) |
+| 31 | Real per-user auth + a rehearsed-on-paper GPU-day playbook | [Phase 31 — Team & GPU-Day Hardening](#phase-31-team-and-gpu-day-hardening) |
+
+**Deliberately never built:** a physical repo restructure (rejected
+above); an AIOS-native IDE UI (the web UI stays an operator
+console — approvals, audit, ops — the one thing the IDEs can't do);
+cloud model keys activated before classification gating was proven
+under Phase 27 (privacy-first stays the default, cloud stays opt-in).
+
+---
+
 # Phase 25 — Model & Retrieval Quality
 
 ### Real semantic embeddings · a real coder-model comparison · no new hardware
@@ -5370,7 +5483,7 @@ Cross-reference: [`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md) §7,
 
 ## Built (real code, live-measured — not impression)
 
-Companion planning doc: `aios-forward-plan-phases-25-31.md` (Part 2, Phase
+Companion: this document's own "Forward Plan" section above (Phase
 25) — written before this phase ran, "nothing here is built yet." This
 section is what actually happened: both proposed changes were tested for
 real, against real measurements, and one of the two was adopted while the
@@ -5495,7 +5608,7 @@ Phase 26 — MCP Surface: a new small service exposing this system's
 governed agents/knowledge/approvals as MCP tools for IDEs (Claude Code,
 Cursor, VS Code+Continue, OpenCode), plus wiring the existing MCP client
 stub into the Reasoning Engine as a real tool source. See
-`aios-forward-plan-phases-25-31.md` for the full sequencing rationale
+this document's own "Forward Plan" section above for the full sequencing rationale
 (25→31).
 
 
@@ -5666,8 +5779,8 @@ this phase's deliverable.
 Phase 27 — OpenAI-Compatible Endpoint: exposing AIOS's own agents behind
 the widely-supported OpenAI chat-completions request/response shape, so
 external tools that already speak "OpenAI-compatible" (not MCP) can call
-this system too. See `aios-forward-plan-phases-25-31.md` for the full
-sequencing rationale (25→31).
+this system too. See this document's own "Forward Plan" section above
+for the full sequencing rationale (25→31).
 
 
 ---
@@ -5776,7 +5889,7 @@ Phase 28 — Adapter Contracts: publish versioned interface contracts in
 `docs/contracts/` (`ModelProvider`, `ToolAdapter`, `IDESurface`) extracted
 from three now-real, working implementations (Model Router, MCP Surface,
 this OpenAI shim) rather than invented in a vacuum. See
-`aios-forward-plan-phases-25-31.md` for the full sequencing rationale.
+this document's own "Forward Plan" section above for the full sequencing rationale.
 
 
 ---
@@ -5869,7 +5982,7 @@ not generated.
 Phase 29 — Tool Adapter Gaps: real browser, live-Odoo, and live-Django
 adapters, the first genuine test of whether this phase's contracts
 generalize to new adapter types built under them. See
-`aios-forward-plan-phases-25-31.md` for the full sequencing rationale.
+this document's own "Forward Plan" section above for the full sequencing rationale.
 
 
 ---
@@ -6028,8 +6141,8 @@ not a bug, left exactly as Phase 6 set it.
 
 Phase 30 — Declarative Workflows: multi-agent orchestration as data
 (`workflows/` YAML), not code, per the forward plan's own naming of this
-as "a real missing layer." See `aios-forward-plan-phases-25-31.md` for
-the full sequencing rationale.
+as "a real missing layer." See this document's own "Forward Plan"
+section above for the full sequencing rationale.
 
 ---
 
@@ -6209,8 +6322,8 @@ test run surfaced it.
 ## Next
 
 Phase 31 — Team & GPU-Day Hardening: the final phase in this forward
-plan. See `aios-forward-plan-phases-25-31.md` for the full sequencing
-rationale.
+plan. See this document's own "Forward Plan" section above for the full
+sequencing rationale.
 
 ---
 
@@ -6358,7 +6471,7 @@ real compose entries with correct real ports, and a named
 
 ## Next
 
-This is the final phase in `aios-forward-plan-phases-25-31.md`'s own
+This is the final phase in this document's own "Forward Plan" section's
 sequencing. Remaining real gaps across the whole system, consolidated:
 MCP Surface's own per-user auth (Section 3 above), a real Odoo 19
 instance and a Docker sandbox backend (Phase 29), real cloud-provider
