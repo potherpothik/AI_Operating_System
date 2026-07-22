@@ -15,7 +15,7 @@ Add to `opencode.json` (project-scoped) or the global OpenCode config:
 ```
 
 Run `opencode` and check its MCP status — `aios` should show as
-connected with 8 tools available to the agent.
+connected with 9 tools available to the agent.
 
 > Written from OpenCode's documented remote-MCP config shape current
 > as of this phase's writing (Phase 26); not run through a live

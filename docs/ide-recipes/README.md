@@ -1,9 +1,9 @@
 # IDE Recipes — connecting to AIOS's MCP Surface
 
-`services/mcp-surface/` (Phase 26) exposes 8 governed AIOS tools —
+`services/mcp-surface/` (Phase 26) exposes 9 governed AIOS tools —
 `submit_task`, `get_task_status`, `ask_agent`, `search_knowledge`,
 `get_erp_schema`, `list_pending_approvals`, `get_audit_trail`,
-`list_capabilities` — over real MCP (streamable HTTP transport) at
+`list_capabilities`, `trigger_workflow` (Phase 30) — over real MCP (streamable HTTP transport) at
 `http://localhost:8025/mcp`. Any MCP-speaking IDE or agent client can
 connect. Every call still authorizes and audit-logs through the real
 Security Layer — connecting an IDE does not grant it anything Security

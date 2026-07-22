@@ -13,7 +13,7 @@ Add to `.cursor/mcp.json` (project-scoped) or `~/.cursor/mcp.json`
 }
 ```
 
-Open Cursor Settings → MCP to confirm `aios` shows as connected with 8
+Open Cursor Settings → MCP to confirm `aios` shows as connected with 9
 tools listed. If your Cursor version doesn't yet support a bare `url`
 for streamable HTTP servers, check its MCP settings docs for the
 current remote-server field name — this has changed across Cursor

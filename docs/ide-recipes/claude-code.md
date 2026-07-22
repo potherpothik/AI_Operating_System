@@ -20,7 +20,7 @@ Or add it directly to a project's `.mcp.json`:
 ```
 
 Verify it connected with `/mcp` inside a Claude Code session — `aios`
-should show as connected with 8 tools.
+should show as connected with 9 tools.
 
 > Config field names for HTTP-transport MCP servers have shifted across
 > Claude Code releases. This recipe reflects the CLI/`.mcp.json` shape

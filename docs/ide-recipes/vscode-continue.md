@@ -11,9 +11,9 @@ mcpServers:
 ```
 
 Reload the Continue extension window, then check its MCP servers panel
-— `aios` should list all 8 tools (`submit_task`, `get_task_status`,
+— `aios` should list all 9 tools (`submit_task`, `get_task_status`,
 `ask_agent`, `search_knowledge`, `get_erp_schema`,
-`list_pending_approvals`, `get_audit_trail`, `list_capabilities`).
+`list_pending_approvals`, `get_audit_trail`, `list_capabilities`, `trigger_workflow`).
 
 > Written from Continue's documented `mcpServers` config shape current
 > as of this phase's writing (Phase 26); not run through a live VS
