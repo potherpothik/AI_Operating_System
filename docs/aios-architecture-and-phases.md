@@ -6472,8 +6472,104 @@ real compose entries with correct real ports, and a named
 ## Next
 
 This is the final phase in this document's own "Forward Plan" section's
-sequencing. Remaining real gaps across the whole system, consolidated:
-MCP Surface's own per-user auth (Section 3 above), a real Odoo 19
-instance and a Docker sandbox backend (Phase 29), real cloud-provider
-support for Model Router (a product decision, not an engineering one —
-Phase 23 §0), and a real workflow-runs view in `web/` (Phase 30).
+sequencing (Phases 25–31). Phase 32 below is a small, separate addition
+outside that plan — a real gap found while correcting a stray,
+factually-incorrect planning document (`docs/ARCHITECTURE_PLAN.md`).
+Remaining real gaps across the whole system, consolidated: MCP Surface's
+own per-user auth (Section 3 above), a real Odoo 19 instance and a
+Docker sandbox backend (Phase 29), real cloud-provider support for Model
+Router (a product decision, not an engineering one — Phase 23 §0), and
+a real workflow-runs view in `web/` (Phase 30).
+
+---
+
+<!-- source: phase-32-schema-drift-detection.md -->
+
+# Phase 32 — Schema Drift Detection
+### Closing a real gap found while correcting a stray, incorrect planning document
+
+---
+
+## Built (real code, live-tested — not impression)
+
+An untracked, uncommitted `docs/ARCHITECTURE_PLAN.md` was found in the
+primary worktree during this session — a draft from an unrelated,
+less-informed pass that proposed building a new `services/orchestrator/`
+on the false premise that no orchestration core existed. It was
+rewritten to reflect the real system (see the file itself — Planner,
+Reasoning Engine, governance, and Phase 30's workflows already are that
+orchestration core), and its two independent "Phase 2" ideas were
+checked against the real code before deciding what to build:
+
+- **Cross-Agent Memory Sharing** — investigated and found substantially
+  already built: `Document.project_id` (Vector Search, Phase 3) and
+  Context Builder's required `namespace` parameter (Phase 4) already
+  give every agent project-scoped retrieval, not a single unscoped
+  global index. Not a genuine gap; nothing built for it.
+- **Schema Drift Detector** — investigated and found genuinely missing:
+  `services/knowledge_pipelines/`'s ERP Knowledge Engine (Phase 9) has
+  always had exactly one, purely manually-triggered sync path
+  (`POST /erp-knowledge/sync`) — nothing ever compared a freshly-fetched
+  live schema against what was last stored to decide whether a re-sync
+  was even warranted. This phase closes that real gap.
+
+## 1. A real, structured schema diff — `erp_knowledge_engine/drift.py`
+
+Not a prose comparison: `ErpSchemaSnapshot.tables` (Phase 9) already
+stores the full structured `{table: {columns, foreign_keys}}` schema
+JSON from every sync, so `detect_drift()` diffs the live schema against
+it table-by-table and column-by-column — added tables, removed tables,
+added/removed/type-changed columns — and returns a real structured
+report, never writing anything itself. `check_and_sync()` runs that
+check first and only performs the real re-sync (a live schema fetch
+plus a Vector Search write per table, `odoo_sync.sync()`, unchanged)
+when genuine drift was found — skipping real, costly re-ingestion work
+on a no-op check, which every prior sync call always did unconditionally.
+
+## 2. Two new endpoints, both explicit, neither a background daemon
+
+`GET /erp-knowledge/{target_db}/drift` (read-only check) and
+`POST /erp-knowledge/{target_db}/check-and-sync` (check, then
+conditionally sync). Confirmed no route-ordering collision with the
+router's existing literal-segment routes (`/sync`, `/snapshots`,
+`/graph`, `/formula/...`) via a real HTTP `TestClient` round trip — the
+same route-ordering check class Phases 11 and 17 already established
+for this exact file.
+
+Deliberately **not** a continuously-running poller: this project has
+never had a background dispatcher of any kind anywhere, confirmed
+exhaustively during Phase 30's own design (Task Manager's `dequeue()`
+has zero callers; nothing schedules itself). `check-and-sync` is an
+explicit, on-demand call — a human, cron job, or external scheduler
+decides when to invoke it, the same "poll-triggered, not
+continuously-running" posture `knowledge_pipelines/README.md` already
+documents for its own document-source watching feature.
+
+## 3. Real tests, plus one genuine pre-existing bug found and fixed in passing
+
+5 new tests in `test_erp_knowledge_engine_api.py`: drift correctly
+reported when no prior snapshot exists, no drift reported immediately
+after a real sync against the same live source, `check-and-sync`
+skipping a real re-sync when nothing changed (confirmed via an
+unchanged snapshot id), `check-and-sync` performing a real re-sync for
+a never-synced target, and the real HTTP route-ordering check. All 58
+tests in the service's suite pass.
+
+**Found in passing, unrelated to this phase's own code:**
+`test_code_analysis_api.py` had two tests hardcoding the literal string
+`"qwen-coder"` as a `target_model` — the same stale pre-Phase-25 model
+name Phase 27's own doc already documented finding and fixing once in
+`reasoning_engine.yaml`'s config, just never propagated to this test
+file. `assembly`'s `ceiling_for_model()` correctly refused to recognize
+it as local, so the tests failed for the right structural reason but
+the wrong practical one. Fixed at the source — both tests now use the
+real `default_local_model` value (`qwen3.5:4b`).
+
+## Next
+
+Real, individually-named gaps remain across the system (Phase 31's own
+"Next" section, above, lists them) — none of them queue a specific next
+phase. Future work follows this project's own established discipline:
+a real gap, found by checking against actual code rather than assumed
+from a file listing, closed with real, live-tested code, one phase at a
+time.

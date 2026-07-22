@@ -2,7 +2,7 @@ import httpx
 import pytest
 
 from knowledge_pipelines.db import SessionLocal
-from knowledge_pipelines.erp_knowledge_engine import api, store, graph
+from knowledge_pipelines.erp_knowledge_engine import api, store, graph, drift
 
 
 def test_sync_pulls_real_schema_from_database_connector(governance_url, knowledge_url, database_url):
@@ -236,6 +236,77 @@ def test_get_formula_by_name_unknown_name_returns_404():
         api.get_formula_by_name("nonexistent_formula_name_xyz", db)
     db.close()
     assert exc_info.value.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Schema Drift Detector — a genuine gap named in docs/ARCHITECTURE_PLAN.md's
+# real "Phase 2" investigation and closed here: sync() was always purely
+# manually-triggered with no way to know beforehand whether the live
+# schema had actually changed since the last snapshot.
+# ---------------------------------------------------------------------------
+
+def test_drift_check_with_no_prior_snapshot_reports_drifted(governance_url, knowledge_url, database_url):
+    db = SessionLocal()
+    result = drift.detect_drift(db, "demo_erp_never_synced_drift_test", "database_agent")
+    db.close()
+    assert result["drifted"] is True
+    assert result["reason"] == "no prior snapshot exists"
+
+
+def test_drift_check_immediately_after_a_real_sync_reports_no_drift(governance_url, knowledge_url, database_url):
+    db = SessionLocal()
+    api.sync(api.SyncRequest(target_db="demo_erp", requested_by="human_admin"), db)
+    result = drift.detect_drift(db, "demo_erp", "database_agent")
+    db.close()
+
+    assert result["drifted"] is False
+    assert result["added_tables"] == []
+    assert result["removed_tables"] == []
+    assert result["changed_tables"] == {}
+
+
+def test_check_and_sync_skips_a_real_resync_when_nothing_changed(governance_url, knowledge_url, database_url):
+    db = SessionLocal()
+    api.sync(api.SyncRequest(target_db="demo_erp", requested_by="human_admin"), db)
+    snapshot_before = store.get_current_snapshot(db, "demo_erp")
+
+    result = drift.check_and_sync(db, "demo_erp", "database_agent")
+    snapshot_after = store.get_current_snapshot(db, "demo_erp")
+    db.close()
+
+    assert result["synced"] is False
+    assert snapshot_after.id == snapshot_before.id  # no new snapshot was created
+
+
+def test_check_and_sync_performs_a_real_resync_for_a_never_synced_target(governance_url, knowledge_url, database_url):
+    db = SessionLocal()
+    result = drift.check_and_sync(db, "demo_erp", "database_agent")
+    db.close()
+
+    assert result["synced"] is True
+    assert result["drift"]["drifted"] is True
+    assert result["sync_result"]["model_count"] >= 2
+
+
+def test_drift_route_and_check_and_sync_route_are_reachable_and_not_shadowed(governance_url, knowledge_url, database_url):
+    """Real HTTP round trip through the actual route table — confirms
+    /{target_db}/drift and /{target_db}/check-and-sync don't collide with
+    the literal-segment routes (/sync, /snapshots, /graph, /formula/...)
+    registered in the same router, the same route-ordering class of check
+    Phase 11/17 already established for this file."""
+    from fastapi.testclient import TestClient
+    from main import app
+    client = TestClient(app)
+
+    sync_resp = client.post("/erp-knowledge/sync", json={"target_db": "demo_erp", "requested_by": "human_admin"})
+    assert sync_resp.status_code == 200
+
+    drift_resp = client.get("/erp-knowledge/demo_erp/drift")
+    assert drift_resp.status_code == 200
+    assert drift_resp.json()["drifted"] is False
+
+    # Untouched literal routes still resolve correctly, not swallowed by the new pattern.
+    assert client.get("/erp-knowledge/snapshots").status_code == 200
 
 
 def test_by_name_route_not_shadowed_by_formula_id_wildcard():

@@ -124,7 +124,7 @@ def test_raw_source_full_round_trip_returns_real_file_content(sample_repo, gover
 
     result = raw_source_gate.request_raw_source(
         db, task_id="task-raw-1", requesting_capability="django_agent",
-        repo=str(sample_repo), files=["widgets.py"], reason="need real implementation detail", target_model="qwen-coder",
+        repo=str(sample_repo), files=["widgets.py"], reason="need real implementation detail", target_model="qwen3.5:4b",
     )
     assert result["status"] == "pending_approval"
 
@@ -177,7 +177,7 @@ def test_raw_source_request_never_logs_the_actual_file_content(sample_repo, gove
     db = SessionLocal()
     result = raw_source_gate.request_raw_source(
         db, task_id="task-raw-3", requesting_capability="django_agent",
-        repo=str(sample_repo), files=["widgets.py"], reason="audit content check", target_model="qwen-coder",
+        repo=str(sample_repo), files=["widgets.py"], reason="audit content check", target_model="qwen3.5:4b",
     )
     httpx.post(f"{governance_url}/approval/{result['approval_id']}/decide", json={"decided_by": "human_admin", "approve": True})
     raw_source_gate.fetch_raw_source(db, result["request_id"])

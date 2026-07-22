@@ -16,10 +16,11 @@ reading order.
 |---|---|
 | [`installation-guide.md`](installation-guide.md) | **First-time setup** — prerequisites, Ollama, start services, Web UI |
 | [`command.txt`](command.txt) | Copy-paste terminal commands (ports, curl, tests) |
-| [`aios-architecture-and-phases.md`](aios-architecture-and-phases.md) | **Primary reference** — lifecycle flow, Phases 1–31 design (TOC with anchors), API/DB index (Phase 21), the Forward Plan's own restructure review and sequencing rationale (merged in above Phase 25), deployment, backup |
+| [`aios-architecture-and-phases.md`](aios-architecture-and-phases.md) | **Primary reference** — lifecycle flow, Phases 1–32 design (TOC with anchors), API/DB index (Phase 21), the Forward Plan's own restructure review and sequencing rationale (merged in above Phase 25), deployment, backup |
 | [`architecture-vision.md`](architecture-vision.md) | Long-term vision, two brains, kernel map, roadmap |
 | [`aios-db-erd.md`](aios-db-erd.md) | Logical database ERD across all services |
 | [`gpu-day-playbook.md`](gpu-day-playbook.md) | Real, config-only checklist for moving the reasoning model to a GPU host (Phase 31) |
+| [`ARCHITECTURE_PLAN.md`](ARCHITECTURE_PLAN.md) | Corrected version of a stray incorrect planning draft — why a new `services/orchestrator/` was NOT built, and what Phase 32 closed instead |
 | [`contracts/`](contracts/) | Versioned `ModelProvider`/`ToolAdapter`/`IDESurface` interface contracts (Phase 28) — read before building a new adapter of any of these three kinds |
 
 ---
@@ -76,6 +77,7 @@ phase design docs before implementation.
 | `services/agents/`'s `odoo_live_bridge.py`/`django_bridge.py`/`browser_bridge.py` + `services/execution/`'s `browser_action.py` | 29 | [`aios-architecture-and-phases.md#phase-29-tool-adapter-gaps`](aios-architecture-and-phases.md#phase-29-tool-adapter-gaps) | yes, at three honest tiers (real XML-RPC code unverified against a live Odoo instance; real, fully live-tested Django `manage.py` adapter; real Playwright browser adapter whose structural URL gate is verified but whose real page loads are currently refused by this environment's own sandbox memory limit) |
 | `services/planning/planning/workflows/` (new) + `workflows/code_review_pipeline.yaml` + MCP Surface's `trigger_workflow` | 30 | [`aios-architecture-and-phases.md#phase-30-declarative-workflows`](aios-architecture-and-phases.md#phase-30-declarative-workflows) | yes (real workflow YAML store reusing Phase 8's own `TaskGraph`/`Subtask` schema; explicit `dispatch_ready_subtasks()`/`advance()` dispatcher — never a background poller, since this project has never had one; 11 live tests incl. one genuine end-to-end trigger; no workflow-runs view in `web/`, named honestly, not silently implied) |
 | `services/identity/` (new) + governance's `security/oidc.py` + `AUTH_MODE=oidc` in Gateway/OpenAI shim/Control UI | 31 | [`aios-architecture-and-phases.md#phase-31-team-and-gpu-day-hardening`](aios-architecture-and-phases.md#phase-31-team-and-gpu-day-hardening) | yes (real, hand-built self-hosted OIDC provider — real RSA-signed JWTs, real bcrypt users, real single-use auth codes; `AUTH_MODE=oidc` additive, default stays `stub`; real per-user audit + `ENFORCE_APPROVER_NOT_REQUESTER`; real `docs/gpu-day-playbook.md`; MCP Surface's own per-request OIDC wiring honestly deferred, not silently skipped) |
+| `services/knowledge_pipelines/.../erp_knowledge_engine/drift.py` (new) | 32 | [`aios-architecture-and-phases.md#phase-32-schema-drift-detection`](aios-architecture-and-phases.md#phase-32-schema-drift-detection) | yes (real structured schema diff against the stored snapshot; `GET .../drift` + `POST .../check-and-sync`, explicit and on-demand, never a background daemon; found while correcting a stray incorrect planning draft, `ARCHITECTURE_PLAN.md`) |
 
 Agent capabilities live under `services/agents/agents/<name>/` — read the
 phase doc for that agent batch, plus [`agent-capability-schema`](../.cursor/rules/agent-capability-schema.mdc).

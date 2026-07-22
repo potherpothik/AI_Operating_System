@@ -1,4 +1,4 @@
-# Phase 9/11 — Documentation, ERP Knowledge & Code Analysis Engines (working implementation)
+# Phase 9/11/32 — Documentation, ERP Knowledge & Code Analysis Engines (working implementation)
 
 Real, tested code. Every agent built so far — Odoo Agent (Phase 5),
 Database Agent (Phase 7) — and Planner (Phase 8) reasoning about them,
@@ -58,7 +58,7 @@ DEMO_ERP_DATABASE_URL=postgresql://user:pass@host:5432/demo_erp \
 pytest tests/ -v   # full suite against the live stack
 ```
 
-53 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
+58 tests, all passing against real Postgres (genuine `TIMESTAMPTZ`
 columns, confirmed via direct schema inspection, under a non-UTC
 session). Real parsing (a genuinely generated PDF via `reportlab`, a
 real `.docx` via `python-docx`, real markdown/YAML/JSON, and real Python
@@ -178,6 +178,28 @@ content — no mocks.
   in `services/assembly/tests/test_classification.py`) uses `TestClient`
   specifically so this class of bug can't silently return.
 
+## Phase 32 addition — real Schema Drift Detection
+
+A genuine gap found while correcting a stray, incorrect planning
+document (`docs/ARCHITECTURE_PLAN.md`): `odoo_sync.py`'s `sync()` was
+always purely manually-triggered, with no way to know beforehand
+whether the live schema had actually changed since the last snapshot —
+every call re-ingested every table's prose into Vector Search
+unconditionally. `erp_knowledge_engine/drift.py`'s `detect_drift()` now
+does a real, structured table-by-table, column-by-column diff against
+the current `ErpSchemaSnapshot.tables` (real stored JSON, not prose) —
+`GET /erp-knowledge/{target_db}/drift` for a pure read-only check, and
+`POST /erp-knowledge/{target_db}/check-and-sync` to check first and
+only perform the real, costly re-sync when genuine drift was found.
+Both are explicit, on-demand calls, not a background daemon — same
+"poll-triggered, not continuously-running" posture as `/docs/sources/{id}/check`
+below. 5 new tests confirm: drift correctly reported with no prior
+snapshot, no drift immediately after a real sync, `check-and-sync`
+skipping a real re-sync when nothing changed (confirmed via an
+unchanged snapshot id), a real re-sync for a never-synced target, and a
+real HTTP route-ordering check (no collision with `/sync`, `/snapshots`,
+`/graph`, `/formula/...`).
+
 ## What's a stub or simplified
 
 - **"Watching" is poll-triggered via `POST /docs/sources/{id}/check`,
@@ -190,7 +212,8 @@ content — no mocks.
   external scheduler hitting this endpoint periodically gets the same
   outcome the doc describes; a genuine in-process daemon is a reasonable
   future extension once there's a concrete reason to need push-based
-  latency instead of poll-based.
+  latency instead of poll-based. Phase 32's `check-and-sync` follows the
+  exact same convention for schema drift.
 - **No live Odoo instance exists in this environment** — ERP Knowledge
   Engine syncs against the same seeded Postgres `demo_erp` database
   every phase since 7 has used, via Database Connector's generic schema

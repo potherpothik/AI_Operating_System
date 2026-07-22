@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from knowledge_pipelines.db import get_db
 from knowledge_pipelines import clients
-from knowledge_pipelines.erp_knowledge_engine import store, odoo_sync, annotations, formulas, graph
+from knowledge_pipelines.erp_knowledge_engine import store, odoo_sync, annotations, formulas, graph, drift
 
 router = APIRouter(prefix="/erp-knowledge", tags=["erp-knowledge"])
 
@@ -23,6 +23,36 @@ def sync(req: SyncRequest, db: Session = Depends(get_db)):
     except clients.SchemaFetchFailed as e:
         raise HTTPException(status_code=502, detail=f"schema sync failed, affected knowledge marked stale: {e}")
     return result
+
+
+@router.get("/{target_db}/drift")
+def check_drift(target_db: str, capability: str = "database_agent", db: Session = Depends(get_db)):
+    """
+    Real, read-only schema-drift check — a genuine gap this closes:
+    every prior sync was purely manually-triggered with no way to know
+    beforehand whether anything had actually changed. Compares the live
+    schema against the current stored snapshot table-by-table,
+    column-by-column; never writes anything.
+    """
+    try:
+        return drift.detect_drift(db, target_db, capability)
+    except clients.SchemaFetchFailed as e:
+        raise HTTPException(status_code=502, detail=f"could not fetch live schema to check drift: {e}")
+
+
+@router.post("/{target_db}/check-and-sync")
+def check_and_sync(target_db: str, capability: str = "database_agent", requested_by: str = "erp_knowledge_engine", db: Session = Depends(get_db)):
+    """
+    Detects drift first, and only performs the real re-sync (a live
+    schema fetch plus a Vector Search write per table) when something
+    genuinely changed — an explicit, on-demand call (cron, a human, an
+    external scheduler), never a background daemon this project has
+    never had anywhere.
+    """
+    try:
+        return drift.check_and_sync(db, target_db, capability, requested_by)
+    except clients.SchemaFetchFailed as e:
+        raise HTTPException(status_code=502, detail=f"schema check failed: {e}")
 
 
 class AnnotateRequest(BaseModel):
