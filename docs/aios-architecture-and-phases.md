@@ -1,13 +1,15 @@
 # AI Operating System — Architecture & Phases (Consolidated)
 
-This document merges all phase design docs (Phases 1–25), the main lifecycle
+This document merges all phase design docs (Phases 1–33), the main lifecycle
 flow, and the Phases 12–21 roadmap into a single reference.
 
 **Also see:** [`architecture-vision.md`](architecture-vision.md) (vision/kernel map),
 [`elizaos-borrowed-ideas.md`](elizaos-borrowed-ideas.md) (borrowed patterns),
 [`aios-db-erd.md`](aios-db-erd.md) (database ERD),
 [`docs/README.md`](README.md) (doc index),
-the "Forward Plan" section further down this document (Phases 25–31 planning, merged in once all seven were built).
+the "Forward Plan" section further down this document (Phases 25–31 planning,
+merged in once all seven were built; Phases 32–33 are real gaps found and
+closed after that plan's own final phase, not part of it).
 
 ---
 
@@ -37,11 +39,16 @@ the "Forward Plan" section further down this document (Phases 25–31 planning, 
 - [Phase 22 — External Coding Agents](#phase-22-external-coding-agents)
 - [Phase 23 — Model Router](#phase-23-model-router)
 - [Phase 24 — Control UI (Web Shell)](#phase-24-control-ui-web-shell)
+- [The Forward Plan — Review of the Proposed Restructure, and Phases 25–31](#the-forward-plan-review-of-the-proposed-restructure-and-phases-2531)
 - [Phase 25 — Model & Retrieval Quality](#phase-25-model-retrieval-quality)
 - [Phase 26 — MCP Surface](#phase-26-mcp-surface)
 - [Phase 27 — OpenAI-Compatible Endpoint](#phase-27-openai-compatible-endpoint)
 - [Phase 28 — Adapter Contracts](#phase-28-adapter-contracts)
 - [Phase 29 — Tool Adapter Gaps](#phase-29-tool-adapter-gaps)
+- [Phase 30 — Declarative Workflows](#phase-30-declarative-workflows)
+- [Phase 31 — Team & GPU-Day Hardening](#phase-31-team-and-gpu-day-hardening)
+- [Phase 32 — Schema Drift Detection](#phase-32-schema-drift-detection)
+- [Phase 33 — Operating Discipline](#phase-33-operating-discipline)
 
 ---
 

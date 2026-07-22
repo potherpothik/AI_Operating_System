@@ -277,10 +277,39 @@ all — fixed in passing. MCP Surface's own per-request OIDC wiring is
 honestly named as remaining work, not silently skipped: the `mcp` SDK's
 request-context access needs its own careful, tested pass. See
 [`aios-architecture-and-phases.md#phase-31-team-and-gpu-day-hardening`](aios-architecture-and-phases.md#phase-31-team-and-gpu-day-hardening).
+
+Two small phases followed the forward plan's own final phase, both real
+gaps found by checking actual code rather than assuming from a file
+listing. Phase 32 (Schema Drift Detection) closed a genuine gap found
+while correcting a stray, uncommitted `docs/ARCHITECTURE_PLAN.md` draft
+that had proposed a redundant `services/orchestrator/` on the false
+premise that no orchestration core existed (it does — Planner,
+Reasoning Engine, governance, and Phase 30's workflows already are
+that core; the file was rewritten instead of the service being built).
+`services/knowledge_pipelines/knowledge_pipelines/erp_knowledge_engine/drift.py`
+now does a real structured table/column diff against the stored ERP
+schema snapshot (`GET .../drift`, `POST .../check-and-sync`) — explicit
+and on-demand, same "never a background daemon" posture as every other
+part of this system. Phase 33 (Operating Discipline) applied a
+user-supplied operating manual to two genuinely different audiences at
+two genuinely different token budgets:
+`.cursor/rules/operating-discipline.mdc` (near-verbatim, governs Claude
+Code/Cursor working on this repo) and a short, distilled addendum to
+`services/assembly/`'s one shared prompt fragment every one of 25+
+agents already embeds (`{shared_fragment}`) — reaching every agent's
+rendered prompt with zero per-agent template edits, deliberately kept
+short rather than transplanting the full manual, since Phase 25 already
+found that verbose prompting hurts this system's local model's
+structured-output reliability, not helps it. See
+[`aios-architecture-and-phases.md#phase-32-schema-drift-detection`](aios-architecture-and-phases.md#phase-32-schema-drift-detection)
+and
+[`aios-architecture-and-phases.md#phase-33-operating-discipline`](aios-architecture-and-phases.md#phase-33-operating-discipline).
+
 See root [`README.md`](../README.md) status table for the
 authoritative phase → service map.
 
-**All 31 phases in the original + forward plan are now built.** Real
+**All 33 phases in the original + forward plan, plus two real gaps found
+after it, are now built.** Real
 cloud-provider support for Model Router remains a product decision, not
 an engineering one, independent of that sequence — see Phase 23 §0.
 
@@ -342,11 +371,14 @@ Before any implementation, follow the doc-reading protocol in
 
 ## Next
 
-All 31 phases in the forward plan's own sequencing are now built (the
+All 31 phases in the forward plan's own sequencing are built (the
 plan itself is merged into `aios-architecture-and-phases.md`'s own
-"Forward Plan" section, above Phase 25). What remains is a set of real,
-individually-named gaps within already-built phases, not a queued next
-phase:
+"Forward Plan" section, above Phase 25), plus two further phases outside
+that plan: Phase 32 (Schema Drift Detection) and Phase 33 (Operating
+Discipline), both real gaps found and closed after the forward plan's
+own final phase — see the narrative above. What remains is a set of
+real, individually-named gaps within already-built phases, not a queued
+next phase:
 
 - **MCP Surface's own per-request OIDC wiring** (Phase 31) — the `mcp`
   SDK's request-context access needs its own careful, tested pass; its

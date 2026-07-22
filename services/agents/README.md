@@ -1114,7 +1114,13 @@ All 31 phases in the forward plan (merged into
 `docs/aios-architecture-and-phases.md`'s own "Forward Plan" section,
 above Phase 25) are now built, including Phase 30 (Declarative
 Workflows, `services/planning/planning/workflows/`) and Phase 31 (Team &
-GPU-Day Hardening, `services/identity/` + `AUTH_MODE=oidc`). What
+GPU-Day Hardening, `services/identity/` + `AUTH_MODE=oidc`) — plus two
+further phases outside that plan: Phase 32 (Schema Drift Detection,
+`services/knowledge_pipelines/`) and Phase 33 (Operating Discipline,
+`.cursor/rules/operating-discipline.mdc` + a short addendum to this
+service's own shared prompt fragment via `services/assembly/`'s
+`shared_fragments.py` — reaching every one of this service's 25+ agents'
+rendered prompts with zero per-agent `template.md` edits). What
 remains is a set of real, individually-named gaps within already-built
 phases, not a queued next phase: a real Odoo 19 instance to test
 `odoo_live_bridge.py`'s success path against, and a Docker sandbox
