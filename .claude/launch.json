@@ -7,6 +7,13 @@
       "runtimeArgs": ["run", "dev"],
       "port": 3000,
       "cwd": "web"
+    },
+    {
+      "name": "governance",
+      "runtimeExecutable": "/home/saadi/Documents/AI_Operating_System/.claude/worktrees/getting-started-3501ab/.venv/bin/python",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8900"],
+      "port": 8900,
+      "cwd": "services/governance"
     }
   ]
 }

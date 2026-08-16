@@ -355,6 +355,18 @@ in this repo points at `governance_dr_drill`.
   covering only the act of asking, never the asked capability's own
   scope.
 
+## Phase 34 addition — `django_agent`'s missing `git.*` grants
+
+- `git.branch` / `git.commit` / `git.diff` / `git.push` / `git.open_mr`
+  (Phase 34): added `allow` to the `django_agent` role. Every other
+  propose-capable agent already had these (`odoo_agent`, `devops_agent`,
+  `docker_agent`, etc.) since `django.propose_config_change`'s
+  materialization routes through Git Manager exactly like theirs, but
+  `django_agent`'s own block never got them — a real gap, only found by
+  the first genuine live test of that path against a real external repo,
+  which 403'd at the `git.branch` step before this fix. Regression test:
+  `tests/test_security.py::test_django_agent_git_actions_allowed`.
+
 ## Next
 
 This is one piece of Phase 1's design; Phase 2 (Gateway, Task Manager,

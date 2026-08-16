@@ -6721,6 +6721,31 @@ defaults to `python3` (backward-compat guard) and a real call-argument
 check confirming an override actually reaches Shell Executor's own
 `command` field, not just a local variable.
 
+## 5. A third real, structural finding: `django_agent`'s write path had never actually been exercised — a missing governance grant, found by the first live test
+
+Every prior phase's `django.propose_config_change` testing exercised
+the schema/approval shape, never the actual materialization against a
+real external repo. Running it for real for the first time — a genuine
+model-generated proposal (fed real, concrete facts about the project's
+`ALLOWED_HOSTS` fallback default) approved and resumed — failed with a
+`403 Forbidden` at the `git.branch` step. Root cause:
+`services/governance/governance/security/policies/default.yaml`'s
+`django_agent` role block never had the `git.branch`/`git.commit`/
+`git.diff`/`git.push`/`git.open_mr` grants every other propose-capable
+agent (`devops_agent`, `docker_agent`, `odoo_agent`, etc.) already has —
+`devops_agent`'s own policy comment even names this exact class of gap
+("caught by live testing"), it just was never applied to `django_agent`
+itself. Fixed by adding the same five `allow` grants. Confirmed live,
+end to end, against the user's real `Facade V3` GitHub repository: a
+real branch (`django-agent/task-*`), a real commit with a full
+provenance trailer, and a real `git push origin` landed on the real
+remote (verified via `git fetch` + `git log` against `origin`); MR
+opening correctly reported `not_configured` since no `GITHUB_TOKEN` is
+set for this deployment. The test branch was deleted afterward at the
+user's request — `main` was never touched at any point.
+`services/governance/tests/test_security.py::test_django_agent_git_actions_allowed`
+is the regression test for this specific gap.
+
 ## Next
 
 Real, individually-named gaps from Phase 31's own "Next" section remain

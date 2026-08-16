@@ -188,6 +188,29 @@ roles:
     - action: "shell.execute"
       resource: "*"
       effect: allow
+    # django.propose_config_change lands as a Git Manager MR — same split
+    # as devops_agent/docker_agent above: the human approval already
+    # happened on the propose_* action itself, and Git Manager's own
+    # branch/commit/push route through Shell Executor internally.
+    # Missing here until a real, live test against a real repo actually
+    # exercised django.propose_config_change end-to-end for the first
+    # time and got a 403 — same class of gap devops_agent's own comment
+    # already documents, just never applied to this block.
+    - action: "git.branch"
+      resource: "*"
+      effect: allow
+    - action: "git.commit"
+      resource: "*"
+      effect: allow
+    - action: "git.diff"
+      resource: "*"
+      effect: allow
+    - action: "git.push"
+      resource: "*"
+      effect: allow
+    - action: "git.open_mr"
+      resource: "*"
+      effect: allow
     - action: "django.propose_migration"
       resource: "*"
       effect: require_approval

@@ -53,6 +53,20 @@ def test_odoo_agent_git_actions_allowed():
         assert r.json()["decision"] == "allow", f"{action} expected allow, got {r.json()}"
 
 
+def test_django_agent_git_actions_allowed():
+    # Found by a real, live test of django.propose_config_change against
+    # an actual external repo: this block never got the git.* grants every
+    # other propose-capable agent (odoo_agent above, devops_agent, etc.)
+    # already has, so materializing an approved proposal 403'd at the
+    # branch step. Regression test for that gap.
+    for action in ("git.branch", "git.commit", "git.diff", "git.push", "git.open_mr"):
+        r = client.post(
+            "/security/authorize",
+            json={"actor": "django_agent", "action": action, "resource": "Facade V3"},
+        )
+        assert r.json()["decision"] == "allow", f"{action} expected allow, got {r.json()}"
+
+
 def test_database_agent_read_and_dry_run_allowed():
     for action in ("db.read", "db.dry_run"):
         r = client.post("/security/authorize", json={"actor": "database_agent", "action": action, "resource": "demo_erp"})
