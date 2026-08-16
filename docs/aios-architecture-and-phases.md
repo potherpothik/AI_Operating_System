@@ -1,6 +1,6 @@
 # AI Operating System — Architecture & Phases (Consolidated)
 
-This document merges all phase design docs (Phases 1–33), the main lifecycle
+This document merges all phase design docs (Phases 1–34), the main lifecycle
 flow, and the Phases 12–21 roadmap into a single reference.
 
 **Also see:** [`architecture-vision.md`](architecture-vision.md) (vision/kernel map),
@@ -49,6 +49,7 @@ closed after that plan's own final phase, not part of it).
 - [Phase 31 — Team & GPU-Day Hardening](#phase-31-team-and-gpu-day-hardening)
 - [Phase 32 — Schema Drift Detection](#phase-32-schema-drift-detection)
 - [Phase 33 — Operating Discipline](#phase-33-operating-discipline)
+- [Phase 34 — Real External Project Integration](#phase-34-real-external-project-integration)
 
 ---
 
@@ -6644,6 +6645,88 @@ passing against the real running stack.
 
 ## Next
 
-No new gap opened by this phase. The same real, individually-named gaps
-from Phase 31's own "Next" section remain the honest list of what's
-actually left.
+Phase 34 (Real External Project Integration) follows directly — the
+first time this system connected to and ran governed commands against a
+real, external, live business codebase rather than a disposable test
+project.
+
+---
+
+<!-- source: phase-34-real-external-project-integration.md -->
+
+# Phase 34 — Real External Project Integration
+### The first real external project connected — and two real, structural gaps that only showed up because of it
+
+---
+
+## Built (real code, live-tested — not impression)
+
+Every prior phase's `django_agent`/`python_agent` testing used a
+disposable `django-admin startproject` inside the sandbox (Phase 29) —
+real, but never a genuine external codebase with its own dependency
+stack, its own venv, its own real git history. This phase connects one
+for real and reports exactly what broke doing it.
+
+## 1. `SANDBOX_ROOT` widened to a real external workspace — an explicit, informed tradeoff, not a default change
+
+Shell Executor's `SANDBOX_ROOT` (default `/tmp/ai_os_sandbox`, a
+disposable path) is a real structural boundary — no code path lets a
+governed command touch anything outside it. Connecting a real project
+means pointing this at wherever that project actually lives, real and
+consequential: every governed shell command now runs inside that real
+workspace, not a throwaway one. Confirmed live, correctly still bounded
+even after widening: only `django_agent`'s specific allow-listed,
+`read_only` `manage.py` subcommands actually ran; nothing wrote to the
+project's own `main` branch.
+
+## 2. `django_bridge.py`'s interpreter is now configurable
+
+The same class of gap Phase 17 (`ezdxf`) and Phase 29 (`django`,
+`playwright`) already found: Shell Executor's sandboxed subprocess
+resolves a bare `python3` from its own process's `PATH`, never a
+particular project's own venv. A real external project has its own
+venv with its own real dependencies actually installed — `DJANGO_PYTHON_BIN`
+(new, defaults to `python3`, unchanged for every existing test and
+deployment) lets a real deployment point at that project's own
+interpreter. `services/execution/execution/shell_executor/allowlists/django_agent.yaml`
+gained matching `*/env/bin/python3 manage.py *` patterns for the
+conventional per-project venv layout, alongside the original bare
+`python3`/`python` patterns, unchanged.
+
+## 3. A second, real, structural finding: `RLIMIT_AS`, again — but with a real fix this time
+
+Running `manage.py check` against the real project failed with
+`ImportError: ...sparse.cpython-312-x86_64-linux-gnu.so: failed to map
+segment from shared object` — confirmed by direct reproduction (the
+identical rlimit applied outside the sandbox reproduces the identical
+failure) to be `SubprocessSandbox`'s 512MB `RLIMIT_AS` cap, the same
+real security boundary that structurally refused Playwright's own
+driver process in Phase 29. Unlike that finding, this one has a real,
+safe fix: `SANDBOX_MEMORY_LIMIT_MB` (new, default `512`, unchanged for
+every capability/deployment that hasn't explicitly set it) is an
+explicit, informed, default-preserving opt-in — never a silent global
+raise of the hardcoded value, which would have weakened the boundary
+for every capability using `shell.execute`, not just this one project's
+own real dependency stack. Confirmed live: the same real command fails
+under the unchanged 512MB default and succeeds once
+`SANDBOX_MEMORY_LIMIT_MB=2048` is set for this specific deployment.
+
+## 4. Real tests, all passing
+
+`services/execution/tests/test_sandbox.py` — a real allocation the
+default 512MB cap refuses succeeds once explicitly raised, and refuses
+again at the (unset) default; full execution suite (73 tests) passes.
+`services/agents/tests/test_phase29_tool_adapters.py` — `DJANGO_PYTHON_BIN`
+defaults to `python3` (backward-compat guard) and a real call-argument
+check confirming an override actually reaches Shell Executor's own
+`command` field, not just a local variable.
+
+## Next
+
+Real, individually-named gaps from Phase 31's own "Next" section remain
+the honest list of what's left across the system generally. Specific to
+this phase: `_SAFE_ENV_KEYS` (Shell Executor's minimal env-var
+passthrough allowlist) may still be too narrow for a real project's own
+`manage.py test`/deeper checks if its settings require env vars beyond
+what's currently allowed through — not hit yet in this phase's own live
+testing, named honestly as a likely next gap rather than assumed fine.

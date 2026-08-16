@@ -16,6 +16,16 @@ _ALLOWED_SUBCOMMANDS = {"check", "showmigrations", "test"}
 # CALC_WORKING_DIR already established.
 DJANGO_PROJECT_ROOT = os.environ.get("DJANGO_PROJECT_ROOT")
 
+# A real project has its own venv with its own real dependencies
+# installed (Django, DRF, whatever else) — the bare system "python3" on
+# Shell Executor's own PATH almost certainly doesn't have them, the same
+# class of gap this project has hit before for its own scripts (ezdxf,
+# Playwright: a command resolves from the executor's PATH, not any
+# particular project's venv). Configurable per deployment, defaults to
+# "python3" to keep Phase 29's own disposable-test-project behavior
+# unchanged for anyone who hasn't set this.
+DJANGO_PYTHON_BIN = os.environ.get("DJANGO_PYTHON_BIN", "python3")
+
 
 def handle_tool_call(parsed: dict, agent_capability: str, task_id: str, correlation_id: str = None) -> dict:
     subcommand = (parsed.get("manage_py_command") or "").strip()
@@ -26,7 +36,7 @@ def handle_tool_call(parsed: dict, agent_capability: str, task_id: str, correlat
         return {"summary": "DJANGO_PROJECT_ROOT not configured — cannot run a real manage.py command"}
 
     result = clients.shell_execute(
-        command="python3", args=["manage.py", subcommand], working_dir=DJANGO_PROJECT_ROOT, capability=agent_capability,
+        command=DJANGO_PYTHON_BIN, args=["manage.py", subcommand], working_dir=DJANGO_PROJECT_ROOT, capability=agent_capability,
         requesting_agent="reasoning_engine", task_id=task_id, mode="read_only", correlation_id=correlation_id or "",
     )
     if not result.get("ok"):

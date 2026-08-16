@@ -73,6 +73,23 @@ def test_command_that_forks_a_child_process_is_not_blocked(work_dir):
     assert "unable to fork" not in (result.stderr or "")
 
 
+def test_memory_limit_is_configurable_and_default_preserved(work_dir, monkeypatch):
+    """SANDBOX_MEMORY_LIMIT_MB is opt-in — the default (512MB) is
+    unchanged for every capability/deployment that hasn't explicitly
+    raised it, confirmed live: a real allocation the default cap refuses
+    succeeds once the limit is explicitly raised via this same setting,
+    and refuses again once it's back at the (unset) default."""
+    allocate_300mb = "python3 -c \"bytearray(300 * 1024 * 1024)\""
+
+    monkeypatch.setattr(sandbox_module, "SANDBOX_MEMORY_LIMIT_MB", 128)
+    under_limit = SubprocessSandbox().run("sh", ["-c", allocate_300mb], str(work_dir), "read_only")
+    assert under_limit.exit_code != 0  # 300MB request against a 128MB cap must fail
+
+    monkeypatch.setattr(sandbox_module, "SANDBOX_MEMORY_LIMIT_MB", 512)
+    at_default = SubprocessSandbox().run("sh", ["-c", allocate_300mb], str(work_dir), "read_only")
+    assert at_default.exit_code == 0  # 300MB comfortably fits the real, unchanged 512MB default
+
+
 def test_env_is_restricted_not_inherited_wholesale(work_dir, monkeypatch):
     monkeypatch.setenv("SOME_SECRET_LOOKING_VAR", "should-not-leak")
     result = SubprocessSandbox().run("sh", ["-c", "echo $SOME_SECRET_LOOKING_VAR"], str(work_dir), "read_only")

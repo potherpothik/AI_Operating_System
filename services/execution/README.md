@@ -104,6 +104,30 @@ cgroup-scoped per-container — real per-execution process limiting needs
 that, not a bare rlimit. Locked in as a permanent regression test
 (`test_command_that_forks_a_child_process_is_not_blocked`).
 
+## Phase 33 addition — the 512MB `RLIMIT_AS` cap is now configurable, opt-in
+
+Connecting a real external Django project (see `django_bridge.py`'s
+`DJANGO_PYTHON_BIN`, and `services/agents/README.md`'s own Phase 33
+section) surfaced the exact same class of finding Playwright's Node.js
+driver hit in Phase 29: real, real-world dependency stacks (Django +
+DRF + pandas/numpy's compiled extensions, in this case) can genuinely
+need more than 512MB of virtual address space to even import, confirmed
+by direct reproduction (applying the identical rlimit outside the
+sandbox reproduces the same `ImportError: ... failed to map segment
+from shared object`). Unlike Phase 29's Playwright finding — where no
+fix was applied, since nothing short of a real Docker backend actually
+solves a Node.js runtime's memory needs — this one has a real, safe fix:
+`SANDBOX_MEMORY_LIMIT_MB` (default `512`, unchanged for every
+capability/deployment that hasn't explicitly set it) lets a real
+single-operator deployment opt into a higher cap for its own real
+projects, without silently weakening the boundary for anyone who
+hasn't made that explicit, informed choice. Confirmed live: `manage.py
+check`/`showmigrations` against a real external Django project (with
+its own real venv, `django_agent`'s new `DJANGO_PYTHON_BIN` config)
+fail under the unchanged 512MB default and succeed once
+`SANDBOX_MEMORY_LIMIT_MB=2048` is set. 2 new tests in `test_sandbox.py`
+confirm both the default is unchanged and the override is honored.
+
 ## What's real
 
 - **Phase 29 addition:** a fourth real, reviewed, deterministic script —

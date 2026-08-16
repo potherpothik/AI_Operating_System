@@ -19,6 +19,24 @@ commands:
     mode: read_only
   - pattern: "python manage.py test*"
     mode: read_only
+  # A real project's own venv interpreter (DJANGO_PYTHON_BIN), not the
+  # bare system python3 — the real dependencies (Django, DRF, etc.) live
+  # in that venv, not on Shell Executor's own PATH. "*/env/bin/python*"
+  # matches the conventional per-project venv layout without hardcoding
+  # any one project's absolute path; still only these three read-only
+  # subcommands, same as the bare-python3 patterns above.
+  - pattern: "*/env/bin/python3 manage.py check*"
+    mode: read_only
+  - pattern: "*/env/bin/python manage.py check*"
+    mode: read_only
+  - pattern: "*/env/bin/python3 manage.py showmigrations*"
+    mode: read_only
+  - pattern: "*/env/bin/python manage.py showmigrations*"
+    mode: read_only
+  - pattern: "*/env/bin/python3 manage.py test*"
+    mode: read_only
+  - pattern: "*/env/bin/python manage.py test*"
+    mode: read_only
   # django.propose_migration/propose_config_change land as Git Manager
   # MRs — same read-only inspection + scoped mutating branch pattern
   # every other propose_* agent's own allowlist already uses.

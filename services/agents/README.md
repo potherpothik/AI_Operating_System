@@ -946,6 +946,31 @@ materializes as a real git document. One live-model smoke test each.
   since Research Agent's own template has repeatedly and explicitly
   declared zero external web access as a hard invariant since Phase 18.
   Full detail in `docs/aios-architecture-and-phases.md#phase-29-tool-adapter-gaps`.
+- **Phase 33: `django_bridge.py`'s interpreter is now configurable
+  (`DJANGO_PYTHON_BIN`, default `python3` unchanged) and connected to a
+  real external project for the first time.** The same class of
+  environment gap Phase 17/29 already found twice (`ezdxf`, then
+  `django`/`playwright`): a real project has its own venv with its own
+  real dependencies (Django, DRF, pandas, ...) installed — the bare
+  system `python3` on Shell Executor's own `PATH` doesn't have them.
+  Confirmed live against a genuine external Django project (not the
+  disposable `django-admin startproject` one this file's tests use):
+  `manage.py check`/`showmigrations` against real project code, real
+  migration state, through the real allowlist and real sandbox. Doing
+  this also surfaced a second, real, structural finding — that
+  project's own real dependency stack (pandas/numpy's compiled
+  extensions, loaded on top of Django's own full app registry) exceeds
+  `SubprocessSandbox`'s 512MB `RLIMIT_AS` cap, confirmed by direct
+  reproduction. Unlike the Playwright finding, this one has a real,
+  safe, opt-in fix — see `services/execution/README.md`'s own Phase 33
+  section for `SANDBOX_MEMORY_LIMIT_MB`. Also: `odoo_agent`'s own
+  `template.md` gained a real, targeted rewrite of its
+  `odoo.read_orm_live` instructions, correcting a genuine ambiguity
+  that led the local model to conflate "no knowledge-base documents
+  retrieved" with "no live connection configured" — a real improvement,
+  though live-agent reliability on this specific pattern remains capped
+  by the local model itself, not by the prompt (see
+  `docs/aios-architecture-and-phases.md#phase-33-operating-discipline`).
 
 ## What's a stub or simplified
 

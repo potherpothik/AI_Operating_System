@@ -9,6 +9,18 @@ from pathlib import Path
 SANDBOX_ROOT = Path(os.environ.get("SANDBOX_ROOT", "/tmp/ai_os_sandbox")).resolve()
 SANDBOX_IMAGE = os.environ.get("SANDBOX_IMAGE", "python:3.12-slim")
 DEFAULT_TIMEOUT_SECONDS = int(os.environ.get("SANDBOX_TIMEOUT_SECONDS", "60"))
+# Default unchanged from the original hardcoded value — real projects
+# with a heavier import chain (pandas/numpy's compiled extensions need
+# more virtual address space to mmap than 512MB allows once Django's own
+# full app registry is already loaded) can raise this explicitly via env
+# var. Deliberately NOT just raising the hardcoded default itself: this
+# is the same real security boundary that structurally refused
+# Playwright's own driver process earlier in this project's history, and
+# a silent global raise would weaken it for every capability using
+# shell.execute, not just the one that happens to need more headroom.
+# An explicit opt-in, default-preserving env var keeps that boundary
+# real for everyone who hasn't deliberately chosen otherwise.
+SANDBOX_MEMORY_LIMIT_MB = int(os.environ.get("SANDBOX_MEMORY_LIMIT_MB", "512"))
 
 # Only these env vars pass through to a sandboxed process — never the
 # full parent environment, which could otherwise leak secrets/credentials
@@ -85,7 +97,8 @@ class SubprocessSandbox:
         def _limit_resources():
             import resource
             resource.setrlimit(resource.RLIMIT_CPU, (timeout, timeout))
-            resource.setrlimit(resource.RLIMIT_AS, (512 * 1024 * 1024, 512 * 1024 * 1024))
+            memory_bytes = SANDBOX_MEMORY_LIMIT_MB * 1024 * 1024
+            resource.setrlimit(resource.RLIMIT_AS, (memory_bytes, memory_bytes))
             # Deliberately NOT setting RLIMIT_NPROC here: confirmed via live
             # testing that it's a per-UID, system-wide limit, not scoped to
             # this subprocess's own tree — it broke `git push`'s legitimate

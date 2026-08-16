@@ -2,6 +2,7 @@ import subprocess
 
 import pytest
 
+from agents import clients
 from agents.reasoning_engine import odoo_live_bridge, django_bridge, browser_bridge
 
 SCRIPTS_DIR = "/home/saadi/Documents/AI_Operating_System/.claude/worktrees/getting-started-3501ab/services/execution/execution/shell_executor/scripts"
@@ -97,6 +98,39 @@ def test_django_check_project_runs_real_showmigrations(governance_url, execution
 def test_django_check_project_rejects_an_unknown_subcommand():
     result = django_bridge.handle_tool_call({"manage_py_command": "migrate"}, "django_agent", "test-task-django-3")
     assert "must be one of" in result["summary"]
+
+
+def test_django_python_bin_defaults_to_python3():
+    """Backward-compat guard: every existing test in this file (and
+    Phase 29's own original design) relies on the unconfigured default
+    still being the bare "python3" Shell Executor's allowlist has always
+    matched. monkeypatch reverts after every test, so this reflects the
+    real, unpatched module default regardless of test order."""
+    assert django_bridge.DJANGO_PYTHON_BIN == "python3"
+
+
+def test_django_python_bin_override_reaches_shell_executor(django_project_root, monkeypatch):
+    """Real projects have their own venv with their own real dependencies
+    installed — the bare system python3 on Shell Executor's own PATH
+    doesn't have them (the same class of gap this project already hit for
+    ezdxf/Playwright). Confirms DJANGO_PYTHON_BIN actually reaches Shell
+    Executor's own `command` field, not just a local variable — a real
+    call-argument check, not just "the default still works" (already
+    covered by every other test in this file)."""
+    monkeypatch.setattr(django_bridge, "DJANGO_PROJECT_ROOT", str(django_project_root))
+    monkeypatch.setattr(django_bridge, "DJANGO_PYTHON_BIN", "/some/real/project/env/bin/python3")
+
+    captured = {}
+
+    def _fake_shell_execute(command, **kwargs):
+        captured["command"] = command
+        return {"ok": True, "result": {"exit_code": 0, "stdout": "System check identified no issues (0 silenced).", "stderr": "", "status": "completed"}}
+
+    monkeypatch.setattr(clients, "shell_execute", _fake_shell_execute)
+    result = django_bridge.handle_tool_call({"manage_py_command": "check"}, "django_agent", "test-task-django-python-bin")
+
+    assert captured["command"] == "/some/real/project/env/bin/python3"
+    assert "exit_code=0" in result["summary"]
 
 
 def test_django_check_project_honest_when_not_configured(monkeypatch):
